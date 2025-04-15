@@ -76,7 +76,8 @@ struct LessComp : public std::binary_function<T, T,  bool> {
 template <size_t SIZE>
 inline void sort_keys_node(Context& context, const MergeTestArrays& arrays, uint gpu, size_t temp_storage_bytes,
                            uint& out_array_index) {
-    cudaSetDevice(context.get_device_id(gpu));
+                            cudaSetDevice(0);
+    //cudaSetDevice(context.get_device_id(gpu));
 
     size_t temp_storage_bytes_req = 0;
 
@@ -103,7 +104,8 @@ inline void sort_keys_node(Context& context, const MergeTestArrays& arrays, uint
 template <size_t SIZE>
 inline void sort_kv_node(Context& context, const MergeTestArrays& arrays, uint gpu, size_t temp_storage_bytes,
                          uint& out_array_index) {
-    cudaSetDevice(context.get_device_id(gpu));
+    cudaSetDevice(0);
+    //cudaSetDevice(context.get_device_id(gpu));
 
     cub::DoubleBuffer<sa_index_t> key_dbuff(arrays.Data[1], arrays.Data[0]);
     cub::DoubleBuffer<sa_index_t> value_dbuff(arrays.Data[4], arrays.Data[3]);
@@ -145,7 +147,8 @@ template <size_t NUM_GPUS, size_t SIZE>
 void copy_up(Context& context, const std::array<MergeTestArrays, NUM_GPUS>& arrays,
              sa_index_t* test_data, sa_index_t* test_data2, uint array_index, uint array_index2) {
     for (uint i = 0; i < NUM_GPUS; ++i) {
-        cudaSetDevice(context.get_device_id(i));
+        cudaSetDevice(0);
+        //cudaSetDevice(context.get_device_id(i));
         cudaMemcpyAsync(arrays[i].Data[array_index], test_data+i*SIZE, sizeof(sa_index_t) * SIZE,
                         cudaMemcpyHostToDevice, context.get_gpu_default_stream(i));CUERR;
         if (test_data2) {
@@ -161,7 +164,8 @@ template <size_t NUM_GPUS, size_t SIZE>
 void copy_down(Context& context, const std::array<MergeTestArrays, NUM_GPUS>& arrays,
              sa_index_t* test_data, sa_index_t* test_data2, uint array_index, uint array_index2) {
     for (uint i = 0; i < NUM_GPUS; ++i) {
-        cudaSetDevice(context.get_device_id(i));
+        cudaSetDevice(0);
+        //cudaSetDevice(context.get_device_id(i));
         cudaMemcpyAsync(test_data+i*SIZE, arrays[i].Data[array_index], sizeof(sa_index_t) * SIZE,
                         cudaMemcpyDeviceToHost, context.get_gpu_default_stream(i));CUERR;
         if (test_data2) {
@@ -218,7 +222,8 @@ int main (int argc, char* argv[]) {
     using MergeNodeInfo = crossGPUReMerge::MergeNodeInfo<merge_types>;
     std::array<MergeNodeInfo, NUM_GPUS> node_info;
     for (uint i = 0; i < NUM_GPUS; ++i) {
-        cudaSetDevice(context.get_device_id(i)); CUERR;
+        cudaSetDevice(0);
+        //cudaSetDevice(context.get_device_id(i)); CUERR;
         arrays[i].len = SIZE;
         for (uint j = 0; j < NUM_ARRAYS; ++j) {
             size_t size = sizeof(sa_index_t) * SIZE;
@@ -320,7 +325,8 @@ int main (int argc, char* argv[]) {
     memcpy(test_data2, test_data_backup, NUM_GPUS*SIZE*sizeof(sa_index_t));
 
     TIMERSTART(copy_up_single);
-    cudaSetDevice(context.get_device_id(0));
+    cudaSetDevice(0);
+    //cudaSetDevice(context.get_device_id(0));
     cudaMemcpyAsync(arrays[0].Data[1], test_data, sizeof(sa_index_t) * SIZE * NUM_GPUS,
                     cudaMemcpyHostToDevice, context.get_gpu_default_stream(0));CUERR;
     cudaMemcpyAsync(arrays[0].Data[4], test_data2, sizeof(sa_index_t) * SIZE * NUM_GPUS,
@@ -360,7 +366,8 @@ int main (int argc, char* argv[]) {
     memcpy(test_data, test_data_backup, NUM_GPUS*SIZE*sizeof(sa_index_t));
 
     TIMERSTART(copy_up_single);
-    cudaSetDevice(context.get_device_id(0));
+    cudaSetDevice(0);
+    //cudaSetDevice(context.get_device_id(0));
     cudaMemcpyAsync(arrays[0].Data[1], test_data, sizeof(sa_index_t) * SIZE * NUM_GPUS,
                     cudaMemcpyHostToDevice, context.get_gpu_default_stream(0));CUERR;
     TIMERSTOP(copy_up_single);
@@ -384,7 +391,8 @@ int main (int argc, char* argv[]) {
 
     TIMERSTART(free);
     for (uint i = 0; i < NUM_GPUS; ++i) {
-        cudaSetDevice(context.get_device_id(i));CUERR;
+        cudaSetDevice(0);
+        //cudaSetDevice(context.get_device_id(i));CUERR;
         for (uint j = 0; j < NUM_ARRAYS; ++j) {
             cudaFree(arrays[i].Data[j]);
         }

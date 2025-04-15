@@ -68,7 +68,8 @@ class DistribMergeTest {
 
         void upload_data() {
             for (uint i = 0; i < NUM_GPUS; ++i) {
-                cudaSetDevice(mcontext.get_device_id(i));
+                cudaSetDevice(0);
+                //cudaSetDevice(mcontext.get_device_id(i));
                 cudaMemcpyAsync(d_inout[i], inp_a() + i*SIZE_PER_GPU,
                                 SIZE_PER_GPU * sizeof(key_t),
                                 cudaMemcpyHostToDevice, mcontext.get_gpu_default_stream(i));
@@ -86,7 +87,8 @@ class DistribMergeTest {
 //            memset(h_inout, 0, sizeof(key_t)*SIZE_PER_GPU * NUM_GPUS*2);
 
             for (uint i = 0; i < NUM_GPUS; ++i) {
-                cudaSetDevice(mcontext.get_device_id(i));
+                cudaSetDevice(0);
+                //cudaSetDevice(mcontext.get_device_id(i));
                 cudaMemcpyAsync(h_inout + i*2*SIZE_PER_GPU, d_inout[i], 2*SIZE_PER_GPU*sizeof(key_t),
                                 cudaMemcpyDeviceToHost,
                                 mcontext.get_gpu_default_stream(i));
@@ -101,7 +103,8 @@ class DistribMergeTest {
             h_result = new key_t[SIZE_PER_GPU*NUM_GPUS*2];
             CUERR;
             for (uint i = 0; i < NUM_GPUS; ++i) {
-                cudaSetDevice(mcontext.get_device_id(i));
+                cudaSetDevice(0);
+                //cudaSetDevice(mcontext.get_device_id(i));
                 cudaMalloc(&d_inout[i], 2*SIZE_PER_GPU*sizeof(key_t));
                 cudaMalloc(&d_buffer[i], 2*SIZE_PER_GPU*sizeof(key_t));
                 cudaMalloc(&d_temp[i], DEVICE_TEMP_SIZE);
@@ -112,7 +115,8 @@ class DistribMergeTest {
             cudaFreeHost(h_inout);
             cudaFreeHost(h_temp);
             for (uint i = 0; i < NUM_GPUS; ++i) {
-                cudaSetDevice(mcontext.get_device_id(i));
+                cudaSetDevice(0);
+                //cudaSetDevice(mcontext.get_device_id(i));
                 cudaFree(d_inout[i]);
                 cudaFree(d_buffer[i]);
                 cudaFree(d_temp[i]);
