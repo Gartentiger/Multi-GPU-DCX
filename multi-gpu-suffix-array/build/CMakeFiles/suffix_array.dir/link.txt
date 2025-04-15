@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/suffix_array.dir/src/util.cpp.o CMakeFiles/suffix_array.dir/src/suffix_array.cu.o CMakeFiles/suffix_array.dir/src/suffix_array_kernels.cu.o CMakeFiles/suffix_array.dir/src/io.cu.o -o suffix_array   -L/usr/local/cuda-12.8/targets/x86_64-linux/lib/stubs  -L/usr/local/cuda-12.8/targets/x86_64-linux/lib  -lcudadevrt -lcudart_static -lrt -lpthread -ldl 

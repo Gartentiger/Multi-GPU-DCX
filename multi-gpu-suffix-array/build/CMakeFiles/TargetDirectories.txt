@@ -1,0 +1,3 @@
+/mnt/c/Users/Patrick/Desktop/Informatik KIT/BA/multi-gpu-suffix-array/build/CMakeFiles/suffix_array.dir
+/mnt/c/Users/Patrick/Desktop/Informatik KIT/BA/multi-gpu-suffix-array/build/CMakeFiles/edit_cache.dir
+/mnt/c/Users/Patrick/Desktop/Informatik KIT/BA/multi-gpu-suffix-array/build/CMakeFiles/rebuild_cache.dir
