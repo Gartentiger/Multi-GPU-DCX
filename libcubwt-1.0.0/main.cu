@@ -14,11 +14,12 @@ int main()
     int64_t a = libcubwt_allocate_device_storage(&deviceStorage, 20);
     if (a == LIBCUBWT_NO_ERROR)
     {
-        const char *text = "yabbadabbado";
+        const char *text = "yabbadabbadodododo";
 
         const uint8_t *bytes = (const uint8_t *)text;
-        uint32_t isa[12];
-        int64_t err = libcubwt_isa(deviceStorage, bytes, isa, 12);
+
+        uint32_t isa[18];
+        int64_t err = libcubwt_isa(deviceStorage, bytes, isa, 18);
         if (err == LIBCUBWT_NO_ERROR)
         {
             printf("ISA: %u\n", isa[0]);
