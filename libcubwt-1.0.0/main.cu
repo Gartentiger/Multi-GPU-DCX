@@ -22,7 +22,10 @@ int main()
         int64_t err = libcubwt_isa(deviceStorage, bytes, isa, 18);
         if (err == LIBCUBWT_NO_ERROR)
         {
-            printf("ISA: %u\n", isa[0]);
+            for (int i = 0; i < 18; i++)
+            {
+                printf("Suffix: %c ISA: %u\n", text[i], isa[i]);
+            }
         }
         else
         {
