@@ -20,7 +20,7 @@ int main()
         uint8_t bytes[12]; // oder malloc, wenn dynamisch
 
         // Kopieren
-        for (size_t i = 0; i < len; i++)
+        for (uint64_t i = 0; i < len; i++)
         {
             bytes[i] = (uint8_t)text[i];
         }
@@ -28,7 +28,7 @@ int main()
         libcubwt_isa(deviceStorage, bytes, isa, len);
         for (int i = 0; i < 12; i++)
         {
-            printf("ISA: %u", *isa++);
+            // printf("ISA: %u", *isa++);
         }
     }
     // Starte den Kernel mit 1 Block und 5 Threads
