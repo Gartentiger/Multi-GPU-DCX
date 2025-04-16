@@ -24,11 +24,16 @@ int main()
         {
             bytes[i] = (uint8_t)text[i];
         }
-        uint32_t *isa = nullptr;
-        libcubwt_isa(deviceStorage, bytes, isa, len);
-        for (int i = 0; i < 12; i++)
+        uint32_t isa;
+        int64_t err = libcubwt_isa(deviceStorage, bytes, &isa, len);
+        if (err == LIBCUBWT_NO_ERROR)
         {
-            // printf("ISA: %u", *isa++);
+
+            printf("ISA: %u\n", isa);
+        }
+        else
+        {
+            printf("Error:%ld\n", err);
         }
     }
     // Starte den Kernel mit 1 Block und 5 Threads
