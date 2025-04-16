@@ -14,22 +14,14 @@ int main()
     int64_t a = libcubwt_allocate_device_storage(&deviceStorage, 20);
     if (a == LIBCUBWT_NO_ERROR)
     {
-        char text[] = "yabbadabbado";
-        uint64_t len = strlen(text);
+        const char *text = "yabbadabbado";
 
-        uint8_t bytes[12]; // oder malloc, wenn dynamisch
-
-        // Kopieren
-        for (uint64_t i = 0; i < len; i++)
-        {
-            bytes[i] = (uint8_t)text[i];
-        }
-        uint32_t isa;
-        int64_t err = libcubwt_isa(deviceStorage, bytes, &isa, len);
+        const uint8_t *bytes = (const uint8_t *)text;
+        uint32_t isa[12];
+        int64_t err = libcubwt_isa(deviceStorage, bytes, isa, 12);
         if (err == LIBCUBWT_NO_ERROR)
         {
-
-            printf("ISA: %u\n", isa);
+            printf("ISA: %u\n", isa[0]);
         }
         else
         {
