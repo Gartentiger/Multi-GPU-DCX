@@ -2,13 +2,19 @@
 #include "cuda_helpers.h"
 #include <cstdio>
 
-void write_array(const char *ofile, const sa_index_t *sa, size_t len) {
-    FILE* fp = fopen(ofile, "wb");
-    if (!fp) {
+void write_array(const char *ofile, const sa_index_t *sa, size_t len)
+{
+    FILE *fp = fopen(ofile, "wb");
+    if (!fp)
+    {
         error("Couldn't open file for writing!");
     }
-
-    if (fwrite(sa, sizeof(sa_index_t), len, fp) != len) {
+    for (size_t i = 0; i < len; i++)
+    {
+        printf("AA: %d\n", sa[i]);
+    }
+    if (fwrite(sa, sizeof(sa_index_t), len, fp) != len)
+    {
         fclose(fp);
         error("Error writing file!");
     }
@@ -16,18 +22,20 @@ void write_array(const char *ofile, const sa_index_t *sa, size_t len) {
     fclose(fp);
 }
 
-
-size_t read_file_into_host_memory(char** contents, const char* path, size_t& real_len,
-                                  size_t padd_to, char padd_c) {
-    FILE* file = fopen(path, "rb");
-    if (!file) {
+size_t read_file_into_host_memory(char **contents, const char *path, size_t &real_len,
+                                  size_t padd_to, char padd_c)
+{
+    FILE *file = fopen(path, "rb");
+    if (!file)
+    {
         error("Couldn't open file.");
     }
     fseek(file, 0, SEEK_END);
 
     size_t len = ftell(file);
 
-    if (len == 0) {
+    if (len == 0)
+    {
         error("File is empty!");
     }
 
@@ -35,7 +43,8 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
 
     size_t len_padded = SDIV(len, padd_to) * padd_to;
 
-    cudaMallocHost(contents, len_padded); CUERR
+    cudaMallocHost(contents, len_padded);
+    CUERR
 
     if (fread(*contents, 1, len, file) != len)
         error("Error reading file!");
@@ -48,7 +57,8 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
 
     real_len = len;
 
-    for (size_t i = len; i < len_padded; ++i) {
+    for (size_t i = len; i < len_padded; ++i)
+    {
         (*contents)[i] = padd_c;
     }
 
