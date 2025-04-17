@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(suffix_array LANGUAGES CXX CUDA)
 
-option(DGX1_TOPOLOGY "Handle DGX-1 topology" ON)
+option(DGX1_TOPOLOGY "Handle DGX-1 topology" OFF)
 
 add_executable(suffix_array 
                 src/util.h
