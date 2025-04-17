@@ -786,9 +786,11 @@ int main(int argc, char **argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
+    printf("Len %d\n", realLen);
     MultiGPUContext<NUM_GPUS> context;
+    printf("ffs\n");
+
 #endif
-    printf("Len %d", realLen);
     SuffixSorter sorter(context, realLen, input);
     sorter.alloc();
 
