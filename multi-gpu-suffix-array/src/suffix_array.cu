@@ -776,7 +776,9 @@ int main(int argc, char **argv)
 
     cudaSetDevice(0);
     size_t realLen;
+    printf("ff\n");
     size_t inputLen = read_file_into_host_memory(&input, argv[1], realLen, sizeof(sa_index_t), 0);
+    printf("Len %d\n", realLen);
 
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
@@ -786,10 +788,7 @@ int main(int argc, char **argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    printf("Len %d\n", realLen);
     MultiGPUContext<NUM_GPUS> context;
-    printf("ffs\n");
-
 #endif
     SuffixSorter sorter(context, realLen, input);
     sorter.alloc();
