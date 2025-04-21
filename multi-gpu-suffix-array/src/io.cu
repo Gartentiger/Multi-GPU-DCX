@@ -9,10 +9,10 @@ void write_array(const char *ofile, const sa_index_t *sa, size_t len)
     {
         error("Couldn't open file for writing!");
     }
-    for (size_t i = 0; i < len; i++)
-    {
-        printf("AA: %d\n", sa[i]);
-    }
+    // for (size_t i = 0; i < len; i++)
+    // {
+    //     printf("AA: %d\n", sa[i]);
+    // }
     if (fwrite(sa, sizeof(sa_index_t), len, fp) != len)
     {
         fclose(fp);

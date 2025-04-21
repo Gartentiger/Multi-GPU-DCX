@@ -25,6 +25,7 @@ int main()
             printf("Error:%ld\n", err);
         }
     }
+    libcubwt_free_device_storage(deviceStorage);
     cudaDeviceSynchronize();
 
     return 0;
