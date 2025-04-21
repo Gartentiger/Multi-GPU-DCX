@@ -239,7 +239,7 @@ public:
     {
         // mper_gpu how much data for one gpu
         mper_gpu = SDIV(minput_len, NUM_GPUS);
-
+        printf("ABC: %d\n", mper_gpu);
         ASSERT_MSG(mper_gpu >= 3, "Please give me more input.");
 
         // Ensure each gpu has a multiple of 3 because of triplets.
