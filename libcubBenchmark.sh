@@ -1,5 +1,5 @@
 #!/bin/bash
 
-cd libcubwt-1.0.0
+cd Multi-GPU-DCX/libcubwt-1.0.0
 spack env activate nvidia
 nvcc main.cu libcubwt.cu -o Test && ./Test input.txt output
