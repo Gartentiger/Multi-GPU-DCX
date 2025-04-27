@@ -2,4 +2,4 @@
 
 cd libcubwt-1.0.0
 spack env activate nvidia
-./Test input.txt output
+nvcc main.cu libcubwt.cu -o Test && ./Test input.txt output
