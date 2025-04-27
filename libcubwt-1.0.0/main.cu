@@ -1,28 +1,56 @@
 #include <stdio.h>
 #include "libcubwt.cuh"
-#include "io.cuh"
-#include <stdio.h>
+#include <iostream>
+#include <fstream>
+#include <cstdint> 
+#include <cstring>
+#include <chrono>
+#include <string>
 
-int main(int argc, char** argv)
+int main(int argc, char** args)
 {
-    if (argc != 2) {
-        printf("args");
-        return -1;
+    if (argc != 3) {
+        std::cerr << "Bad args" << std::endl;
+        return 1;
     }
-    char* text; //= "yabbadabbadodododfadsagldfkaölkjghksöadflhslködsfsdgadfgsahgshstfhhfjhlskghndlkfgnasökligneaölkgrnrngökren";
-    size_t len;
-    read_file_into_host_memory(&text, argv[1], len, sizeof(uint32_t), 0);
-    //while (*(text + len++) != '\0') {}
-    //printf("input_len %lu realeln %lu len %lu\n", inputLen, real_len, len);
+
+    std::ifstream inFile(args[1], std::ios::binary | std::ios::ate);
+    if (!inFile.is_open()) {
+        std::cerr << "Error opening input file" << std::endl;
+        return 1;
+    }
+    auto size = inFile.tellg();
+    inFile.seekg(0, std::ios::beg);
+
+    auto buffer = new uint8_t[size];
+
+    if (!inFile.read(reinterpret_cast<char*>(buffer), size)) {
+        std::cerr << "Error reading input file" << std::endl;
+        delete[] buffer;
+        return 1;
+    }
+
+    inFile.close();
+
+    printf("Read %lu bytes\n", (size_t)size);
+
+
 
     void* deviceStorage;
-    int64_t a = libcubwt_allocate_device_storage(&deviceStorage, len);
-    if (a == LIBCUBWT_NO_ERROR)
-    {
-        const uint8_t* bytes = (const uint8_t*)text;
+    int64_t allocError = libcubwt_allocate_device_storage(&deviceStorage, size);
 
-        uint32_t isa[len];
-        int64_t err = libcubwt_isa(deviceStorage, bytes, isa, len);
+    if (allocError == LIBCUBWT_NO_ERROR)
+    {
+        uint32_t* isa = new uint32_t[size];
+
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        int64_t err = libcubwt_isa(deviceStorage, buffer, isa, size);
+
+        auto stop = std::chrono::high_resolution_clock::now();
+
+        delete[] isa;
         if (err == LIBCUBWT_NO_ERROR)
         {
             //for (int i = 0; i < len; i++)
@@ -32,11 +60,30 @@ int main(int argc, char** argv)
         }
         else
         {
-            printf("Error:%ld\n", err);
+            std::cerr << "Error: " << err << std::endl;
         }
+
+        auto duration = (float)(std::chrono::duration_cast<std::chrono::microseconds>(stop - start)).count() / 1000.f;
+        printf("Time %fms\n", duration);
+
+        std::ofstream outFile(args[2], std::ios::app);
+        if (!outFile.is_open()) {
+            std::cerr << "Error opening output file!" << std::endl;
+            return 1;
+        }
+        auto path = ((std::string)args[1]);
+        int pos = path.find_last_of("/\\");
+        std::string fileName = (pos == std::string::npos) ? args[1] : path.substr(pos + 1);
+        outFile << "Libcubwt," << fileName << "," << duration << std::endl;
+        outFile.close();
+
+    }
+    else {
+        std::cerr << "Error during allocation: " << allocError << std::endl;
+        return 1;
     }
     libcubwt_free_device_storage(deviceStorage);
-    cudaDeviceSynchronize();
+    delete[] buffer;
     printf("Success\n");
     return 0;
 }
