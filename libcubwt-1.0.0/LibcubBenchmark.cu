@@ -15,19 +15,29 @@ int main(int argc, char** args)
         return 1;
     }
 
-    size_t size = 0;
-    uint8_t* buffer;
-    if (read(args[1], buffer, size) != 0) {
+    std::ifstream inFile(args[1], std::ios::binary | std::ios::ate);
+    if (!inFile.is_open()) {
+        std::cerr << "Error opening input file" << std::endl;
         return 1;
     }
-
+    auto size = inFile.tellg();
+    inFile.seekg(0, std::ios::beg);
+    printf("ff");
+    uint8_t* buffer = new uint8_t[size];
+    printf("t");
+    if (!inFile.read(reinterpret_cast<char*>(buffer), size)) {
+        std::cerr << "Error reading input file" << std::endl;
+        return 1;
+    }
+    inFile.close();
+    printf("t1");
     void* deviceStorage;
     int64_t allocError = libcubwt_allocate_device_storage(&deviceStorage, size);
-
+    printf("t2");
     if (allocError == LIBCUBWT_NO_ERROR)
     {
         uint32_t* sa = new uint32_t[size];
-
+        printf("t3");
 
         auto start = std::chrono::high_resolution_clock::now();
 
