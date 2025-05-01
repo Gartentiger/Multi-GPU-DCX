@@ -6,7 +6,6 @@
 #include <chrono>
 #include <string>
 #include "libcubwt.cuh"
-#include "io.cuh"
 
 int main(int argc, char** args)
 {
@@ -14,13 +13,13 @@ int main(int argc, char** args)
         std::cerr << "Bad args" << std::endl;
         return 1;
     }
-
+    printf("fff");
     std::ifstream inFile(args[1], std::ios::binary | std::ios::ate);
     if (!inFile.is_open()) {
         std::cerr << "Error opening input file" << std::endl;
         return 1;
     }
-    auto size = inFile.tellg();
+    size_t size = inFile.tellg();
     inFile.seekg(0, std::ios::beg);
     printf("ff");
     uint8_t* buffer = new uint8_t[size];
@@ -61,9 +60,17 @@ int main(int argc, char** args)
 
         auto duration = (float)(std::chrono::duration_cast<std::chrono::microseconds>(stop - start)).count() / 1000.f;
 
-        if (write(args[2], duration) != 0) {
+        std::ofstream outFile(args[2], std::ios::app);
+        if (!outFile.is_open()) {
+            std::cerr << "Error opening output file!" << std::endl;
             return 1;
         }
+        auto stringPath = ((std::string)args[2]);
+        int pos = stringPath.find_last_of("/\\");
+        auto fileName = (pos == std::string::npos) ? args[2] : stringPath.substr(pos + 1);
+        outFile << "Libcubwt," << fileName << "," << duration << std::endl;
+        printf("libcubwt,%s,%f\n", fileName.c_str(), duration);
+        outFile.close();
     }
     else {
         std::cerr << "Error during allocation: " << allocError << std::endl;
