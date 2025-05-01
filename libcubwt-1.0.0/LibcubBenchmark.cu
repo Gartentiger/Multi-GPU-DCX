@@ -14,9 +14,9 @@ int main(int argc, char** args)
         std::cerr << "Bad args" << std::endl;
         return 1;
     }
-    const uint8_t* buffer2;
+    uint8_t* buffer2;
     size_t size2 = 0;
-    read(args[1], &buffer2, size2);
+    read(args[1], buffer2, size2);
 
     std::ifstream inFile(args[1], std::ios::binary | std::ios::ate);
     if (!inFile.is_open()) {

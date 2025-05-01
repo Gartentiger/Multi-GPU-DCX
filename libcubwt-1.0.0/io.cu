@@ -4,7 +4,7 @@
 #include <iostream>
 
 
-int read(char* path, const uint8_t** content, size_t& size) {
+int read(char* path, uint8_t*& content, size_t& size) {
     std::ifstream inFile(path, std::ios::binary | std::ios::ate);
     if (!inFile.is_open()) {
         std::cerr << "Error opening input file" << std::endl;
@@ -12,11 +12,12 @@ int read(char* path, const uint8_t** content, size_t& size) {
     }
     size = inFile.tellg();
     inFile.seekg(0, std::ios::beg);
-    *content = new uint8_t[size];
-    if (!inFile.read(reinterpret_cast<char*>(content), size)) {
+    auto buffer = new uint8_t[size];
+    if (!inFile.read(reinterpret_cast<char*>(buffer), size)) {
         std::cerr << "Error reading input file" << std::endl;
         return 1;
     }
+    content = buffer;
     inFile.close();
 
     return 0;
