@@ -14,7 +14,7 @@ int main(int argc, char** args)
         std::cerr << "Bad args" << std::endl;
         return 1;
     }
-    uint8_t* buffer2;
+    uint8_t* buffer2 = new uint8_t[0];
     size_t size = 0;
     read(args[1], buffer2, size);
 
