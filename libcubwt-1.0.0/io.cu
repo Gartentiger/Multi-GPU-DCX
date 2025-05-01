@@ -4,7 +4,7 @@
 #include <iostream>
 
 
-int read(char* path, uint8_t** content, size_t& size) {
+int read(char* path, const uint8_t** content, size_t& size) {
     std::ifstream inFile(path, std::ios::binary | std::ios::ate);
     if (!inFile.is_open()) {
         std::cerr << "Error opening input file" << std::endl;
