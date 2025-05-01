@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
+#include <cstdint> 
 
-int read();
-size_t read_file_into_host_memory(char** contents, const char* path, size_t& real_len,
-    size_t padd_to, char padd_c);
+int read(char* path, uint8_t*& content, size_t& size);
+
+int write(char* path, float duration);

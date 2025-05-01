@@ -1,55 +1,38 @@
 #include "io.cuh"
-#include <cuda_runtime.h>
 #include <cstdio>
+#include <fstream>
+#include <iostream>
 
-int read() {
-    FILE* file = fopen("", "r");
-    if (file == NULL) {
-        perror("Cannot open file!");
-        exit(1);
+
+int read(char* path, uint8_t*& content, size_t& size) {
+    std::ifstream inFile(path, std::ios::binary | std::ios::ate);
+    if (!inFile.is_open()) {
+        std::cerr << "Error opening input file" << std::endl;
+        return 1;
     }
+    size = inFile.tellg();
+    inFile.seekg(0, std::ios::beg);
+    content = new uint8_t[size];
+    if (!inFile.read(reinterpret_cast<char*>(content), size)) {
+        std::cerr << "Error reading input file" << std::endl;
+        return 1;
+    }
+    inFile.close();
+
     return 0;
 }
 
-size_t read_file_into_host_memory(char** contents, const char* path, size_t& real_len,
-    size_t padd_to, char padd_c)
-{
-    FILE* file = fopen(path, "rb");
-    if (!file)
-    {
-        perror("Couldn't open file.");
+int write(char* path, float duration) {
+    std::ofstream outFile(path, std::ios::app);
+    if (!outFile.is_open()) {
+        std::cerr << "Error opening output file!" << std::endl;
+        return 1;
     }
-    fseek(file, 0, SEEK_END);
-
-    size_t len = ftell(file);
-
-    if (len == 0)
-    {
-        perror("File is empty!");
-    }
-
-    fseek(file, 0, SEEK_SET);
-
-    size_t len_padded = ((len + padd_to - 1) / padd_to) * padd_to;
-
-    cudaMallocHost(contents, len_padded);
-    //CUERR
-
-    if (fread(*contents, 1, len, file) != len)
-        perror("Error reading file!");
-
-    fclose(file);
-
-    // For logging.
-    fprintf(stdout, "Read %zu bytes from %s.\n", len, path);
-    fprintf(stderr, "Read %zu bytes from %s.\n", len, path);
-
-    real_len = len;
-
-    for (size_t i = len; i < len_padded; ++i)
-    {
-        (*contents)[i] = padd_c;
-    }
-
-    return len_padded;
+    auto stringPath = ((std::string)path);
+    int pos = stringPath.find_last_of("/\\");
+    auto fileName = (pos == std::string::npos) ? path : stringPath.substr(pos + 1);
+    outFile << "Libcubwt," << fileName << "," << duration << std::endl;
+    printf("libcubwt,%s,%f\n", fileName.c_str(), duration);
+    outFile.close();
+    return 0;
 }
