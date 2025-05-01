@@ -14,25 +14,12 @@ int main(int argc, char** args)
         std::cerr << "Bad args" << std::endl;
         return 1;
     }
-    size_t size2 = 0;
-    uint8_t* buffer2 = read(args[1], &size2);;
-
-
-    std::ifstream inFile(args[1], std::ios::binary | std::ios::ate);
-    if (!inFile.is_open()) {
-        std::cerr << "Error opening input file" << std::endl;
+    size_t size = 0;
+    uint8_t* buffer = read(args[1], size);
+    if (!buffer) {
+        std::cerr << "Error buffer" << std::endl;
         return 1;
     }
-    auto size = inFile.tellg();
-    inFile.seekg(0, std::ios::beg);
-
-    uint8_t* buffer = new uint8_t[size];
-
-    if (!inFile.read(reinterpret_cast<char*>(buffer), size)) {
-        std::cerr << "Error reading input file" << std::endl;
-        return 1;
-    }
-    inFile.close();
 
     void* deviceStorage;
     int64_t allocError = libcubwt_allocate_device_storage(&deviceStorage, size);
@@ -64,17 +51,7 @@ int main(int argc, char** args)
 
         auto duration = (float)(std::chrono::duration_cast<std::chrono::microseconds>(stop - start)).count() / 1000.f;
 
-        std::ofstream outFile(args[2], std::ios::app);
-        if (!outFile.is_open()) {
-            std::cerr << "Error opening output file!" << std::endl;
-            return 1;
-        }
-        auto stringPath = ((std::string)args[2]);
-        int pos = stringPath.find_last_of("/\\");
-        auto fileName = (pos == std::string::npos) ? args[2] : stringPath.substr(pos + 1);
-        outFile << "Libcubwt," << fileName << "," << duration << std::endl;
-        printf("libcubwt,%s,%f\n", fileName.c_str(), duration);
-        outFile.close();
+        write(args[2], duration);
     }
     else {
         std::cerr << "Error during allocation: " << allocError << std::endl;

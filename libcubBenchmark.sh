@@ -11,4 +11,4 @@ mkdir build
 cd build
 cmake ..
 make -j8
-./BenchmarkLibcub ../../../../../share/instances/text/dna.txt output
+./BenchmarkLibcub ../../../../../share/instances/text/trec-text.terms output
