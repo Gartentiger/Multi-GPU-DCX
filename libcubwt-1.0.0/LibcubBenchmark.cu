@@ -15,7 +15,7 @@ int main(int argc, char** args)
         return 1;
     }
     size_t size2 = 0;
-    uint8_t* buffer2 = read(args[1], size2);;
+    uint8_t* buffer2 = read(args[1], &size2);;
 
 
     std::ifstream inFile(args[1], std::ios::binary | std::ios::ate);
