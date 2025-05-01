@@ -4,4 +4,4 @@
 
 uint8_t* read(char* path, size_t& size);
 
-int write(char* path, float duration);
+int write(char* OutPath, char* inputPath, float duration);

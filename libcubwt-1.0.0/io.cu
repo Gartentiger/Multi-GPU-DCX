@@ -22,15 +22,15 @@ uint8_t* read(char* path, size_t& size) {
     return buffer;
 }
 
-int write(char* path, float duration) {
-    std::ofstream outFile(path, std::ios::app);
+int write(char* OutPath, char* inputPath, float duration) {
+    std::ofstream outFile(OutPath, std::ios::app);
     if (!outFile.is_open()) {
         std::cerr << "Error opening output file!" << std::endl;
         return 1;
     }
-    auto stringPath = ((std::string)path);
+    auto stringPath = ((std::string)inputPath);
     int pos = stringPath.find_last_of("/\\");
-    auto fileName = (pos == std::string::npos) ? path : stringPath.substr(pos + 1);
+    auto fileName = (pos == std::string::npos) ? inputPath : stringPath.substr(pos + 1);
     outFile << "Libcubwt," << fileName << "," << duration << std::endl;
     printf("libcubwt,%s,%f\n", fileName.c_str(), duration);
     outFile.close();

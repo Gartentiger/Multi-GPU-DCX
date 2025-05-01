@@ -8,14 +8,14 @@
 #include "libcubwt.cuh"
 #include "io.cuh"
 
-int main(int argc, char** args)
+int main(int argc, char** argv)
 {
     if (argc != 3) {
         std::cerr << "Bad args" << std::endl;
         return 1;
     }
     size_t size = 0;
-    uint8_t* buffer = read(args[1], size);
+    uint8_t* buffer = read(argv[1], size);
     if (!buffer) {
         std::cerr << "Error buffer" << std::endl;
         return 1;
@@ -51,7 +51,7 @@ int main(int argc, char** args)
 
         auto duration = (float)(std::chrono::duration_cast<std::chrono::microseconds>(stop - start)).count() / 1000.f;
 
-        write(args[2], duration);
+        write(argv[2], argv[1], duration);
     }
     else {
         std::cerr << "Error during allocation: " << allocError << std::endl;
