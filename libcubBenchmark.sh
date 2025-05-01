@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J Test
+#SBATCH -J BenchmarkLibcub
 #SBATCH --partition=feigenbaum
 #SBATCH --get-user-env
 #SBATCH --time=20
@@ -11,4 +11,4 @@ mkdir build
 cd build
 cmake ..
 make -j8
-./BenchmarkLibcub input output
+./BenchmarkLibcub ../../../../../share/instances/text/dna.txt output
