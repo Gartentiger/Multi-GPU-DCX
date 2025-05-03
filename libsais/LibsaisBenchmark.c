@@ -7,9 +7,14 @@
 
 int main(int argc, char const* argv[])
 {
+    if (argc != 3) {
+        printf("Bad args\n");
+        return 1;
+    }
+
     FILE* file = fopen(argv[1], "rb");
     if (!file) {
-        printf("Error opening file\n");
+        printf("Error opening input file\n");
         return 1;
     }
     fseek(file, 0, SEEK_END);
@@ -18,18 +23,20 @@ int main(int argc, char const* argv[])
 
     uint8_t* t = (uint8_t*)malloc(size);
     if (!t) {
-        printf("Error allocating\n");
+        printf("Error allocating T\n");
         return 1;
     }
 
     uint32_t* sa = (uint32_t*)malloc(sizeof(uint32_t) * size);
 
     if (!sa) {
-        printf("Error allocating sa\n");
+        printf("Error allocating SA\n");
         return 1;
     }
 
     fread(t, 1, size, file);
+    fclose(file);
+
     clock_t start, end;
     float time;
 
@@ -49,17 +56,22 @@ int main(int argc, char const* argv[])
     else {
         fileName = argv[1];
     }
-    switch (err) {
-    case 0:
+
+    if (!err) {
         printf("libsais,%s,%f\n", fileName, time);
-        break;
-    default:
+    }
+    else {
         printf("Error: %d\n", err);
         return 1;
-        break;
     }
     free(sa);
     free(t);
-    fclose(file);
+
+    FILE* outFile = fopen(argv[2], "w");
+    if (!outFile) {
+        printf("Error opening output file\n");
+        return 1;
+    }
+    fprintf(outFile, "libsais,%s,%f\n", fileName, time);
     return 0;
 }
