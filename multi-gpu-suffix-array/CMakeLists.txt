@@ -3,6 +3,8 @@ project(suffix_array LANGUAGES CXX CUDA)
 
 option(DGX1_TOPOLOGY "Handle DGX-1 topology" OFF)
 
+set(CMAKE_CUDA_ARCHITECTURES 60)
+
 add_executable(suffix_array 
                 src/util.h
                 src/util.cpp
