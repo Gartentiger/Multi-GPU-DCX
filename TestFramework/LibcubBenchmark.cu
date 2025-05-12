@@ -2,12 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdint> 
-#include <numeric>
-#include <random>
-#include <thread>
-#include <vector>
 #include <cstring>
-#include <chrono>
 #include <string>
 
 
@@ -29,17 +24,7 @@ int main(int argc, char** argv)
     using namespace kamping;
     kamping::Environment e;
     Communicator         comm;
-    std::vector<int>     input(comm.size());
-    std::iota(input.begin(), input.end(), 0);
-    std::vector<int> output;
 
-    auto sleep_some_time = [&]() {
-        static std::mt19937                gen(static_cast<std::mt19937::result_type>(comm.rank() + 17) * 1001);
-        std::uniform_int_distribution<int> distrib(50, 10'000);
-        const std::chrono::microseconds    sleep_duration{ distrib(gen) };
-        std::this_thread::sleep_for(sleep_duration);
-        };
-    // Get timer singleton. Alternatively you can also instantiate a new timer.
     auto& t = kamping::measurements::timer();
 
     if (argc != 3) {

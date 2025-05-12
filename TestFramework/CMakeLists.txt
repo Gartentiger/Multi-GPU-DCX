@@ -10,18 +10,16 @@ set(CMAKE_CUDA_ARCHITECTURES 70)
 
 add_executable(BenchmarkLibcub LibcubBenchmark.cu)
 
-# include(FetchContent)
-# FetchContent_Declare(
-#   kamping
-#   GIT_REPOSITORY https://github.com/kamping-site/kamping.git
-#   GIT_TAG v0.1.2
-# )
-# 
-# FetchContent_MakeAvailable(kamping)
-# target_link_libraries(BenchmarkLibcub PRIVATE kamping)
+include(FetchContent)
+FetchContent_Declare(
+  kamping
+  GIT_REPOSITORY https://github.com/kamping-site/kamping.git
+  GIT_TAG v0.1.2
+)
 
-add_subdirectory(external/kamping)
+FetchContent_MakeAvailable(kamping)
 target_link_libraries(BenchmarkLibcub PRIVATE kamping)
+
 target_compile_options(kamping INTERFACE
    $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-std=gnu++17>)
 

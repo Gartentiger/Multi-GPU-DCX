@@ -20,6 +20,26 @@
 #include "gossip/multisplit.cuh"
 #include "distrib_merge/distrib_merge.hpp"
 
+#include <chrono>
+#include <numeric>
+#include <random>
+#include <thread>
+#include <vector>
+
+#include <mpi.h>
+
+#include <stdio.h>
+#include <iostream>
+#include <fstream>
+#include <kamping/checking_casts.hpp>
+#include <kamping/collectives/alltoall.hpp>
+#include <kamping/data_buffer.hpp>
+#include <kamping/environment.hpp>
+#include <kamping/measurements/printer.hpp>
+#include <kamping/measurements/timer.hpp>
+#include <kamping/named_parameters.hpp>
+#include <kamping/communicator.hpp>
+
 static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
@@ -798,41 +818,63 @@ void print_device_info()
 }
 int main(int argc, char** argv)
 {
-
-    if (argc != 3)
+    using namespace kamping;
+    kamping::Environment e;
+    Communicator         comm;
+    auto& t = kamping::measurements::timer();
+    if (argc < 3)
     {
         error("Usage: sa-test <ifile> <ofile>!");
     }
-    // print_device_info();
-    char* input = nullptr;
 
-    cudaSetDevice(0);
-    size_t realLen;
-    size_t inputLen = read_file_into_host_memory(&input, argv[1], realLen, sizeof(sa_index_t), 0);
+    for (int i = 0; i < argc - 2; i++) {
+
+        char* input = nullptr;
+
+        cudaSetDevice(0);
+        size_t realLen;
+        size_t inputLen = read_file_into_host_memory(&input, argv[i + 2], realLen, sizeof(sa_index_t), 0);
 
 #ifdef DGX1_TOPOLOGY
-    //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
-    //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
-    //    const std::array<uint, NUM_GPUS> gpu_ids { 3, 2, 1, 0,    4, 5, 6, 7 };
-    const std::array<uint, NUM_GPUS> gpu_ids{ 3, 2, 1, 0, 4, 7, 6, 5 };
+        //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
+        //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
+        //    const std::array<uint, NUM_GPUS> gpu_ids { 3, 2, 1, 0,    4, 5, 6, 7 };
+        const std::array<uint, NUM_GPUS> gpu_ids{ 3, 2, 1, 0, 4, 7, 6, 5 };
 
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
+        MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    MultiGPUContext<NUM_GPUS> context;
+        MultiGPUContext<NUM_GPUS> context;
 #endif
-    SuffixSorter sorter(context, realLen, input);
-    sorter.alloc();
+        SuffixSorter sorter(context, realLen, input);
+        sorter.alloc();
+        auto stringPath = ((std::string)argv[i + 2]);
+        int pos = stringPath.find_last_of("/\\");
+        auto fileName = (pos == std::string::npos) ? argv[i + 2] : stringPath.substr(pos + 1);
 
-    sorter.do_sa();
+        t.synchronize_and_start(fileName);
 
-    write_array(argv[2], sorter.get_result(), realLen);
+        sorter.do_sa();
 
-    sorter.done();
+        t.stop();
 
-    sorter.print_pd_stats();
-    sorter.get_perf_measurements().print();
+        // write_array(argv[2], sorter.get_result(), realLen);
 
-    cudaFreeHost(input);
-    CUERR;
+        sorter.done();
+
+        //sorter.print_pd_stats();
+        //sorter.get_perf_measurements().print();
+
+        cudaFreeHost(input);
+        CUERR;
+    }
+
+
+    std::ofstream outFile(argv[1], std::ios::app);
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ outFile, {} }
+    );
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
 }
 

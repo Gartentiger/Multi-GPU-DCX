@@ -1,9 +1,12 @@
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 project(suffix_array LANGUAGES CXX CUDA)
 
 option(DGX1_TOPOLOGY "Handle DGX-1 topology" OFF)
 
 set(CMAKE_CUDA_ARCHITECTURES 60)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(suffix_array 
                 src/util.h
@@ -60,7 +63,22 @@ if(DGX1_TOPOLOGY)
     target_compile_definitions(suffix_array PRIVATE DGX1_TOPOLOGY)
 endif(DGX1_TOPOLOGY)
 
-target_compile_features(suffix_array PUBLIC cxx_std_11)
+
+include(FetchContent)
+FetchContent_Declare(
+  kamping
+  GIT_REPOSITORY https://github.com/kamping-site/kamping.git
+  GIT_TAG v0.1.2
+)
+
+FetchContent_MakeAvailable(kamping)
+target_link_libraries(suffix_array PRIVATE kamping)
+
+
+target_compile_options(kamping INTERFACE
+   $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-std=gnu++17>)
+
+#target_compile_features(suffix_array PUBLIC cxx_std_17)
 
 set(GEN_CODE_OPTIONS "--relocatable-device-code=false -gencode arch=compute_60,code=compute_60 -gencode arch=compute_60,code=sm_60")
 
