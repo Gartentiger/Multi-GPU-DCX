@@ -46,9 +46,9 @@ int main(int argc, char **argv)
         {
             uint32_t *sa = new uint32_t[size];
 
-            auto stringPath = ((std::string)inputPath);
+            auto stringPath = ((std::string)argv[i + 2]);
             int pos = stringPath.find_last_of("/\\");
-            auto fileName = (pos == std::string::npos) ? inputPath : stringPath.substr(pos + 1);
+            auto fileName = (pos == std::string::npos) ? argv[i + 2] : stringPath.substr(pos + 1);
             t.synchronize_and_start(fileName);
 
             int64_t err = libcubwt_sa(deviceStorage, buffer, sa, size);
