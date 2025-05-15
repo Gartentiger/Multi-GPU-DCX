@@ -712,7 +712,7 @@ private:
                 cudaMemcpyAsync(gpu.Sa_index, gpu.Temp2, lens_after_compacting[gpu_index] * sizeof(sa_index_t),
                                 cudaMemcpyDeviceToDevice, mcontext.get_streams(gpu_index)[1]);
                 CUERR;
-                printf("671,PrefixDoubling %d", 1;
+                printf("671,PrefixDoubling %d", 1);
                 if (lens_after_compacting[gpu_index] > 0)
                 {
                     cudaMemcpyAsync(mhost_temp_mem + 3 * NUM_GPUS + gpu_index, gpu.Old_ranks + lens_after_compacting[gpu_index] - 1,
