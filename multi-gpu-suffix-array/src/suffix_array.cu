@@ -823,9 +823,35 @@ int main(int argc, char** argv)
     kamping::Environment e;
     Communicator comm;
 
-    std::vector<int> input2(2u * comm.size(), comm.rank_signed());
-    std::vector<int> output = comm.alltoall(send_buf(input2));
-    printf("Rank: %d, Size: %d, SRank: %d\n", comm.rank(), output[0], output[1]);
+    //std::vector<int> input2(2u * comm.size(), comm.rank_signed());
+    //std::vector<int> output = comm.alltoall(send_buf(input2));
+    //printf("Rank: %d, Size: %d, SRank: %d\n", comm.rank(), output[0], output[1]);
+    printf("* Allocate memory [%lu],GPU\n", comm.rank());
+    double* d_a;
+    if (cudaMalloc((void**)&d_a, 1000 * sizeof(double)) != cudaSuccess) {
+        //errx(1, "cudaMalloc d_a[] failed");
+        printf("Error malloc", comm.rank());
+    }
+    int err = 0; MPI_Status status;
+    // From [1],GPU to [0],GPU
+    if (comm.rank() == 1) {
+        printf("* Send from [%lu],GPU\n", comm.rank());
+        err = MPI_Send(d_a, 1000, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+    }
+    else if (comm.rank() == 0) {
+        printf("* Receive to [%lu],GPU\n", comm.rank());
+        err = MPI_Recv(d_a, 1000, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, &status);
+    }
+    if (err != MPI_SUCCESS) {
+        //errx(2, "MPI transport from [1],GPU to [0],GPU failed");
+        printf("Error transport");
+    }
+    printf("* Free memory on [%lu],GPU\n", comm.rank());
+    cudaFree(d_a);
+
+    // Terminates MPI execution environment
+    MPI_Finalize();
+    return 0;
 
     if (argc != 4)
     {
