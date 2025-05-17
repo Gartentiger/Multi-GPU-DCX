@@ -6,4 +6,4 @@
 
 spack env activate nvidia
 
-./BenchmarkLibcub output.json ../../../../../share/instances/text/trec-text.terms
+./Saiscub output.json ../../../../../share/instances/text/trec-text.terms

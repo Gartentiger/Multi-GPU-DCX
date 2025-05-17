@@ -15,52 +15,62 @@
 #include <kamping/communicator.hpp>
 
 #include "io.cuh"
-#include "external/libcubwt/libcubwt.cuh"
 
-int main(int argc, char **argv)
+#ifdef libcub
+#include "external/libcubwt/libcubwt.cuh"
+#else
+#include <libsais.h>
+#endif
+
+int main(int argc, char** argv)
 {
     using namespace kamping;
     kamping::Environment e;
     Communicator comm;
 
-    auto &t = kamping::measurements::timer();
+    auto& t = kamping::measurements::timer();
 
-    if (argc < 3)
+    if (argc < 4)
     {
         std::cerr << "Bad args" << std::endl;
         return 1;
     }
-    for (int i = 0; i < argc - 2; i++)
+    for (int i = 0; i < argc - 3; i++)
     {
         size_t size = 0;
-        uint8_t *buffer = read(argv[i + 2], size);
+        uint8_t* buffer = read(argv[i + 3], size);
         if (!buffer)
         {
             std::cerr << "Error buffer" << std::endl;
             return 1;
         }
 
-        void *deviceStorage;
+        auto stringPath = ((std::string)argv[i + 3]);
+        int pos = stringPath.find_last_of("/\\");
+        auto fileName = (pos == std::string::npos) ? argv[i + 3] : stringPath.substr(pos + 1);
+
+#ifdef libcub
+        void* deviceStorage;
         int64_t allocError = libcubwt_allocate_device_storage(&deviceStorage, size);
         if (allocError == LIBCUBWT_NO_ERROR)
         {
-            uint32_t *sa = new uint32_t[size];
-
-            auto stringPath = ((std::string)argv[i + 2]);
-            int pos = stringPath.find_last_of("/\\");
-            auto fileName = (pos == std::string::npos) ? argv[i + 2] : stringPath.substr(pos + 1);
+            uint32_t* sa = new uint32_t[size];
             t.synchronize_and_start(fileName);
 
             int64_t err = libcubwt_sa(deviceStorage, buffer, sa, size);
 
             t.stop();
 
-            delete[] sa;
+
             if (err != LIBCUBWT_NO_ERROR)
             {
                 std::cerr << "Error: " << err << std::endl;
                 return 1;
             }
+
+            write(argv[2], sa, size);
+
+            delete[] sa;
         }
         else
         {
@@ -69,10 +79,32 @@ int main(int argc, char **argv)
         }
         libcubwt_free_device_storage(deviceStorage);
         delete[] buffer;
+#else
+        int32_t* sa = (int32_t*)malloc(sizeof(int32_t) * size);
+        if (!sa) {
+            std::cerr << "Error malloc" << std::endl;
+            return 1;
+        }
+
+        t.synchronize_and_start(fileName);
+
+        int32_t err = libsais(buffer, sa, size, 0, NULL);
+
+        t.stop();
+
+        if (err) {
+            std::cerr << "Error: " << err << std::endl;
+            return 1;
+        }
+
+        write(argv[2], sa, size);
+        free(sa);
+#endif
     }
+
     std::ofstream outFile(argv[1], std::ios::app);
     t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{outFile, {}});
+        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
     std::cout << std::endl;
     t.aggregate_and_print(kamping::measurements::FlatPrinter{});
     std::cout << std::endl;

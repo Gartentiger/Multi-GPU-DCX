@@ -22,17 +22,28 @@ uint8_t* read(char* path, size_t& size) {
     return buffer;
 }
 
-int write(char* OutPath, char* inputPath, float duration) {
+int write(char* OutPath, uint32_t* sa, size_t size) {
     std::ofstream outFile(OutPath, std::ios::app);
     if (!outFile.is_open()) {
         std::cerr << "Error opening output file!" << std::endl;
         return 1;
     }
-    auto stringPath = ((std::string)inputPath);
-    int pos = stringPath.find_last_of("/\\");
-    auto fileName = (pos == std::string::npos) ? inputPath : stringPath.substr(pos + 1);
-    outFile << "Libcubwt," << fileName << "," << duration << std::endl;
-    printf("libcubwt,%s,%f\n", fileName.c_str(), duration);
+    for (size_t i = 0; i < size; i++) {
+        outFile << sa[i];
+    }
+    outFile.close();
+    return 0;
+}
+
+int write(char* OutPath, int32_t* sa, size_t size) {
+    std::ofstream outFile(OutPath, std::ios::app);
+    if (!outFile.is_open()) {
+        std::cerr << "Error opening output file!" << std::endl;
+        return 1;
+    }
+    for (size_t i = 0; i < size; i++) {
+        outFile << sa[i];
+    }
     outFile.close();
     return 0;
 }
