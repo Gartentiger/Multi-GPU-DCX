@@ -828,30 +828,31 @@ int main(int argc, char** argv)
     // Get the rank of the calling process in the communicator MPI_COMM_WORLD
     int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    printf("* WorldSize: %d, Rank: \n", world_size, world_rank);
     //std::vector<int> input2(2u * comm.size(), comm.rank_signed());
     //std::vector<int> output = comm.alltoall(send_buf(input2));
     //printf("Rank: %d, Size: %d, SRank: %d\n", comm.rank(), output[0], output[1]);
-    printf("* Allocate memory [%lu],GPU\n", world_size);
+    printf("* Allocate memory [%d],GPU\n", world_rank);
     double* d_a;
     if (cudaMalloc((void**)&d_a, 1000 * sizeof(double)) != cudaSuccess) {
         //errx(1, "cudaMalloc d_a[] failed");
-        printf("Error malloc", world_size);
+        printf("Error malloc", world_rank);
     }
     int err = 0; MPI_Status status;
     // From [1],GPU to [0],GPU
-    if (world_size == 1) {
-        printf("* Send from [%lu],GPU\n", world_size);
+    if (world_rank == 1) {
+        printf("* Send from [%d],GPU\n", world_rank);
         err = MPI_Send(d_a, 1000, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
     }
-    else if (world_size == 0) {
-        printf("* Receive to [%lu],GPU\n", world_size);
+    else if (world_rank == 0) {
+        printf("* Receive to [%d],GPU\n", world_rank);
         err = MPI_Recv(d_a, 1000, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, &status);
     }
     if (err != MPI_SUCCESS) {
         //errx(2, "MPI transport from [1],GPU to [0],GPU failed");
         printf("Error transport");
     }
-    printf("* Free memory on [%lu],GPU\n", world_size);
+    printf("* Free memory on [%d],GPU\n", world_rank);
     cudaFree(d_a);
 
     // Terminates MPI execution environment
