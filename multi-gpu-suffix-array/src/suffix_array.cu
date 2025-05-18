@@ -837,20 +837,28 @@ int main(int argc, char** argv)
     if (cudaMalloc((void**)&d_a, 1000 * sizeof(double)) != cudaSuccess) {
         //errx(1, "cudaMalloc d_a[] failed");
         printf("Error malloc", world_rank);
+        return 1;
+    }
+    double* d_b = (double*)malloc(sizeof(double) * 1000);
+    printf("* Allocate memory [%d], CPU\n", world_rank);
+    if (!d_b) {
+        printf("Error malloc CPU\n");
+        return 1;
     }
     int err = 0; MPI_Status status;
     // From [1],GPU to [0],GPU
     if (world_rank == 1) {
         printf("* Send from [%d],GPU\n", world_rank);
-        err = MPI_Send(d_a, 1000, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+        err = MPI_Send(d_b, 1000, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
     }
     else if (world_rank == 0) {
         printf("* Receive to [%d],GPU\n", world_rank);
-        err = MPI_Recv(d_a, 1000, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, &status);
+        err = MPI_Recv(d_b, 1000, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, &status);
     }
     if (err != MPI_SUCCESS) {
         //errx(2, "MPI transport from [1],GPU to [0],GPU failed");
         printf("Error transport");
+        return 1;
     }
     printf("* Free memory on [%d],GPU\n", world_rank);
     cudaFree(d_a);
