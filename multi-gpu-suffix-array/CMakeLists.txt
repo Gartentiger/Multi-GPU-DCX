@@ -7,6 +7,8 @@ set(CMAKE_CUDA_ARCHITECTURES 60)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+find_package(MPI REQUIRED)
+find_package(CUDAToolkit REQUIRED)
 
 add_executable(suffix_array 
                 src/util.h
@@ -63,6 +65,8 @@ if(DGX1_TOPOLOGY)
     target_compile_definitions(suffix_array PRIVATE DGX1_TOPOLOGY)
 endif(DGX1_TOPOLOGY)
 
+target_link_libraries(suffix_array PRIVATE CUDA::cudart)
+target_link_libraries(suffix_array INTERFACE MPI::MPI_CXX)
 
 include(FetchContent)
 FetchContent_Declare(
