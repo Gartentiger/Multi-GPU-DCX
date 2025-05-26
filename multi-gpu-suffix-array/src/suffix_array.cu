@@ -40,7 +40,7 @@
 #include <kamping/named_parameters.hpp>
 #include <kamping/communicator.hpp>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 1;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -819,57 +819,40 @@ void print_device_info()
 }
 int main(int argc, char** argv)
 {
-    MPI_Init(&argc, &argv);
+    using namespace kamping;
+    kamping::Environment e;
+    Communicator comm;
+    int world_rank = comm.rank_signed();
 
-    // Get the size of the group associated with communicator MPI_COMM_WORLD
-    int world_size;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-
-    // Get the rank of the calling process in the communicator MPI_COMM_WORLD
-    int world_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    printf("* WorldSize: %d, Rank: \n", world_size, world_rank);
+    printf("* Rank: %d\n", comm.rank_signed());
     //std::vector<int> input2(2u * comm.size(), comm.rank_signed());
     //std::vector<int> output = comm.alltoall(send_buf(input2));
     //printf("Rank: %d, Size: %d, SRank: %d\n", comm.rank(), output[0], output[1]);
     printf("* Allocate memory [%d],GPU\n", world_rank);
     double* d_a;
     if (cudaMalloc((void**)&d_a, 1000 * sizeof(double)) != cudaSuccess) {
-        //errx(1, "cudaMalloc d_a[] failed");
         printf("Error malloc", world_rank);
         return 1;
     }
-    double* d_b = (double*)malloc(sizeof(double) * 1000);
-    printf("* Allocate memory [%d], CPU\n", world_rank);
-    if (!d_b) {
-        printf("Error malloc CPU\n");
-        return 1;
-    }
+
     int err = 0; MPI_Status status;
     // From [1],GPU to [0],GPU
     if (world_rank == 1) {
+
         printf("* Send from [%d],GPU\n", world_rank);
-        err = MPI_Send(d_b, 1000, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+        comm.send(d_a, 1000, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
     }
     else if (world_rank == 0) {
+        comm.recv(d_a, 1000, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, &status);
         printf("* Receive to [%d],GPU\n", world_rank);
-        err = MPI_Recv(d_b, 1000, MPI_DOUBLE, 1, 2, MPI_COMM_WORLD, &status);
     }
-    if (err != MPI_SUCCESS) {
-        //errx(2, "MPI transport from [1],GPU to [0],GPU failed");
-        printf("Error transport");
-        return 1;
-    }
+
     printf("* Free memory on [%d],GPU\n", world_rank);
     cudaFree(d_a);
 
-    // Terminates MPI execution environment
-    MPI_Finalize();
+    e.finalize();
     return 0;
 
-    using namespace kamping;
-    kamping::Environment e;
-    Communicator comm;
     if (argc != 4)
     {
         error("Usage: sa-test <ifile> <ofile>!");
