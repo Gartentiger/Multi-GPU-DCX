@@ -37,12 +37,12 @@ int main(int argc, char **argv)
         cudaMemset(d_a, 1, 100 * sizeof(int));
         printf("Memset %d \n", world_rank);
         err = MPI_Send(d_a, 100, MPI_INT, 0, 2, MPI_COMM_WORLD);
-        printf("* Send from [%d],GPU Data %d\n", world_rank, d_a[0]);
+        printf("* Send from [%d],GPU Data %d\n", world_rank);
     }
     else if (world_rank == 0)
     {
         err = MPI_Recv(d_a, 100, MPI_INT, 1, 2, MPI_COMM_WORLD, &status);
-        printf("* Receive to [%d],GPU Data %d\n", world_rank, d_a[0]);
+        printf("* Receive to [%d],GPU Data %d\n", world_rank);
     }
     if (err != MPI_SUCCESS)
     {

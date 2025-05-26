@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
-project(test LANGUAGES CXX CUDA)
+project(Test LANGUAGES CXX CUDA)
 
 set(CMAKE_CUDA_ARCHITECTURES 60)
 set(CMAKE_CXX_STANDARD 17)
@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 enable_language(CUDA)
 
-add_executable(Test CudaMPI.cu)
+add_executable(test CudaMPI.cu)
 
 find_package(MPI REQUIRED)
 
@@ -23,4 +23,4 @@ if(NOT TARGET MPI::MPI_CXX)
                  PROPERTY INTERFACE_LINK_LIBRARIES ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES})
 endif()
 
-target_link_libraries(Test PUBLIC MPI::MPI_CXX)
+target_link_libraries(test PUBLIC MPI::MPI_CXX)
