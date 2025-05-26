@@ -22,25 +22,26 @@ int main(int argc, char **argv)
     // printf("Rank: %d, Size: %d, SRank: %d\n", comm.rank(), output[0], output[1]);
     printf("* Allocate memory [%d],GPU\n", world_rank);
     int *d_a;
-    if (cudaMalloc((void **)&d_a, 1000 * sizeof(int)) != cudaSuccess)
+    if (cudaMalloc((void **)&d_a, 100 * sizeof(int)) != cudaSuccess)
     {
         // errx(1, "cudaMalloc d_a[] failed");
-        cudaMemset(d_a, 0, 1000 * sizeof(int));
         printf("Error malloc %d\n", world_rank);
         return 1;
     }
+    cudaMemset(d_a, 0, 100 * sizeof(int));
     int err = 0;
     MPI_Status status;
     // From [1],GPU to [0],GPU
     if (world_rank == 1)
     {
-        cudaMemset(d_a, 1, 1000 * sizeof(int));
-        err = MPI_Send(d_a, 1000, MPI_INT, 0, 2, MPI_COMM_WORLD);
+        cudaMemset(d_a, 1, 100 * sizeof(int));
+        printf("Memset %d \n", world_rank);
+        err = MPI_Send(d_a, 100, MPI_INT, 0, 2, MPI_COMM_WORLD);
         printf("* Send from [%d],GPU Data %d\n", world_rank, d_a[0]);
     }
     else if (world_rank == 0)
     {
-        err = MPI_Recv(d_a, 1000, MPI_INT, 1, 2, MPI_COMM_WORLD, &status);
+        err = MPI_Recv(d_a, 100, MPI_INT, 1, 2, MPI_COMM_WORLD, &status);
         printf("* Receive to [%d],GPU Data %d\n", world_rank, d_a[0]);
     }
     if (err != MPI_SUCCESS)
