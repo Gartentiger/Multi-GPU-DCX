@@ -845,11 +845,12 @@ int main(int argc, char **argv)
     {
         printf("* Send from [%d],GPU Data %d\n", world_rank, d_a[0]);
         cudaMemset(d_a, 1, 1000 * sizeof(int));
-        comm.send(send_buf(d_a));
+        comm.send(send_buf(d_a), destination(0));
     }
     else if (world_rank == 0)
     {
-        comm.recv<int *>(recv_buf(d_a));
+        std::vector<int> v = comm.recv<int>(kamping::source(kamping::rank::any));
+        // comm.recv<int *>(recv_buf(d_a));
         printf("* Receive to [%d],GPU Data %d\n", world_rank, d_a[0]);
     }
 
