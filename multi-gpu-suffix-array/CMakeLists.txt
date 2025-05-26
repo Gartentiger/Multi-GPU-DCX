@@ -7,8 +7,6 @@ set(CMAKE_CUDA_ARCHITECTURES 60)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-find_package(MPI REQUIRED)
-find_package(CUDAToolkit REQUIRED)
 
 add_executable(suffix_array 
                 src/util.h
@@ -65,9 +63,6 @@ if(DGX1_TOPOLOGY)
     target_compile_definitions(suffix_array PRIVATE DGX1_TOPOLOGY)
 endif(DGX1_TOPOLOGY)
 
-target_link_libraries(suffix_array PRIVATE CUDA::cudart)
-target_link_libraries(suffix_array INTERFACE MPI::MPI_CXX)
-
 include(FetchContent)
 FetchContent_Declare(
   kamping
@@ -82,7 +77,21 @@ target_link_libraries(suffix_array PRIVATE kamping)
 target_compile_options(kamping INTERFACE
    $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-std=gnu++17>)
 
-#target_compile_features(suffix_array PUBLIC cxx_std_17)
+
+find_package(MPI REQUIRED)
+
+if(NOT TARGET MPI::MPI_CXX)
+    add_library(MPI::MPI_CXX IMPORTED INTERFACE)
+
+    set_property(TARGET MPI::MPI_CXX
+                 PROPERTY INTERFACE_COMPILE_OPTIONS ${MPI_CXX_COMPILE_FLAGS})
+    set_property(TARGET MPI::MPI_CXX
+                 PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${MPI_CXX_INCLUDE_PATH}")
+    set_property(TARGET MPI::MPI_CXX
+                 PROPERTY INTERFACE_LINK_LIBRARIES ${MPI_CXX_LINK_FLAGS} ${MPI_CXX_LIBRARIES})
+endif()
+
+target_link_libraries(suffix_array PUBLIC MPI::MPI_CXX)
 
 set(GEN_CODE_OPTIONS "--relocatable-device-code=false -gencode arch=compute_60,code=compute_60 -gencode arch=compute_60,code=sm_60")
 
