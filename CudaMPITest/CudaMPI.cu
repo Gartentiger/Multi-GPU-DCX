@@ -5,6 +5,11 @@
 #include "cuda.h"
 #include "cuda_runtime.h"
 
+__global__ void printFirstGPU(int *array, int rank)
+{
+    printf("Thread idx: %d, Rank: %d, array[0]: %d\n", threadIdx.x, rank, array[0]);
+}
+
 int main(int argc, char **argv)
 {
     MPI_Init(&argc, &argv);
@@ -29,6 +34,7 @@ int main(int argc, char **argv)
         return 1;
     }
     cudaMemset(d_a, 0, 100 * sizeof(int));
+    printFirstGPU<<<1, 1>>>(d_a, world_rank);
     int err = 0;
     MPI_Status status;
     // From [1],GPU to [0],GPU
@@ -36,13 +42,15 @@ int main(int argc, char **argv)
     {
         cudaMemset(d_a, 1, 100 * sizeof(int));
         printf("Memset %d \n", world_rank);
+        printFirstGPU<<<1, 1>>>(d_a, world_rank);
         err = MPI_Send(d_a, 100, MPI_INT, 0, 2, MPI_COMM_WORLD);
-        printf("* Send from [%d],GPU Data %d\n", world_rank);
+        printf("* Send from [%d] GPU\n", world_rank);
     }
     else if (world_rank == 0)
     {
         err = MPI_Recv(d_a, 100, MPI_INT, 1, 2, MPI_COMM_WORLD, &status);
-        printf("* Receive to [%d],GPU Data %d\n", world_rank);
+        printf("* Receive to [%d] GPU\n", world_rank);
+        printFirstGPU<<<1, 1>>>(d_a, world_rank);
     }
     if (err != MPI_SUCCESS)
     {
