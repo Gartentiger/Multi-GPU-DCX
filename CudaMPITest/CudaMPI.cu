@@ -8,11 +8,12 @@
 
 __global__ void printFirst(int* array, int rank)
 {
-    printf("Thread idx: %d, Rank: %d, array[0]: %d\n", threadIdx.x, rank, array[0]);
+    printf("Rank: %d, array[0]: %d\n", rank, array[0]);
 }
 
 int main(int argc, char** argv)
 {
+    cudaSetDevice(0);
     MPI_Init(&argc, &argv);
 
     // Get the size of the group associated with communicator MPI_COMM_WORLD
@@ -39,21 +40,26 @@ int main(int argc, char** argv)
     }
     cudaMemset(d_a, 0, 100 * sizeof(int));
     printFirst << <1, 1 >> > (d_a, world_rank);
+
     int err = 0;
     MPI_Status status;
     // From [1],GPU to [0],GPU
     if (world_rank == 1)
     {
         cudaMemset(d_a, 1, 100 * sizeof(int));
-        printf("Memset %d \n", world_rank);
+        printf("Memset\n");
         printFirst << <1, 1 >> > (d_a, world_rank);
-        err = MPI_Send(d_a, 100, MPI_INT, 0, 2, MPI_COMM_WORLD);
         printf("* Send from [%d] GPU\n", world_rank);
+        err = MPI_Send(d_a, 100, MPI_INT, 0, 2, MPI_COMM_WORLD);
     }
     else if (world_rank == 0)
     {
+        cudaSetDevice(1);
+        printf("Changed Device to 1\n");
         err = MPI_Recv(d_a, 100, MPI_INT, 1, 2, MPI_COMM_WORLD, &status);
         printf("* Receive to [%d] GPU\n", world_rank);
+        cudaSetDevice(0);
+        printf("Changed Device to 0\n");
         printFirst << <1, 1 >> > (d_a, world_rank);
     }
     if (err != MPI_SUCCESS)
