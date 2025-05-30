@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     cudaGetDeviceCount(&deviceCount);
     int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    printf("* WorldSize: %d, Rank: %d CudaDevices: \n", world_size, world_rank, deviceCount);
+    printf("* WorldSize: %d, Rank: %d Cuda devices: %d\n", world_size, world_rank, deviceCount);
     // std::vector<int> input2(2u * comm.size(), comm.rank_signed());
     // std::vector<int> output = comm.alltoall(send_buf(input2));
     // printf("Rank: %d, Size: %d, SRank: %d\n", comm.rank(), output[0], output[1]);
