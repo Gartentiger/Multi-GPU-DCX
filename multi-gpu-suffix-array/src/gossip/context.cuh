@@ -43,12 +43,12 @@ private:
 
 public:
     int world_rank = 0;
-    Communicator comm;
+    Communicator<> comm;
     static const uint num_gpus = NUM_GPUS;
     MultiGPUContext(const MultiGPUContext &) = delete;
     MultiGPUContext &operator=(const MultiGPUContext &) = delete;
 
-    MultiGPUContext(Communicator comm, const std::array<device_id_t, NUM_GPUS> *device_ids_ = nullptr)
+    MultiGPUContext(Communicator<> comm, const std::array<device_id_t, NUM_GPUS> *device_ids_ = nullptr)
     {
         world_rank = comm.rank();
         // Copy num_gpus many device identifiers
