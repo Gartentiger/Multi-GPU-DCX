@@ -362,7 +362,7 @@ private:
             if (mcontext.world_rank == gpu_index)
             {
 
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                cudaSetDevice(0);
                 cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
                                 mcontext.get_gpu_default_stream(gpu_index));
                 CUERR;
@@ -387,7 +387,7 @@ private:
         //{
         SaGPU &gpu = mgpus[mcontext.world_rank];
 
-        cudaSetDevice(mcontext.get_device_id(mcontext.world_rank));
+        cudaSetDevice(0);
         //                kernels::produce_index_kmer_tuples _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))
         //                        ((char*)gpu.input, offset, gpu.pd_index, gpu.pd_kmers, gpu.num_elements); CUERR;
         kernels::produce_index_kmer_tuples_12_64 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(mcontext.world_rank))((char *)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1 *>(gpu.pd_ptr.Sa_rank),
@@ -415,7 +415,7 @@ private:
             {
 
                 SaGPU &gpu = mgpus[gpu_index];
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                cudaSetDevice(0);
                 kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t *)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
                 CUERR;
 
