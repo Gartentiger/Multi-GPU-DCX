@@ -42,7 +42,8 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 
-static const uint NUM_GPUS = 1;
+static const uint NUM_GPUS = 8;
+static const uint NUM_NODES = 2;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -55,7 +56,7 @@ template <typename key_t, typename value_t, typename index_t, size_t NUM_GPUS>
 using DistribMergeTopology = distrib_merge::DGX1TopologyHelper<key_t, value_t, index_t, NUM_GPUS>;
 #else
 #include "gossip/all_to_all.cuh"
-static_assert(NUM_GPUS <= 4, "At the moment, there is no node with more than 4 all-connected nodes. This is likely a configuration error.");
+//static_assert(NUM_GPUS <= 4, "At the moment, there is no node with more than 4 all-connected nodes. This is likely a configuration error.");
 
 template <size_t NUM_GPUS>
 using All2All = gossip::All2All<NUM_GPUS>;
@@ -212,9 +213,12 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Input);
+        printf("Copy Input\n");
 
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
         produce_kmers();
+        printf("Produce kmers\n");
+
         TIMER_STOP_MAIN_STAGE(MainStages::Produce_KMers);
 
         //            mpd_sorter.dump("After K-Mers");
@@ -356,16 +360,20 @@ private:
 
             // Need the halo to the right for kmers...
             size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
+            if (mcontext.world_rank == gpu_index) {
 
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
-            cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
-                mcontext.get_gpu_default_stream(gpu_index));
-            CUERR;
-            if (gpu_index + 1 == NUM_GPUS)
-            {
-                cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer_t),
+                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
                     mcontext.get_gpu_default_stream(gpu_index));
                 CUERR;
+            }
+            if (mcontext.world_rank == gpu_index + 1) {
+                if (gpu_index == NUM_GPUS - 1)
+                {
+                    cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer_t),
+                        mcontext.get_gpu_default_stream(gpu_index));
+                    CUERR;
+                }
             }
         }
 
@@ -374,17 +382,20 @@ private:
 
     void produce_kmers()
     {
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
-            //                kernels::produce_index_kmer_tuples _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))
-            //                        ((char*)gpu.input, offset, gpu.pd_index, gpu.pd_kmers, gpu.num_elements); CUERR;
-            kernels::produce_index_kmer_tuples_12_64 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
-                SDIV(gpu.num_elements, 12) * 12);
-            CUERR;
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS * NUM_NODES; ++gpu_index)
+        //{
+        SaGPU& gpu = mgpus[mcontext.world_rank];
+
+        cudaSetDevice(mcontext.get_device_id(mcontext.world_rank));
+        //                kernels::produce_index_kmer_tuples _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))
+        //                        ((char*)gpu.input, offset, gpu.pd_index, gpu.pd_kmers, gpu.num_elements); CUERR;
+        kernels::produce_index_kmer_tuples_12_64 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(mcontext.world_rank))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
+            SDIV(gpu.num_elements, 12) * 12);
+        CUERR;
+        //}
+        if (mcontext.world_rank == NUM_GPUS - 1) {
+            kernels::fixup_last_four_12_kmers_64 << <1, 4, 0, mcontext.get_gpu_default_stream(mcontext.world_rank) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 4);
         }
-        kernels::fixup_last_four_12_kmers_64 << <1, 4, 0, mcontext.get_gpu_default_stream(NUM_GPUS - 1) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 4);
         mcontext.sync_default_streams();
     }
 
@@ -398,21 +409,24 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
-            kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
-            CUERR;
+            if (mcontext.world_rank == gpu_index) {
 
-            multi_split_node_info[gpu_index].src_keys = gpu.prepare_S12_ptr.Isa;
-            multi_split_node_info[gpu_index].src_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result;
-            multi_split_node_info[gpu_index].src_len = gpu.pd_elements;
+                SaGPU& gpu = mgpus[gpu_index];
+                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
+                CUERR;
 
-            multi_split_node_info[gpu_index].dest_keys = (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2;
-            multi_split_node_info[gpu_index].dest_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half;
-            multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
-            ;
-            mcontext.get_device_temp_allocator(gpu_index).init(gpu.prepare_S12_ptr.S12_buffer1,
-                mpd_reserved_len * sizeof(MergeStageSuffixS12));
+                multi_split_node_info[gpu_index].src_keys = gpu.prepare_S12_ptr.Isa;
+                multi_split_node_info[gpu_index].src_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result;
+                multi_split_node_info[gpu_index].src_len = gpu.pd_elements;
+
+                multi_split_node_info[gpu_index].dest_keys = (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2;
+                multi_split_node_info[gpu_index].dest_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half;
+                multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
+                ;
+                mcontext.get_device_temp_allocator(gpu_index).init(gpu.prepare_S12_ptr.S12_buffer1,
+                    mpd_reserved_len * sizeof(MergeStageSuffixS12));
+            }
         }
         S12PartitioningFunctor f(mpd_per_gpu, NUM_GPUS - 1);
 
@@ -883,21 +897,24 @@ int main(int argc, char** argv)
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
     MultiGPUContext<NUM_GPUS> context;
+    printf("Multi GPU Context\n");
 #endif
     SuffixSorter sorter(context, realLen, input);
+    printf("Suffix Sorter\n");
 
     sorter.alloc();
+    printf("Alloc\n");
 
-    auto stringPath = ((std::string)argv[3]);
-    int pos = stringPath.find_last_of("/\\");
-    auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
+    // auto stringPath = ((std::string)argv[3]);
+    // int pos = stringPath.find_last_of("/\\");
+    // auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
 
-    auto& t = kamping::measurements::timer();
-    t.synchronize_and_start(fileName);
+    //auto& t = kamping::measurements::timer();
+    //t.synchronize_and_start(fileName);
 
     sorter.do_sa();
 
-    t.stop();
+    //t.stop();
 
     write_array(argv[2], sorter.get_result(), realLen);
 
@@ -909,10 +926,10 @@ int main(int argc, char** argv)
     cudaFreeHost(input);
     CUERR;
 
-    std::ofstream outFile(argv[1], std::ios::app);
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
+    // std::ofstream outFile(argv[1], std::ios::app);
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
 }
