@@ -900,7 +900,7 @@ int main(int argc, char **argv)
 #else
     const std::array<uint, NUM_GPUS> gpu_ids2{0, 0, 0, 0};
 
-    MultiGPUContext<NUM_GPUS> context(nullptr, comm);
+    MultiGPUContext<NUM_GPUS> context(comm);
     printf("Multi GPU Context\n");
 #endif
     SuffixSorter sorter(context, realLen, input);
