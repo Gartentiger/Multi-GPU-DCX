@@ -3,6 +3,11 @@
 #include <array>
 #include <iostream>
 #include "../cuda_helpers.h"
+#include <mpi.h>
+
+#include <kamping/checking_casts.hpp>
+#include <kamping/communicator.hpp>
+#include <kamping/environment.hpp>
 
 #include "../my_mgpu_context.hxx"
 
@@ -36,14 +41,16 @@ private:
     std::array<QDAllocator, NUM_GPUS> mdevice_temp_allocators;
 
 public:
+    using namespace kamping;
     int world_rank = 0;
+    Communicator comm;
     static const uint num_gpus = NUM_GPUS;
     MultiGPUContext(const MultiGPUContext &) = delete;
     MultiGPUContext &operator=(const MultiGPUContext &) = delete;
 
-    MultiGPUContext(const std::array<device_id_t, NUM_GPUS> *device_ids_ = nullptr, int world_rank_ = 0)
+    MultiGPUContext(const std::array<device_id_t, NUM_GPUS> *device_ids_ = nullptr, Communicator comm)
     {
-        world_rank = world_rank_;
+        world_rank = comm.rank();
         // Copy num_gpus many device identifiers
 
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
@@ -232,15 +239,7 @@ public:
 
     void sync_gpu_default_stream(uint gpu) const noexcept
     {
-        cudaSetDevice(get_device_id(gpu));
-        CUERR;
-        cudaStreamSynchronize(get_gpu_default_stream(gpu));
-        CUERR;
-    }
-
-    void sync_default_streams() const noexcept
-    {
-        for (uint gpu = 0; gpu < num_gpus; ++gpu)
+        if (gpu == world_rank)
         {
             cudaSetDevice(get_device_id(gpu));
             CUERR;
@@ -249,15 +248,33 @@ public:
         }
     }
 
+    void sync_default_streams() const noexcept
+    {
+        for (uint gpu = 0; gpu < num_gpus; ++gpu)
+        {
+            if (gpu == world_rank)
+            {
+                cudaSetDevice(0);
+                CUERR;
+                cudaStreamSynchronize(get_gpu_default_stream(gpu));
+                CUERR;
+            }
+        }
+        comm.barrier();
+    }
+
     void sync_gpu_streams(uint gpu) const noexcept
     {
         // sync all streams associated with the corresponding GPU
-        cudaSetDevice(get_device_id(gpu));
-        CUERR;
-        for (uint part = 0; part < num_gpus; ++part)
+        if (gpu == world_rank)
         {
-            cudaStreamSynchronize(get_streams(gpu)[part]);
+            cudaSetDevice(get_device_id(gpu));
             CUERR;
+            for (uint part = 0; part < num_gpus; ++part)
+            {
+                cudaStreamSynchronize(get_streams(gpu)[part]);
+                CUERR;
+            }
         }
     }
 
@@ -276,11 +293,12 @@ public:
         {
             if (world_rank == gpu)
             {
-                cudaSetDevice(get_device_id(gpu));
+                cudaSetDevice(0);
                 cudaDeviceSynchronize();
             }
         }
         CUERR;
+        comm.barrier();
     }
 
     void print_connectivity_matrix() const

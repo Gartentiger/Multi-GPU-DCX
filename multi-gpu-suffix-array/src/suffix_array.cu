@@ -361,7 +361,6 @@ private:
             size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
             if (mcontext.world_rank == gpu_index)
             {
-
                 cudaSetDevice(0);
                 cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
                                 mcontext.get_gpu_default_stream(gpu_index));
@@ -899,7 +898,9 @@ int main(int argc, char **argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    MultiGPUContext<NUM_GPUS> context;
+    const std::array<uint, NUM_GPUS> gpu_ids2{0, 0, 0, 0};
+
+    MultiGPUContext<NUM_GPUS> context(nullptr, comm);
     printf("Multi GPU Context\n");
 #endif
     SuffixSorter sorter(context, realLen, input);
