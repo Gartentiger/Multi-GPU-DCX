@@ -223,7 +223,7 @@ public:
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(4);
-
+        printf("Sorted \n");
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
@@ -353,28 +353,21 @@ private:
     void copy_input()
     {
         using kmer_t = uint64_t;
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU &gpu = mgpus[gpu_index];
+        SaGPU &gpu = mgpus[mcontext.world_rank];
 
-            // Need the halo to the right for kmers...
-            size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
-            if (mcontext.world_rank == gpu_index)
-            {
-                cudaSetDevice(0);
-                cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
-                                mcontext.get_gpu_default_stream(gpu_index));
-                CUERR;
-            }
-            if (mcontext.world_rank == gpu_index + 1)
-            {
-                if (gpu_index == NUM_GPUS - 1)
-                {
-                    cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer_t),
-                                    mcontext.get_gpu_default_stream(gpu_index));
-                    CUERR;
-                }
-            }
+        // Need the halo to the right for kmers...
+        size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
+
+        cudaSetDevice(mcontext.get_device_id(mcontext.world_rank));
+        cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
+                        mcontext.get_gpu_default_stream(mcontext.world_rank));
+        CUERR;
+
+        if (mcontext.world_rank == NUM_GPUS - 1)
+        {
+            cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer_t),
+                            mcontext.get_gpu_default_stream(mcontext.world_rank));
+            CUERR;
         }
 
         mcontext.sync_default_streams();

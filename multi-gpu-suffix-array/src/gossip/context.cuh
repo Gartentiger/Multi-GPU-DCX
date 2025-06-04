@@ -250,17 +250,10 @@ public:
 
     void sync_default_streams() const noexcept
     {
-        for (uint gpu = 0; gpu < num_gpus; ++gpu)
-        {
-            if (gpu == world_rank)
-            {
-                cudaSetDevice(0);
-                CUERR;
-                cudaStreamSynchronize(get_gpu_default_stream(gpu));
-                CUERR;
-            }
-        }
-        comm.barrier();
+        cudaSetDevice(0);
+        CUERR;
+        cudaStreamSynchronize(get_gpu_default_stream(world_rank));
+        CUERR;
     }
 
     void sync_gpu_streams(uint gpu) const noexcept
@@ -281,23 +274,19 @@ public:
     void sync_all_streams() const noexcept
     {
         // sync all streams of the context
-        for (uint gpu = 0; gpu < num_gpus; ++gpu)
-            sync_gpu_streams(gpu);
+        // for (uint gpu = 0; gpu < num_gpus; ++gpu)
+        sync_gpu_streams(world_rank);
         CUERR;
     }
 
     void sync_hard() const noexcept
     {
         // sync all GPUs
-        for (uint gpu = 0; gpu < num_gpus; ++gpu)
-        {
-            if (world_rank == gpu)
-            {
-                cudaSetDevice(0);
-                cudaDeviceSynchronize();
-            }
-        }
+
+        cudaSetDevice(0);
+        cudaDeviceSynchronize();
         CUERR;
+
         comm.barrier();
     }
 
