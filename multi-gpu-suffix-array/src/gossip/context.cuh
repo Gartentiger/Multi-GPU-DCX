@@ -17,10 +17,10 @@ using uint = unsigned int;
 using namespace kamping;
 
 template <uint NUM_GPUS,
-          bool THROW_EXCEPTIONS = true,
-          uint PEER_STATUS_SLOW_ = 0,
-          uint PEER_STATUS_FAST_ = 1,
-          uint PEER_STATUS_DIAG_ = 2>
+    bool THROW_EXCEPTIONS = true,
+    uint PEER_STATUS_SLOW_ = 0,
+    uint PEER_STATUS_FAST_ = 1,
+    uint PEER_STATUS_DIAG_ = 2>
 class MultiGPUContext
 {
 public:
@@ -38,17 +38,17 @@ private:
 
     std::array<std::array<uint, NUM_GPUS>, NUM_GPUS> peer_status;
 
-    std::array<std::array<mgpu::my_mpgu_context_t *, NUM_GPUS>, NUM_GPUS> mpgu_contexts;
+    std::array<std::array<mgpu::my_mpgu_context_t*, NUM_GPUS>, NUM_GPUS> mpgu_contexts;
     std::array<QDAllocator, NUM_GPUS> mdevice_temp_allocators;
 
 public:
     int world_rank = 0;
     Communicator<> comm;
     static const uint num_gpus = NUM_GPUS;
-    MultiGPUContext(const MultiGPUContext &) = delete;
-    MultiGPUContext &operator=(const MultiGPUContext &) = delete;
+    MultiGPUContext(const MultiGPUContext&) = delete;
+    MultiGPUContext& operator=(const MultiGPUContext&) = delete;
 
-    MultiGPUContext(Communicator<> comm, const std::array<device_id_t, NUM_GPUS> *device_ids_ = nullptr)
+    MultiGPUContext(Communicator<> comm, const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr)
     {
         world_rank = comm.rank();
         // Copy num_gpus many device identifiers
@@ -75,7 +75,7 @@ public:
                     cudaStreamCreate(&streams[src_gpu][part]);
                 }
                 mpgu_contexts[src_gpu][part] = new mgpu::my_mpgu_context_t(streams[src_gpu][part],
-                                                                           mdevice_temp_allocators[src_gpu]);
+                    mdevice_temp_allocators[src_gpu]);
             }
         }
         CUERR;
@@ -189,12 +189,12 @@ public:
                     if (cuerr == cudaErrorPeerAccessNotEnabled)
                     {
                         std::cout << "STATUS: redundant disabling of peer access from GPU " << src_gpu
-                                  << " to GPU " << dst << " attempted." << std::endl;
+                            << " to GPU " << dst << " attempted." << std::endl;
                     }
                     else if (cuerr)
                     {
                         std::cout << "CUDA error: " << cudaGetErrorString(cuerr) << " : "
-                                  << __FILE__ << ", line " << __LINE__ << std::endl;
+                            << __FILE__ << ", line " << __LINE__ << std::endl;
                     }
                 }
             }
@@ -207,27 +207,27 @@ public:
         // return the actual device identifier of GPU gpu
         return device_ids[gpu];
     }
-    const std::array<cudaStream_t, NUM_GPUS> &get_streams(uint gpu) const noexcept
+    const std::array<cudaStream_t, NUM_GPUS>& get_streams(uint gpu) const noexcept
     {
         return streams[gpu];
     }
 
-    const cudaStream_t &get_gpu_default_stream(uint gpu) const noexcept
+    const cudaStream_t& get_gpu_default_stream(uint gpu) const noexcept
     {
         return streams[gpu][0];
     }
 
-    mgpu::my_mpgu_context_t &get_mgpu_default_context_for_device(uint gpu) const noexcept
+    mgpu::my_mpgu_context_t& get_mgpu_default_context_for_device(uint gpu) const noexcept
     {
         return *mpgu_contexts[gpu][0];
     }
 
-    const std::array<mgpu::my_mpgu_context_t *, NUM_GPUS> &get_mgpu_contexts_for_device(uint gpu) const noexcept
+    const std::array<mgpu::my_mpgu_context_t*, NUM_GPUS>& get_mgpu_contexts_for_device(uint gpu) const noexcept
     {
         return mpgu_contexts[gpu];
     }
 
-    QDAllocator &get_device_temp_allocator(uint gpu) noexcept
+    QDAllocator& get_device_temp_allocator(uint gpu) noexcept
     {
         return mdevice_temp_allocators[gpu];
     }
@@ -254,6 +254,7 @@ public:
         CUERR;
         cudaStreamSynchronize(get_gpu_default_stream(world_rank));
         CUERR;
+        comm.barrier();
     }
 
     void sync_gpu_streams(uint gpu) const noexcept
@@ -298,8 +299,8 @@ public:
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
             {
                 std::cout << (dst_gpu == 0 ? "STATUS: |" : "")
-                          << uint(peer_status[src_gpu][dst_gpu])
-                          << (dst_gpu + 1 == num_gpus ? "|\n" : " ");
+                    << uint(peer_status[src_gpu][dst_gpu])
+                    << (dst_gpu + 1 == num_gpus ? "|\n" : " ");
             }
         }
     }
