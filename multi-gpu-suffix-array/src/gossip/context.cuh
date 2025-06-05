@@ -43,14 +43,13 @@ private:
 
 public:
     int world_rank = 0;
-    Communicator<> comm;
     static const uint num_gpus = NUM_GPUS;
     MultiGPUContext(const MultiGPUContext&) = delete;
     MultiGPUContext& operator=(const MultiGPUContext&) = delete;
 
-    MultiGPUContext(Communicator<> comm, const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr)
+    MultiGPUContext(const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr)
     {
-        world_rank = comm.rank();
+        world_rank = world_rank();
         // Copy num_gpus many device identifiers
 
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
@@ -266,6 +265,7 @@ public:
             CUERR;
             for (uint part = 0; part < num_gpus; ++part)
             {
+                printf("cuda sync %lu, %d\n", world_rank, part);
                 cudaStreamSynchronize(get_streams(gpu)[part]);
                 CUERR;
             }
@@ -289,7 +289,7 @@ public:
         cudaDeviceSynchronize();
         CUERR;
 
-        comm.barrier();
+        comm_world().barrier();
     }
 
     void print_connectivity_matrix() const

@@ -174,13 +174,16 @@ namespace crossGPUReMerge {
                 for (auto s : node.scheduled_work.searches) {
                     s->result = *s->h_result_ptr;
                 }
-
+                printf("ms %lu\n", world_rank());
                 for (auto ms : node.scheduled_work.multi_searches) {
+                    printf("resize %lu\n", world_rank());
                     ms->results.resize(ms->ranges.size());
+                    printf("memcpy %lu\n", world_rank());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
+                    printf("range to take one %lu\n", world_rank());
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
+                    printf("com %lu\n", world_rank());
                 }
-                printf("memcpy %lu\n", world_rank());
             }
         }
 
