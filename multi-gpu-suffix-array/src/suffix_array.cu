@@ -41,6 +41,7 @@
 #include <kamping/communicator.hpp>
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
+#include <kamping/collectives/allgather.hpp>
 
 static const uint NUM_GPUS = 1;
 
@@ -864,6 +865,10 @@ int main(int argc, char** argv)
     }
     else if (world_rank() == 2) {
         std::vector<int> vec{ 11,12,13,14,15,16 };
+        comm.allgatherv(send_buf(vec), recv_buf<resize_to_fit>(recv));
+    }
+    else if (world_rank() == 3) {
+        std::vector<int> vec{ 17,18 };
         comm.allgatherv(send_buf(vec), recv_buf<resize_to_fit>(recv));
     }
     for (int i : recv) {
