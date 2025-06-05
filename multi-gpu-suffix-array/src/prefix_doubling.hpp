@@ -458,7 +458,7 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             //uint gpu_index = mcontext.world_rank;
-
+            printf("SaGPU %lu\n", world_rank());
             SaGPU& gpu = mgpus[gpu_index];
             if (world_rank() == gpu_index) {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
@@ -506,12 +506,12 @@ private:
 
         mcontext.sync_default_streams();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
-
         TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
 
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
 
+        printf("Merge %lu\n", world_rank());
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }

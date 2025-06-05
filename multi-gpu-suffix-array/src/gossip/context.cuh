@@ -278,6 +278,7 @@ public:
         // for (uint gpu = 0; gpu < num_gpus; ++gpu)
         sync_gpu_streams(world_rank);
         CUERR;
+
     }
 
     void sync_hard() const noexcept
