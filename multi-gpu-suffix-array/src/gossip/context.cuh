@@ -42,14 +42,12 @@ private:
     std::array<QDAllocator, NUM_GPUS> mdevice_temp_allocators;
 
 public:
-    int world_rank = 0;
     static const uint num_gpus = NUM_GPUS;
     MultiGPUContext(const MultiGPUContext&) = delete;
     MultiGPUContext& operator=(const MultiGPUContext&) = delete;
 
     MultiGPUContext(const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr)
     {
-        world_rank = world_rank();
         // Copy num_gpus many device identifiers
 
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
@@ -62,7 +60,7 @@ public:
 
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
         {
-            if (world_rank == src_gpu)
+            if (world_rank() == src_gpu)
             {
                 cudaSetDevice(0); // get_device_id(src_gpu));
                 cudaDeviceSynchronize();
@@ -238,7 +236,7 @@ public:
 
     void sync_gpu_default_stream(uint gpu) const noexcept
     {
-        if (gpu == world_rank)
+        if (gpu == world_rank())
         {
             cudaSetDevice(get_device_id(gpu));
             CUERR;
@@ -251,7 +249,7 @@ public:
     {
         cudaSetDevice(0);
         CUERR;
-        cudaStreamSynchronize(get_gpu_default_stream(world_rank));
+        cudaStreamSynchronize(get_gpu_default_stream(world_rank()));
         CUERR;
         comm.barrier();
     }
@@ -259,13 +257,13 @@ public:
     void sync_gpu_streams(uint gpu) const noexcept
     {
         // sync all streams associated with the corresponding GPU
-        if (gpu == world_rank)
+        if (gpu == world_rank())
         {
             cudaSetDevice(get_device_id(gpu));
             CUERR;
             for (uint part = 0; part < num_gpus; ++part)
             {
-                printf("cuda sync %lu, %d\n", world_rank, part);
+                printf("cuda sync %lu, %d\n", world_rank(), part);
                 cudaStreamSynchronize(get_streams(gpu)[part]);
                 CUERR;
             }
@@ -276,7 +274,7 @@ public:
     {
         // sync all streams of the context
         // for (uint gpu = 0; gpu < num_gpus; ++gpu)
-        sync_gpu_streams(world_rank);
+        sync_gpu_streams(world_rank());
         CUERR;
 
     }
