@@ -455,57 +455,58 @@ private:
 
         std::array<InitialMergeNodeInfo, NUM_GPUS> merge_nodes_info;
 
-        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        //{
-        uint gpu_index = mcontext.world_rank;
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            //uint gpu_index = mcontext.world_rank;
 
-        SaGPU& gpu = mgpus[gpu_index];
-        cudaSetDevice(mcontext.get_device_id(gpu_index));
+            SaGPU& gpu = mgpus[gpu_index];
+            if (world_rank() == gpu_index) {
+                cudaSetDevice(mcontext.get_device_id(gpu_index));
 
-        size_t temp_storage_bytes = 0;
+                size_t temp_storage_bytes = 0;
 
-        const size_t SORT_DOWN_TO_G = gpu_index == NUM_GPUS - 1 ? SORT_DOWN_TO_LAST : SORT_DOWN_TO;
+                const size_t SORT_DOWN_TO_G = gpu_index == NUM_GPUS - 1 ? SORT_DOWN_TO_LAST : SORT_DOWN_TO;
 
-        cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
-            reinterpret_cast<uint64_t*>(gpu.Sa_rank),
-            reinterpret_cast<uint64_t*>(gpu.Old_ranks),
-            gpu.Isa, gpu.Sa_index,
-            gpu.working_len, SORT_DOWN_TO_G, sizeof(ulong1) * 8,
-            mcontext.get_gpu_default_stream(gpu.index));
+                cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
+                    reinterpret_cast<uint64_t*>(gpu.Sa_rank),
+                    reinterpret_cast<uint64_t*>(gpu.Old_ranks),
+                    gpu.Isa, gpu.Sa_index,
+                    gpu.working_len, SORT_DOWN_TO_G, sizeof(ulong1) * 8,
+                    mcontext.get_gpu_default_stream(gpu.index));
 
-        CUERR_CHECK(err);
-        //                if (gpu_index == 0) {
-        //                    printf("\nTemp storage required for initial sort: %zu bytes, available: %zu.\n", temp_storage_bytes,
-        //                           (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t));
-        //                }
+                CUERR_CHECK(err);
+                //                if (gpu_index == 0) {
+                    //                    printf("\nTemp storage required for initial sort: %zu bytes, available: %zu.\n", temp_storage_bytes,
+                    //                           (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t));
+                    //                }
 
-        ASSERT(temp_storage_bytes <= (3 * mreserved_len + madditional_temp_storage_size) * sizeof(sa_index_t));
-        //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
-        err = cub::DeviceRadixSort::SortPairs(gpu.Temp2, temp_storage_bytes,
-            reinterpret_cast<uint64_t*>(gpu.Sa_rank),
-            reinterpret_cast<uint64_t*>(gpu.Old_ranks),
-            gpu.Isa, gpu.Sa_index,
-            gpu.working_len, SORT_DOWN_TO_G, sizeof(ulong1) * 8,
-            mcontext.get_gpu_default_stream(gpu.index));
-        CUERR_CHECK(err);
-        // Now Sa_rank is sorted to Old_ranks,
-        // Isa is sorted to Sa_Index
-        // Temp2, 3, 4 used as temp space
+                ASSERT(temp_storage_bytes <= (3 * mreserved_len + madditional_temp_storage_size) * sizeof(sa_index_t));
+                //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
+                err = cub::DeviceRadixSort::SortPairs(gpu.Temp2, temp_storage_bytes,
+                    reinterpret_cast<uint64_t*>(gpu.Sa_rank),
+                    reinterpret_cast<uint64_t*>(gpu.Old_ranks),
+                    gpu.Isa, gpu.Sa_index,
+                    gpu.working_len, SORT_DOWN_TO_G, sizeof(ulong1) * 8,
+                    mcontext.get_gpu_default_stream(gpu.index));
+                CUERR_CHECK(err);
+                // Now Sa_rank is sorted to Old_ranks,
+                // Isa is sorted to Sa_Index
+                // Temp2, 3, 4 used as temp space
+            }
 
-        //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
-        merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
-                                       reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
-                                       reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa,
-                                       reinterpret_cast<uint64_t*>(gpu.Temp2), gpu.Temp4 };
-        mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp2, mreserved_len * 3 * sizeof(sa_index_t));
-
-        //}
-        // todo change for ds
+            //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
+            merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
+                                           reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
+                                           reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa,
+                                           reinterpret_cast<uint64_t*>(gpu.Temp2), gpu.Temp4 };
+            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp2, mreserved_len * 3 * sizeof(sa_index_t));
+        }
+        // TODO change for ds
         merge_manager.set_node_info(merge_nodes_info);
 
         mcontext.sync_default_streams();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
-        printf("Initial merge %d\n", gpu_index);
+        printf("Initial merge %lu\n", world_rank());
         TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
 
         std::vector<crossGPUReMerge::MergeRange> ranges;
@@ -790,7 +791,7 @@ private:
             }
         }
         return false;
-    }
+        }
 
     // Sa_rank, Sa_index --> Isa
     void write_to_isa(bool initial = false)
