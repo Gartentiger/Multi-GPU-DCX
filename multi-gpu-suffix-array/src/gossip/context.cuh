@@ -67,7 +67,7 @@ public:
             }
             for (uint part = 0; part < num_gpus; ++part)
             {
-                if (world_rank == src_gpu)
+                if (world_rank() == src_gpu)
                 {
                     cudaStreamCreate(&streams[src_gpu][part]);
                 }
@@ -251,7 +251,7 @@ public:
         CUERR;
         cudaStreamSynchronize(get_gpu_default_stream(world_rank()));
         CUERR;
-        comm.barrier();
+        comm_world().barrier();
     }
 
     void sync_gpu_streams(uint gpu) const noexcept

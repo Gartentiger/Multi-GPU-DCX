@@ -353,20 +353,20 @@ private:
     void copy_input()
     {
         using kmer_t = uint64_t;
-        SaGPU& gpu = mgpus[mcontext.world_rank];
+        SaGPU& gpu = mgpus[world_rank()];
 
         // Need the halo to the right for kmers...
         size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
 
-        cudaSetDevice(mcontext.get_device_id(mcontext.world_rank));
+        cudaSetDevice(mcontext.get_device_id(world_rank()));
         cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
-            mcontext.get_gpu_default_stream(mcontext.world_rank));
+            mcontext.get_gpu_default_stream(world_rank()));
         CUERR;
 
-        if (mcontext.world_rank == NUM_GPUS - 1)
+        if (world_rank() == NUM_GPUS - 1)
         {
             cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer_t),
-                mcontext.get_gpu_default_stream(mcontext.world_rank));
+                mcontext.get_gpu_default_stream(world_rank()));
             CUERR;
         }
 
@@ -404,7 +404,7 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            if (mcontext.world_rank == gpu_index)
+            if (world_rank() == gpu_index)
             {
 
                 SaGPU& gpu = mgpus[gpu_index];

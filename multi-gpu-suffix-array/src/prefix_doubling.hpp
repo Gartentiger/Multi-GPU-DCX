@@ -189,7 +189,7 @@ public:
 
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         //{
-        uint gpu_index = mcontext.world_rank;
+        uint gpu_index = world_rank();
         // Not sure whether we have to associate the device with host memory planned for it.
         SaGPU& gpu = mgpus[gpu_index];
         gpu.index = gpu_index;
