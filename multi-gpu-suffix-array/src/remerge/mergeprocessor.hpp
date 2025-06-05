@@ -114,7 +114,6 @@ namespace crossGPUReMerge {
                     QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
 
                     for (auto s : node.scheduled_work.searches) {
-
                         uint other = (node_index == s->node_1) ? s->node_2 : s->node_1;
                         const cudaStream_t& stream = mcontext.get_streams(node_index).at(other);
 
@@ -133,11 +132,6 @@ namespace crossGPUReMerge {
 
                         cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
                             sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
-                        // std::span span(s->d_result_ptr);
-                        // std::vector<int> scounts;
-                        // std::vector<int> recv_counts = comm_world().alltoall(send_buf(scounts));
-                        // device_vector rbuf(std::accumulate(recv_counts.begin(), recv_counts.end()));
-                        // comm.alltoallv(send_buf(sbuf), send_counts(scounts), recv_buf(rbuf));
                     }
 
 
@@ -169,10 +163,27 @@ namespace crossGPUReMerge {
             }
 
             mcontext.sync_all_streams();
+            MergeNode mergeNode = mnodes[world_rank()];
+            size_t size = mergeNode.scheduled_work.searches.size();
+            std::vector<int64_t> sendResult(size);
+            for (size_t i = 0; i < size; i++)
+            {
+                sendResult.push_back(mergeNode.scheduled_work.searches[i]->h_result_ptr);
+            }
+            std::vector<int64_t> recvResult = comm_world().alltoall(send_buf(sendResult));
+
             printf("Sync all streams %lu\n", world_rank());
             for (MergeNode& node : mnodes) {
-                for (auto s : node.scheduled_work.searches) {
-                    s->result = *s->h_result_ptr;
+                if (node.info.index == world_rank()) {
+
+                    for (auto s : node.scheduled_work.searches) {
+                        s->result = *s->h_result_ptr;
+                    }
+                }
+                else {
+                    for (auto s : node.scheduled_work.searches) {
+                        s->result = recvResult[node.info.index];
+                    }
                 }
                 printf("ms %lu\n", world_rank());
                 for (auto ms : node.scheduled_work.multi_searches) {

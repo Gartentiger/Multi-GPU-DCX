@@ -276,7 +276,7 @@ public:
         // for (uint gpu = 0; gpu < num_gpus; ++gpu)
         sync_gpu_streams(world_rank());
         CUERR;
-
+        comm_world().barrier();
     }
 
     void sync_hard() const noexcept
