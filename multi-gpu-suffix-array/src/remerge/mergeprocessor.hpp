@@ -133,11 +133,11 @@ namespace crossGPUReMerge {
 
                         cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
                             sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
-                        std::span span(s->d_result_ptr);
-                        std::vector<int> scounts;
-                        std::vector<int> recv_counts = comm_world().alltoall(send_buf(scounts));
-                        device_vector rbuf(std::accumulate(recv_counts.begin(), recv_counts.end()));
-                        comm.alltoallv(send_buf(sbuf), send_counts(scounts), recv_buf(rbuf));
+                        // std::span span(s->d_result_ptr);
+                        // std::vector<int> scounts;
+                        // std::vector<int> recv_counts = comm_world().alltoall(send_buf(scounts));
+                        // device_vector rbuf(std::accumulate(recv_counts.begin(), recv_counts.end()));
+                        // comm.alltoallv(send_buf(sbuf), send_counts(scounts), recv_buf(rbuf));
                     }
                     printf("All to all\n");
 
