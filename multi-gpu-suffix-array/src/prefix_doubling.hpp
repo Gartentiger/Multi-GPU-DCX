@@ -280,8 +280,8 @@ public:
 
     size_t sort(sa_index_t h_initial)
     {
-        printf("initial sort 64\n");
         initial_sort_64();
+        printf("initial sort 64\n");
 
 #ifdef DUMP_EVERYTHING
         dump("After initial sort");
@@ -506,7 +506,7 @@ private:
 
         mcontext.sync_default_streams();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
-        printf("Initial merge %lu\n", world_rank());
+
         TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
 
         std::vector<crossGPUReMerge::MergeRange> ranges;
@@ -791,7 +791,7 @@ private:
             }
         }
         return false;
-        }
+    }
 
     // Sa_rank, Sa_index --> Isa
     void write_to_isa(bool initial = false)

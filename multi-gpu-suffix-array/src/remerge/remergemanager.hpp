@@ -42,12 +42,12 @@ namespace crossGPUReMerge
             std::function<void()> debug_func = nullptr)
         {
             init_node_utils();
-            printf("init node utils\n");
             init_micro_ranges(ranges);
             while (schedule_micro_merges() > 0)
             {
                 schedule_partitioning_searches();
                 mmerge_processor.do_searches(comp);
+                printf("do search %lu\n", world_rank());
                 create_partitions_from_search_results();
                 //                debug_print();
                 mmerge_processor.do_copy_and_merge(comp, debug_func);

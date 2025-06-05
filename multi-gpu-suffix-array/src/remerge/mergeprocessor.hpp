@@ -139,7 +139,7 @@ namespace crossGPUReMerge {
                         // device_vector rbuf(std::accumulate(recv_counts.begin(), recv_counts.end()));
                         // comm.alltoallv(send_buf(sbuf), send_counts(scounts), recv_buf(rbuf));
                     }
-                    printf("All to all\n");
+
 
                     for (auto ms : node.scheduled_work.multi_searches) {
                         const size_t result_buffer_length = ms->ranges.size() + 1;
@@ -165,19 +165,22 @@ namespace crossGPUReMerge {
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
                     }
                 }
+                printf("All to all\n");
             }
 
             mcontext.sync_all_streams();
-
+            printf("Sync all streams %lu\n", world_rank());
             for (MergeNode& node : mnodes) {
                 for (auto s : node.scheduled_work.searches) {
                     s->result = *s->h_result_ptr;
                 }
+
                 for (auto ms : node.scheduled_work.multi_searches) {
                     ms->results.resize(ms->ranges.size());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
                 }
+                printf("memcpy %lu\n", world_rank());
             }
         }
 
