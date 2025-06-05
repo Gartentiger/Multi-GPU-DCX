@@ -202,7 +202,7 @@ public:
 
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
-            if (mcontext.world_rank == gpu)
+            if (world_rank() == gpu)
             {
                 cudaSetDevice(0);
                 cudaMalloc(&malloc_base[gpu], malloc_size);
@@ -245,14 +245,14 @@ public:
     {
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
-            if (gpu == mcontext.world_rank)
+            if (gpu == world_rank())
             {
 
                 cudaSetDevice(mcontext.get_device_id(gpu));
                 cudaFree(malloc_base[gpu]);
             }
         }
-        if (mcontext.world_rank == NUM_GPUS - 1)
+        if (world_rank() == NUM_GPUS - 1)
         {
             cudaFreeHost(mhost_temp_mem);
             cudaFreeHost(mh_result);
