@@ -5,7 +5,6 @@
 #include <cstring>
 #include <algorithm>
 #include "gossip/context.cuh"
-
 #include "moderngpu/kernel_merge.hxx"
 
 #include "util.h"
@@ -13,6 +12,8 @@
 #include "multi_way_partitioning_search.hpp"
 #include "multi_way_micromerge_on_one_node.hpp"
 #include "qdallocator.hpp"
+#include <span>
+
 
 namespace crossGPUReMerge {
 
@@ -132,8 +133,13 @@ namespace crossGPUReMerge {
 
                         cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
                             sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
+                        std::span span(s->d_result_ptr);
+                        std::vector<int> scounts;
+                        std::vector<int> recv_counts = comm_world().alltoall(send_buf(scounts));
+                        device_vector rbuf(std::accumulate(recv_counts.begin(), recv_counts.end()));
+                        comm.alltoallv(send_buf(sbuf), send_counts(scounts), recv_buf(rbuf));
                     }
-
+                    printf("All to all\n");
 
                     for (auto ms : node.scheduled_work.multi_searches) {
                         const size_t result_buffer_length = ms->ranges.size() + 1;
