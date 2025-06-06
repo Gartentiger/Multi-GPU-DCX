@@ -12,8 +12,11 @@
 #include "multi_way_partitioning_search.hpp"
 #include "multi_way_micromerge_on_one_node.hpp"
 #include "qdallocator.hpp"
+
 #include <kamping/collectives/allgather.hpp>
-#include "kamping/data_buffer.hpp"
+#include <kamping/data_buffer.hpp>
+#include <kamping/named_parameters.hpp>
+#include <kamping/checking_casts.hpp>
 #include <span>
 
 namespace crossGPUReMerge
