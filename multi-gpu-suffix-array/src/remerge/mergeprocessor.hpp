@@ -179,6 +179,13 @@ namespace crossGPUReMerge
                             i++;
                         }
 
+                        printf("before sync %lu\n", world_rank());
+
+                        CUERR;
+                        cudaStreamSynchronize(stream);
+                        CUERR;
+                        printf("after array descr %lu \n", world_rank());
+
                         multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
