@@ -2,6 +2,9 @@
 #define CUDA_HELPERS_H_
 
 #include "util.h"
+#include <mpi.h>
+#include <kamping/communicator.hpp>
+#include <kamping/environment.hpp>
 
 // safe division
 #define SDIV(x,y)(((x)+(y)-1)/(y))
@@ -10,7 +13,7 @@
 #define CUERR {                                                              \
     cudaError_t err;                                                         \
     if ((err = cudaGetLastError()) != cudaSuccess) {                         \
-         error("CUDA error (%s, %d): %s", __FILE__, __LINE__, cudaGetErrorString(err));    \
+         error("CUDA error %lu (%s, %d): %s",world_rank() , __FILE__, __LINE__, cudaGetErrorString(err));    \
          exit(1);                                                            \
     }                                                                        \
 }

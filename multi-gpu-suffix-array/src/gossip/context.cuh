@@ -263,7 +263,8 @@ public:
             CUERR;
             for (uint part = 0; part < num_gpus; ++part)
             {
-                printf("cuda sync %lu, %d\n", world_rank(), part);
+                printf("cuda sync %lu, %lu\n", world_rank(), get_streams(gpu).size());
+
                 cudaStreamSynchronize(get_streams(gpu)[part]);
                 CUERR;
             }
