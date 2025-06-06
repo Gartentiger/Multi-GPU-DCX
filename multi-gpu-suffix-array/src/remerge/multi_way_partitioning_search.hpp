@@ -23,23 +23,23 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
     key_t mid_values[MAX_GPUS];
     int_t starts[MAX_GPUS];
     int_t ends[MAX_GPUS];
-    printf("1\n");
+    //printf("1\n");
     int before_mid_count = 0;
     size_t total_size = 0;
     // Initialize
     // m = ranges.size()
     for (uint i = 0; i < M; ++i) {
         starts[i] = 0;
-        printf("1.0\n");
+        //printf("1.0\n");
         ends[i] = arr_descr.lengths[i];
-        printf("1.1 %d\n", arr_descr.lengths[i]);
+        //printf("1.1 %d\n", arr_descr.lengths[i]);
         UPDATE_MID_INDEX_AND_VALUE(i);
-        printf("1.2\n");
+        //printf("1.2\n");
         before_mid_count += mid_index[i];
-        printf("1.3\n");
+        //printf("1.3\n");
         total_size += arr_descr.lengths[i];
     }
-    printf("2\n");
+    //printf("2\n");
     //    std::cout << "k: " << k << ", total_size: " << total_size << "\n";
 
     assert(k < total_size);
@@ -57,23 +57,23 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
         //        key_t min_value = std::numeric_limits<key_t>::max();  // Does silently fail for unknown types... :/
         //        key_t max_value = std::numeric_limits<key_t>::min();
         int_t max_index = -1, min_index = -2;
-        printf("3\n");
+        //printf("3\n");
 
         for (int i = 0; i < M; ++i) {
             if (starts[i] < ends[i]) {
                 // Pick the min index in a range of equal values.
                 if (comp(mid_values[i], min_value) || min_index < 0) { // <
-                    printf("3.1\n");
+                    //printf("3.1\n");
                     min_value = mid_values[i];
                     min_index = i;
                 }
                 // Pick the max index in a range of equal values.
                 if (!comp(mid_values[i], max_value) || max_index < 0) { // >=
-                    printf("3.2\n");
+                    //printf("3.2\n");
                     max_value = mid_values[i];
                     max_index = i;
                 }
-                printf("3.3\n");
+                //printf("3.3\n");
             }
             //            printf("Multi-way partioning search: %u from %u to %u.\n", i, starts[i], ends[i]);
             //            std::cout << i << ". From " << starts[i] << " to " << ends[i] << ", mid: " << mid_index[i]
@@ -84,14 +84,14 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
         //        std::cout << "max index: " << max_index << ", value: " << max_value;
 
         //        std::cout << "\nbefore mid count: " << before_mid_count << ", k: " << k << std::endl;
-        printf("4\n");
+        //printf("4\n");
         if (min_index == max_index && before_mid_count == k) {
             result_value = mid_values[min_index];
             result_index = mid_index[min_index];
             result_list_index = min_index;
             break;
         }
-        printf("5\n");
+        //printf("5\n");
         if (before_mid_count < k) {
             //            std::cout << "Adjusting min..." << min_index << std::endl;
             int_t old_mid = mid_index[min_index];
@@ -103,17 +103,17 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
             }
             UPDATE_MID_INDEX_AND_VALUE(min_index);
             before_mid_count += mid_index[min_index] - old_mid;
-            printf("6\n");
+            //printf("6\n");
         }
         else {
-            printf("7\n");
+            //printf("7\n");
             //            std::cout << "Adjusting max... " << max_index << std::endl;
             ends[max_index] = mid_index[max_index];
             int_t old_mid = mid_index[max_index];
             UPDATE_MID_INDEX_AND_VALUE(max_index);
             before_mid_count -= old_mid - mid_index[max_index];
         }
-        printf("8\n");
+        //printf("8\n");
         //        std::cout << std::endl;
     }
 
@@ -136,7 +136,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
     __shared__ int_t offsets[MAX_GPUS];
 
 
-    printf("A\n");
+    //printf("A\n");
     if (thidx == 0) {
         std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_select(arr_descr, M, k, comp);
         printf("B\n");
@@ -154,10 +154,10 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
             offsets[i] = offsets[i - 1] + arr_descr.lengths[i - 1];
         }
     }
-    printf("C\n");
+    //printf("C\n");
 
     __syncthreads();
-    printf("D\n");
+    //printf("D\n");
     assert(blockDim.x >= M);
 
     if (thidx < M) {
@@ -165,15 +165,15 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         int_t result;
         if (list != k_list_index) {
             const key_t* arr = arr_descr.keys[list];
-            printf("E\n");
+            //printf("E\n");
             int_t start, end, mid, offset, k_offset;
             key_t mid_value;
             key_t _k_value = k_value;
             start = 0;
             end = arr_descr.lengths[list];
-            printf("F\n");
+            //printf("F\n");
             offset = offsets[list];
-            printf("G\n");
+            //printf("G\n");
             k_offset = offsets[k_list_index] + k_index;
             while (start < end) {
                 mid = (start + end) / 2;
@@ -199,7 +199,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         else {
             result = k_index;
         }
-        printf("H\n");
+        //printf("H\n");
         Results[list] = result;
     }
 
