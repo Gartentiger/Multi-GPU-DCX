@@ -12,8 +12,9 @@
 #include "multi_way_partitioning_search.hpp"
 #include "multi_way_micromerge_on_one_node.hpp"
 #include "qdallocator.hpp"
+#include <kamping/collectives/allgather.hpp>
+#include "kamping/data_buffer.hpp"
 #include <span>
-
 
 namespace crossGPUReMerge {
 
@@ -164,13 +165,23 @@ namespace crossGPUReMerge {
 
             mcontext.sync_all_streams();
             MergeNode mergeNode = mnodes[world_rank()];
-            size_t size = mergeNode.scheduled_work.searches.size();
-            std::vector<int64_t> sendResult(size);
-            for (size_t i = 0; i < size; i++)
+            size_t ssize = mergeNode.scheduled_work.searches.size();
+            std::vector<int64_t> sendSResult(ssize);
+            for (size_t i = 0; i < ssize; i++)
             {
-                sendResult.push_back(mergeNode.scheduled_work.searches[i]->h_result_ptr);
+                sendSResult.push_back(mergeNode.scheduled_work.searches[i]->h_result_ptr);
             }
-            std::vector<int64_t> recvResult = comm_world().alltoall(send_buf(sendResult));
+            std::vector<int64_t> recvSResult;
+            comm_world().allgatherv(send_buf(sendSResult), recv_buf(recvSResult));
+
+            size_t mssize = mergeNode.scheduled_work.multi_searches.size();
+            std::vector<int64_t> sendMSResult(mssize);
+            for (size_t i = 0; i < ssize; i++)
+            {
+                sendMSResult.push_back(mergeNode.scheduled_work.multi_searches[i]->h_result_ptr);
+            }
+            std::vector<int64_t> recvMSResult;
+            comm_world().allgatherv(send_buf(sendMSResult), recv_buf(recvMSResult));
 
             printf("Sync all streams %lu\n", world_rank());
             for (MergeNode& node : mnodes) {
@@ -182,7 +193,7 @@ namespace crossGPUReMerge {
                 }
                 else {
                     for (auto s : node.scheduled_work.searches) {
-                        s->result = recvResult[node.info.index];
+                        s->result = recvSResult[node.info.index];
                     }
                 }
                 printf("ms %lu\n", world_rank());
