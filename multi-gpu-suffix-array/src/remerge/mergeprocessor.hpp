@@ -217,31 +217,32 @@ namespace crossGPUReMerge
             printf("Searches done %d\n", world_rank());
 
             size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
-            std::vector<std::vector<int64_t>> send_multi_search_result(mulit_search_size);
+            std::vector<int64_t> send_multi_search_result(mulit_search_size);
             for (int i = 0; i < mulit_search_size; i++)
             {
                 size_t size = mergeNode.scheduled_work.multi_searches[i]->ranges.size() + 1;
-                std::vector<int64_t> vec(size);
                 for (size_t j = 0; j < size; j++)
                 {
-                    vec.push_back(mergeNode.scheduled_work.multi_searches[i]->h_result_ptr[j]);
+                    send_multi_search_result.push_back(mergeNode.scheduled_work.multi_searches[i]->h_result_ptr[j]);
                 }
-                send_multi_search_result.push_back(vec);
             }
             std::vector<int> multi_search_output_counts(comm_world().size());
             std::vector<std::vector<int64_t>> recv_multi_search_result;
             comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts(multi_search_output_counts));
             printf("Mulit searches %d\n", world_rank());
-            size_t enumerator = 0;
+            size_t mulitSearches = 0;
+            int enumerat = 0;
             for (int i = 0; i < comm_world().size(); i++)
             {
                 ASSERT(mnodes[i].info.index == i);
                 for (int j = 0; j < multi_search_output_counts[i]; j++)
                 {
                     MergeNode node = mnodes[i];
-                    size_t size = recv_multi_search_result[enumerator].size();
-                    mnodes[i].scheduled_work.multi_searches[j]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size); // recv_multi_search_result[enumerator++];
-                    memcpy(mnodes[i].scheduled_work.multi_searches[j]->h_result_ptr, recv_multi_search_result[enumerator++].data(), size * sizeof(int64_t));
+                    int size = node.scheduled_work.multi_searches[mulitSearches]->ranges.size() + 1;
+                    mnodes[i].scheduled_work.multi_searches[mulitSearches]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size); // recv_multi_search_result[enumerator++];
+                    memcpy(mnodes[i].scheduled_work.multi_searches[j]->h_result_ptr, recv_multi_search_result.data() + enumerat, size * sizeof(int64_t));
+                    enumerat += size;
+                    mulitSearches++;
                 }
             }
             printf("Multi searches done %lu\n", world_rank());
