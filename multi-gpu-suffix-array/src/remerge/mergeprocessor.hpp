@@ -161,7 +161,7 @@ namespace crossGPUReMerge
                         CUERR;
                     }
                     mcontext.sync_all_streams();
-                    printf("sync complete %lu\n", world_rank());
+                    //printf("sync complete %lu\n", world_rank());
                     for (auto ms : node.scheduled_work.multi_searches)
                     {
                         const size_t result_buffer_length = ms->ranges.size() + 1;
@@ -179,7 +179,7 @@ namespace crossGPUReMerge
                             i++;
                         }
 
-                        printf("before sync %lu\n", world_rank());
+                        //printf("before sync %lu\n", world_rank());
 
                         CUERR;
                         cudaStreamSynchronize(stream);

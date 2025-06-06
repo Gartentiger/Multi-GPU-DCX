@@ -43,11 +43,11 @@ namespace crossGPUReMerge
         {
             init_node_utils();
             init_micro_ranges(ranges);
-            printf("init %lu\n", world_rank());
+            //printf("init %lu\n", world_rank());
             while (schedule_micro_merges() > 0)
             {
                 schedule_partitioning_searches();
-                printf("do search %lu\n", world_rank());
+                //printf("do search %lu\n", world_rank());
                 mmerge_processor.do_searches(comp);
                 create_partitions_from_search_results();
                 //                debug_print();
