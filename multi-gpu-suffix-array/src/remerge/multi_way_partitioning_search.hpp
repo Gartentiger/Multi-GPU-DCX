@@ -30,6 +30,7 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
     // m = ranges.size()
     for (uint i = 0; i < M; ++i) {
         starts[i] = 0;
+        printf("1.0\n");
         ends[i] = arr_descr.lengths[i];
         printf("1.1 %d\n", arr_descr.lengths[i]);
         UPDATE_MID_INDEX_AND_VALUE(i);
