@@ -13,7 +13,7 @@
 #define CUERR {                                                              \
     cudaError_t err;                                                         \
     if ((err = cudaGetLastError()) != cudaSuccess) {                         \
-         error("CUDA error %lu (%s, %d): %s",world_rank() , __FILE__, __LINE__, cudaGetErrorString(err));    \
+         error("CUDA error %lu (%s, %d): %s",kamping::world_rank() , __FILE__, __LINE__, cudaGetErrorString(err));    \
          exit(1);                                                            \
     }                                                                        \
 }
