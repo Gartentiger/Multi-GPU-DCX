@@ -187,31 +187,31 @@ public:
 
         mgpus[0].offset = 0;
 
-        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        //{
-        uint gpu_index = world_rank();
-        // Not sure whether we have to associate the device with host memory planned for it.
-        SaGPU& gpu = mgpus[gpu_index];
-        gpu.index = gpu_index;
-        gpu.num_segments = 0;
-        gpu.rank_of_first_entry_within_segment = 0;
-
-        gpu.working_len = per_gpu;
-
-        if (gpu_index + 1 == NUM_GPUS)
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            gpu.working_len = last_gpu_len;
+            //uint gpu_index = world_rank();
+            // Not sure whether we have to associate the device with host memory planned for it.
+            SaGPU& gpu = mgpus[gpu_index];
+            gpu.index = gpu_index;
+            gpu.num_segments = 0;
+            gpu.rank_of_first_entry_within_segment = 0;
+
+            gpu.working_len = per_gpu;
+
+            if (gpu_index + 1 == NUM_GPUS)
+            {
+                gpu.working_len = last_gpu_len;
+            }
+
+            gpu.isa_len = gpu.working_len;
+
+            assign_ptrs(gpu, mmemory_manager.get_pd_arrays(gpu_index));
+
+            if (gpu_index > 0)
+            {
+                gpu.offset = mgpus[gpu_index - 1].offset + mgpus[gpu_index - 1].working_len;
+            }
         }
-
-        gpu.isa_len = gpu.working_len;
-
-        assign_ptrs(gpu, mmemory_manager.get_pd_arrays(gpu_index));
-
-        if (gpu_index > 0)
-        {
-            gpu.offset = mgpus[gpu_index - 1].offset + mgpus[gpu_index - 1].working_len;
-        }
-        //}
         mdebugHostGPU.num_segments = 0;
 #ifdef ENABLE_DUMPING
         assign_ptrs(mdebugHostGPU, mmemory_manager.get_host_pd_arrays());
@@ -492,13 +492,13 @@ private:
                 // Now Sa_rank is sorted to Old_ranks,
                 // Isa is sorted to Sa_Index
                 // Temp2, 3, 4 used as temp space
-            }
 
-            //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
+                //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
+            }
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
-                                           reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
-                                           reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa,
-                                           reinterpret_cast<uint64_t*>(gpu.Temp2), gpu.Temp4 };
+                reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
+                reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa,
+                reinterpret_cast<uint64_t*>(gpu.Temp2), gpu.Temp4 };
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp2, mreserved_len * 3 * sizeof(sa_index_t));
         }
         // TODO change for ds

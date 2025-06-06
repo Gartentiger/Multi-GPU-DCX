@@ -391,6 +391,7 @@ namespace crossGPUReMerge
 
         void init_nodes(const std::array<MergeNodeInfo<mtypes>, NUM_GPUS>& merge_node_info)
         {
+            // merge_node_info.size() == NUM_GPUS
             for (uint n = 0; n < merge_node_info.size(); ++n)
             {
                 mnodes[n] = MergeNode(merge_node_info[n]);
