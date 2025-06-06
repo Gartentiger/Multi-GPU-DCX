@@ -186,11 +186,15 @@ namespace crossGPUReMerge
                         CUERR;
                         cudaStreamSynchronize(stream);
                         CUERR;
+                        printf("multi find %lu\n", world_rank());
+
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
                         CUERR;
                         cudaStreamSynchronize(stream);
                         CUERR;
+                        printf("cuda memcpy %lu\n", world_rank());
+
                     }
                 }
             }
