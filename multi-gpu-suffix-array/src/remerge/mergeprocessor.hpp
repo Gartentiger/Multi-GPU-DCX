@@ -176,6 +176,7 @@ namespace crossGPUReMerge
                         {
                             ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                             ad.lengths[i] = r.end.index - r.start.index;
+                            printf("Ad length %d %lu\n", ad.lengths[i], world_rank());
                             i++;
                         }
 
