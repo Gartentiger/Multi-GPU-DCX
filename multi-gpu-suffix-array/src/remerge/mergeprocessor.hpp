@@ -184,9 +184,12 @@ namespace crossGPUReMerge
                             (int64_t*)ms->d_result_ptr,
                             (uint*)(ms->d_result_ptr + result_buffer_length - 1));
                         CUERR;
-
+                        cudaStreamSynchronize(stream);
+                        CUERR;
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
+                        CUERR;
+                        cudaStreamSynchronize(stream);
                         CUERR;
                     }
                 }
