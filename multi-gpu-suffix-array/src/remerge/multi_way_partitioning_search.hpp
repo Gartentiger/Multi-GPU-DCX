@@ -136,7 +136,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
     __shared__ int_t offsets[MAX_GPUS];
 
 
-    //printf("A\n");
+    printf("A\n");
     if (thidx == 0) {
         std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_select(arr_descr, M, k, comp);
         printf("B\n");
@@ -145,7 +145,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         k_value = std::get<2>(ksmallest);
         *Safe_list = k_list_index;
     }
-
+    printf("AA\n");
 
     // TODO: optimize this
     if (thidx == 0) {
@@ -154,10 +154,10 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
             offsets[i] = offsets[i - 1] + arr_descr.lengths[i - 1];
         }
     }
-    //printf("C\n");
+    printf("C\n");
 
     __syncthreads();
-    //printf("D\n");
+    printf("D\n");
     assert(blockDim.x >= M);
 
     if (thidx < M) {
@@ -165,15 +165,15 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         int_t result;
         if (list != k_list_index) {
             const key_t* arr = arr_descr.keys[list];
-            //printf("E\n");
+            printf("E\n");
             int_t start, end, mid, offset, k_offset;
             key_t mid_value;
             key_t _k_value = k_value;
             start = 0;
             end = arr_descr.lengths[list];
-            //printf("F\n");
+            printf("F\n");
             offset = offsets[list];
-            //printf("G\n");
+            printf("G\n");
             k_offset = offsets[k_list_index] + k_index;
             while (start < end) {
                 mid = (start + end) / 2;
@@ -199,7 +199,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         else {
             result = k_index;
         }
-        //printf("H\n");
+        printf("H\n");
         Results[list] = result;
     }
 
