@@ -199,14 +199,14 @@ namespace crossGPUReMerge
             {
                 send_search_result.push_back(*mergeNode.scheduled_work.searches[i]->h_result_ptr);
             }
-            std::vector<size_t> search_output_counts(comm_world().size());
+            std::vector<int> search_output_counts(comm_world().size());
             std::vector<int64_t> recv_send_result;
             comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_send_result), recv_counts(search_output_counts));
             printf("Allgather %d\n", world_rank());
             int enumer = 0;
             for (int i = 0; i < comm_world().size(); i++)
             {
-                for (size_t j = 0; j < search_output_counts[i]; j++)
+                for (int j = 0; j < search_output_counts[i]; j++)
                 {
                     MergeNode node = mnodes[i];
                     ASSERT(node.info.index == i);
@@ -218,7 +218,7 @@ namespace crossGPUReMerge
 
             size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
             std::vector<std::vector<int64_t>> send_multi_search_result(mulit_search_size);
-            for (size_t i = 0; i < mulit_search_size; i++)
+            for (int i = 0; i < mulit_search_size; i++)
             {
                 size_t size = mergeNode.scheduled_work.multi_searches[i]->ranges.size() + 1;
                 std::vector<int64_t> vec(size);
@@ -228,7 +228,7 @@ namespace crossGPUReMerge
                 }
                 send_multi_search_result.push_back(vec);
             }
-            std::vector<size_t> multi_search_output_counts(comm_world().size());
+            std::vector<int> multi_search_output_counts(comm_world().size());
             std::vector<std::vector<int64_t>> recv_multi_search_result;
             comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts(multi_search_output_counts));
             printf("Mulit searches %d\n", world_rank());
@@ -236,7 +236,7 @@ namespace crossGPUReMerge
             for (int i = 0; i < comm_world().size(); i++)
             {
                 ASSERT(mnodes[i].info.index == i);
-                for (size_t j = 0; j < multi_search_output_counts[i]; j++)
+                for (int j = 0; j < multi_search_output_counts[i]; j++)
                 {
                     MergeNode node = mnodes[i];
                     size_t size = recv_multi_search_result[enumerator].size();
