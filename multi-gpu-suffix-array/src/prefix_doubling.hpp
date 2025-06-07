@@ -495,6 +495,7 @@ private:
 
                 //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
             }
+            // working_len == num_elements
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
                 reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
                 reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa,

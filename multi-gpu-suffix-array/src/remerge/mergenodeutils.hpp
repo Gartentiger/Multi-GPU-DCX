@@ -6,8 +6,8 @@
 
 namespace crossGPUReMerge {
 
-class MergeNodeUtils
-{
+    class MergeNodeUtils
+    {
     public:
         MergeNodeUtils() {
         }
@@ -20,18 +20,19 @@ class MergeNodeUtils
             return mnode_elements[node];
         }
 
+        // first call range.start == 0, range.end == NUM_GPUS-1 
         template <typename func_t>
-        void convert_to_per_node_ranges(const MergeRange& range,  const func_t& f) const {
+        void convert_to_per_node_ranges(const MergeRange& range, const func_t& f) const {
             ASSERT(range.start.node <= range.end.node);
             if (range.start.node == range.end.node) {
-                f(range.start.node,  { range.start.index, range.end.index });
+                f(range.start.node, { range.start.index, range.end.index });
             }
             else {
                 f(range.start.node, { range.start.index, get_node_num_elements(range.start.node) });
-                for (uint node = range.start.node+1; node < range.end.node; ++node) {
+                for (uint node = range.start.node + 1; node < range.end.node; ++node) {
                     f(node, { 0, get_node_num_elements(node) });
                 }
-                f(range.end.node, { 0, range.end.index } );
+                f(range.end.node, { 0, range.end.index });
             }
         }
 
@@ -45,7 +46,7 @@ class MergeNodeUtils
                 ASSERT(p.node <= range.end.node);
             }
             ASSERT(p.node == range.end.node ? p.index <= range.end.index :
-                                              p.index <= get_node_num_elements(p.node));
+                p.index <= get_node_num_elements(p.node));
             return p;
         }
 
@@ -56,7 +57,7 @@ class MergeNodeUtils
 
     private:
         std::vector<size_t> mnode_elements;
-};
+    };
 
 }
 #endif // MERGENODEUTILS_H

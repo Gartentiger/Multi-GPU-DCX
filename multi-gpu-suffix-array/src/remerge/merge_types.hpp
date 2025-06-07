@@ -7,119 +7,122 @@
 
 namespace crossGPUReMerge {
 
-template <typename _key_t, typename _value_t>
-struct mergeTypes {
-    using key_t = _key_t;
-    using value_t = _value_t;
-};
+    template <typename _key_t, typename _value_t>
+    struct mergeTypes {
+        using key_t = _key_t;
+        using value_t = _value_t;
+    };
 
 
-// All index ranges here are one-past-the-end, the node indices are, however, not one-past-the-end but
-// inclusive.
+    // All index ranges here are one-past-the-end, the node indices are, however, not one-past-the-end but
+    // inclusive.
 
-struct MergePosition {
-    uint node;
-    sa_index_t index;
-};
+    struct MergePosition {
+        uint node;
+        sa_index_t index;
+    };
 
-struct sa_index_range_t {
-    sa_index_t start, end;
-};
+    struct sa_index_range_t {
+        // sa_index_t = uint32_t
+        sa_index_t start, end;
+    };
 
-struct MergeRange {
-    MergePosition start, end;
-};
+    struct MergeRange {
+        MergePosition start, end;
+    };
 
-struct MergePartitionSource {
-    uint node;
-    sa_index_range_t range;
-    sa_index_t dest_offset;
-};
+    struct MergePartitionSource {
+        uint node;
+        sa_index_range_t range;
+        sa_index_t dest_offset;
+    };
 
-struct MergePartition {
-    uint dest_node;
-    sa_index_range_t dest_range;
-    std::vector<MergePartitionSource> sources_1, sources_2;
-    size_t size_from_1, size_from_2;
-};
+    struct MergePartition {
+        uint dest_node;
+        sa_index_range_t dest_range;
+        std::vector<MergePartitionSource> sources_1, sources_2;
+        size_t size_from_1, size_from_2;
+    };
 
-struct TwoWayPartitioningSearch {
-    uint node_1, node_2, search_on;
-    sa_index_range_t node1_range;
-    sa_index_range_t node2_range;
-    sa_index_t cross_diagonal;
-    sa_index_t cross_diagonal_index;
-    int64_t result;
-    int64_t* d_result_ptr;
-    int64_t* h_result_ptr;
-};
+    struct TwoWayPartitioningSearch {
+        uint node_1, node_2, search_on;
+        sa_index_range_t node1_range;
+        sa_index_range_t node2_range;
+        sa_index_t cross_diagonal;
+        sa_index_t cross_diagonal_index;
+        int64_t result;
+        int64_t* d_result_ptr;
+        int64_t* h_result_ptr;
+    };
 
-// Multi merge
-struct MultiWayPartitioningSearch {
-    MultiWayPartitioningSearch(const std::vector<MergeRange>& ranges_)
-        : ranges(ranges_)
-    {
-        results.reserve(ranges.size());
-    }
+    // Multi merge
+    struct MultiWayPartitioningSearch {
+        MultiWayPartitioningSearch(const std::vector<MergeRange>& ranges_)
+            : ranges(ranges_)
+        {
+            results.reserve(ranges.size());
+        }
 
-//    MultiWayPartitioningSearch(const MultiWayPartitioningSearch& other) = delete;
+        //    MultiWayPartitioningSearch(const MultiWayPartitioningSearch& other) = delete;
 
-    const std::vector<MergeRange>& ranges;
-    size_t split_index;
+        const std::vector<MergeRange>& ranges;
+        size_t split_index;
 
-    std::vector<int64_t> results;
-    uint scheduled_on, range_to_take_one_more;
-    int64_t* d_result_ptr;
-    int64_t* h_result_ptr;
-};
+        std::vector<int64_t> results;
+        uint scheduled_on, range_to_take_one_more;
+        int64_t* d_result_ptr;
+        int64_t* h_result_ptr;
+    };
 
-struct MultiWayMergePartition {
-    uint dest_node;
-    sa_index_range_t dest_range;
-    std::vector<MergePartitionSource> sources;
-    std::vector<sa_index_range_t> dest_micro_ranges;
-};
+    struct MultiWayMergePartition {
+        uint dest_node;
+        sa_index_range_t dest_range;
+        std::vector<MergePartitionSource> sources;
+        std::vector<sa_index_range_t> dest_micro_ranges;
+    };
 
-// /Multi merge
+    // /Multi merge
 
-template <class mtypes>
-struct MergeNodeInfo {
-  using key_t = typename mtypes::key_t;
-  using value_t = typename mtypes::value_t;
-  size_t num_elements;
-  size_t detour_buffer_size;
-  uint index;
-  key_t* keys;
-  value_t* values;
-  key_t* key_buffer;
-  value_t* value_buffer;
-  key_t* key_detour_buffer;
-  value_t* value_detour_buffer;
-};
+    template <class mtypes>
+    struct MergeNodeInfo {
+        using key_t = typename mtypes::key_t;
+        using value_t = typename mtypes::value_t;
+        size_t num_elements;
+        size_t detour_buffer_size;
+        uint index;
+        key_t* keys;
+        value_t* values;
+        key_t* key_buffer;
+        value_t* value_buffer;
+        key_t* key_detour_buffer;
+        value_t* value_detour_buffer;
+    };
 
-struct MergeNodeScheduledWork {
-    std::vector<TwoWayPartitioningSearch*> searches;
-    std::vector<MergePartition*> merge_partitions;
+    struct MergeNodeScheduledWork {
+        std::vector<TwoWayPartitioningSearch*> searches;
+        std::vector<MergePartition*> merge_partitions;
 
-    std::vector<MultiWayPartitioningSearch*> multi_searches;
-    std::vector<MultiWayMergePartition*> multi_merge_partitions;
+        std::vector<MultiWayPartitioningSearch*> multi_searches;
+        std::vector<MultiWayMergePartition*> multi_merge_partitions;
 
-};
+    };
 
-template <class mtypes>
-struct MergeNode {
-    MergeNode()
-        : info{0, 0, 0, nullptr, nullptr,nullptr,nullptr,nullptr,nullptr}
-    {}
+    template <class mtypes>
+    struct MergeNode {
+        MergeNode()
+            : info{ 0, 0, 0, nullptr, nullptr,nullptr,nullptr,nullptr,nullptr }
+        {
+        }
 
-    MergeNode(const MergeNodeInfo<mtypes>& info_)
-        : info(info_) {}
+        MergeNode(const MergeNodeInfo<mtypes>& info_)
+            : info(info_) {
+        }
 
-    MergeNodeInfo<mtypes> info;
-    MergeNodeScheduledWork scheduled_work;
-};
+        MergeNodeInfo<mtypes> info;
+        MergeNodeScheduledWork scheduled_work;
+    };
 
-using InterNodeCopy = InterNodeCopy<sa_index_t>;
+    using InterNodeCopy = InterNodeCopy<sa_index_t>;
 
 }
 

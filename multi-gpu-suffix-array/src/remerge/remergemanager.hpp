@@ -109,7 +109,9 @@ namespace crossGPUReMerge
                 ASSERT(range.end.index <= mnode_utils.get_node_num_elements(range.end.node));
                 mmerges.emplace_back(Merge());
                 Merge& merge = mmerges.back();
-
+                // mircro_ranges vector<MergeRange> 
+                // MergeRange -> 2 MergePositions | MergePosition -> uint, sa_index==uint32_t
+                // range == 0,0 3,num_elements(working_length(num_per_gpu))
                 mnode_utils.convert_to_per_node_ranges(range, [&merge](uint node, sa_index_range_t r)
                     { merge.micro_ranges.push_back({ {node, r.start}, {node, r.end} }); });
             }
