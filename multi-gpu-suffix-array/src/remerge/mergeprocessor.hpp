@@ -130,11 +130,11 @@ namespace crossGPUReMerge
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
-                printf("Merge node index %d\n", node_index);
                 cudaSetDevice(mcontext.get_device_id(node_index));
                 CUERR;
                 if (world_rank() == node_index)
                 {
+                    printf("Merge node index %d\n", node_index);
 
                     QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
 
