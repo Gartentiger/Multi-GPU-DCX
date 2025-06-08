@@ -1,12 +1,13 @@
-cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(suffix_array LANGUAGES CXX CUDA)
 
 option(DGX1_TOPOLOGY "Handle DGX-1 topology" OFF)
 
 set(CMAKE_CUDA_ARCHITECTURES 60)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CUDA_STANDARD 20)
 
 add_executable(suffix_array 
                 src/util.h
@@ -75,7 +76,7 @@ target_link_libraries(suffix_array PRIVATE kamping)
 
 
 target_compile_options(kamping INTERFACE
-   $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-std=gnu++17>)
+   $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-std=gnu++2a>)
 
 
 find_package(MPI REQUIRED)

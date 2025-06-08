@@ -12,6 +12,7 @@ namespace crossGPUReMerge {
         MergeNodeUtils() {
         }
 
+        // first call working lengths of gpus
         void init(std::vector<size_t>&& num_elements) {
             mnode_elements = std::move(num_elements);
         }
@@ -28,6 +29,9 @@ namespace crossGPUReMerge {
                 f(range.start.node, { range.start.index, range.end.index });
             }
             else {
+                // printf("sanity getNodeNumElements: %d", get_node_num_elements(range.start.node));
+                // range = 0,0 3,num_elements(working_length(num_per_gpu))
+                // range.start.node = 0, range.start.index = 0, get_node_num_elements(range.start.node) = mdp_per_gpu
                 f(range.start.node, { range.start.index, get_node_num_elements(range.start.node) });
                 for (uint node = range.start.node + 1; node < range.end.node; ++node) {
                     f(node, { 0, get_node_num_elements(node) });

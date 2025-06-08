@@ -265,7 +265,7 @@ public:
 
         // Ensure each gpu has a multiple of 3 because of triplets.
         mper_gpu = SDIV(mper_gpu, 3) * 3;
-
+        printf("minput_len: %lu, mper_gpu %lu\n", minput_len, mper_gpu);
         ASSERT(minput_len > (NUM_GPUS - 1) * mper_gpu + 3); // Because of merge
         size_t last_gpu_elems = minput_len - (NUM_GPUS - 1) * mper_gpu;
         ASSERT(last_gpu_elems <= mper_gpu); // Because of merge.
@@ -353,6 +353,7 @@ private:
     void copy_input()
     {
         using kmer_t = uint64_t;
+
         SaGPU& gpu = mgpus[world_rank()];
 
         // Need the halo to the right for kmers...
@@ -881,6 +882,10 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     cudaSetDevice(0);
+    //char* pci;
+    //cudaDeviceGetPCIBusId(pci, 100, 0);
+    //std::cout << pci << std::endl;
+
     size_t realLen;
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), 0);
 
@@ -892,7 +897,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 0, 0, 0 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,0,0,0 };
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids2);
     printf("Multi GPU Context\n");

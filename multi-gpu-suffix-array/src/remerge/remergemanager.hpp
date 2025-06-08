@@ -304,6 +304,7 @@ namespace crossGPUReMerge
             {
                 sizes.push_back(node.info.num_elements);
             }
+
             mnode_utils.init(std::move(sizes));
         }
 

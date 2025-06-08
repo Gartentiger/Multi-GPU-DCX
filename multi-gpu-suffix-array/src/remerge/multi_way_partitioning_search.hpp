@@ -3,6 +3,7 @@
 
 #include <tuple>
 #include "util.h"
+#include <iostream>
 
 template<size_t SIZE, typename key_t, typename int_t>
 struct ArrayDescriptor {
@@ -28,23 +29,27 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
     size_t total_size = 0;
     // Initialize
     // M = ranges.size()
+    printf("M : %ld\n", M);
     for (uint i = 0; i < M; ++i) {
         starts[i] = 0;
-        //printf("1.0\n");
+        printf("1.0\n");
         ends[i] = arr_descr.lengths[i];
-        printf("1.1 length: %d, M: %d, i: %d\n", arr_descr.lengths[i], M, i);
+        //std::cout << "1.1 length:" << arr_descr.lengths[i] << ", M: " << M << ", i:" << i <<std::endl;
+        printf("1.1 length: %ld, M: %ld, i: %d\n", arr_descr.lengths[i], M, i);
         uint a = (starts[i] + ends[i]) / 2;
-        printf("1.2 keys: %d\n", arr_descr.keys[i][a]);
+        printf("1.2 keys: %u, a: %u\n", i, a);
+
+        printf("array descritor.keys: %lu\n", arr_descr.keys[i][0]);
         UPDATE_MID_INDEX_AND_VALUE(i);
-        //printf("1.2\n");
+
+        printf("1.2 %u\n", i);
         before_mid_count += mid_index[i];
-        //printf("1.3\n");
+        printf("1.3 %u\n", i);
         total_size += arr_descr.lengths[i];
     }
-    //printf("2\n");
-    //    std::cout << "k: " << k << ", total_size: " << total_size << "\n";
-
-    assert(k < total_size);
+    printf("k: %ld, total size: %lu\n", k, total_size);
+    //std::cout << "k: " << k << ", total_size: " << total_size << std::endl;
+    //assert(k < total_size);
 
     bool done = false;
     key_t result_value;
@@ -167,15 +172,15 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         int_t result;
         if (list != k_list_index) {
             const key_t* arr = arr_descr.keys[list];
-            printf("E\n");
+            printf("E %d\n", thidx);
             int_t start, end, mid, offset, k_offset;
             key_t mid_value;
             key_t _k_value = k_value;
             start = 0;
             end = arr_descr.lengths[list];
-            printf("F\n");
+            printf("F %d\n", thidx);
             offset = offsets[list];
-            printf("G\n");
+            printf("G %d\n", thidx);
             k_offset = offsets[k_list_index] + k_index;
             while (start < end) {
                 mid = (start + end) / 2;
@@ -201,7 +206,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         else {
             result = k_index;
         }
-        printf("H\n");
+        printf("H %d\n", thidx);
         Results[list] = result;
     }
 

@@ -202,20 +202,20 @@ public:
 
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
-            if (world_rank() == gpu)
+            //if (world_rank() == gpu)
+            //{
+            cudaSetDevice(0);
+            cudaMalloc(&malloc_base[gpu], malloc_size);
+            CUERR;
+            // cudaSetDevice(mcontext.get_device_id(gpu));
+            // cudaMalloc(&malloc_base[gpu], malloc_size);
+            if (zero)
             {
-                cudaSetDevice(0);
-                cudaMalloc(&malloc_base[gpu], malloc_size);
+                cudaMemsetAsync(malloc_base[gpu], 0, malloc_size,
+                    mcontext.get_gpu_default_stream(gpu));
                 CUERR;
-                // cudaSetDevice(mcontext.get_device_id(gpu));
-                // cudaMalloc(&malloc_base[gpu], malloc_size);
-                if (zero)
-                {
-                    cudaMemsetAsync(malloc_base[gpu], 0, malloc_size,
-                        mcontext.get_gpu_default_stream(gpu));
-                    CUERR;
-                }
             }
+            //}
             marrays_pd[gpu] = make_pd_arrays(malloc_base[gpu]);
             marrays_prepare_S12[gpu] = make_prepare_S12_arrays(malloc_base[gpu]);
             marrays_prepare_S0[gpu] = make_prepare_S0_arrays(malloc_base[gpu]);

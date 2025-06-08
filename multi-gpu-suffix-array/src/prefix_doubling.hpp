@@ -16,7 +16,20 @@
 
 // #define DEBUG_SET_ZERO_TO_SEE_BETTER
 // #define DUMP_EVERYTHING
+__global__ void printArray(uint64_t* key, sa_index_t* value, size_t size, bool in)
+{
+    for (size_t i = 0; i < size; i++) {
+        if (in) {
+            printf("key_in: %lu, value_in: %u\n", key[i], value[i]);
+        }
+        else {
+            printf("key_out: %lu, value_out: %u\n", key[i], value[i]);
 
+        }
+
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
 struct MaxFunctor
 {
     template <typename T>
@@ -466,6 +479,8 @@ private:
                 size_t temp_storage_bytes = 0;
 
                 const size_t SORT_DOWN_TO_G = gpu_index == NUM_GPUS - 1 ? SORT_DOWN_TO_LAST : SORT_DOWN_TO;
+                printf("working length %lu\n", gpu.working_len);
+
 
                 cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
                     reinterpret_cast<uint64_t*>(gpu.Sa_rank),
@@ -475,6 +490,9 @@ private:
                     mcontext.get_gpu_default_stream(gpu.index));
 
                 CUERR_CHECK(err);
+
+
+
                 //                if (gpu_index == 0) {
                     //                    printf("\nTemp storage required for initial sort: %zu bytes, available: %zu.\n", temp_storage_bytes,
                     //                           (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t));
@@ -482,6 +500,11 @@ private:
 
                 ASSERT(temp_storage_bytes <= (3 * mreserved_len + madditional_temp_storage_size) * sizeof(sa_index_t));
                 //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
+
+                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, true);
+
+                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, false);
+
                 err = cub::DeviceRadixSort::SortPairs(gpu.Temp2, temp_storage_bytes,
                     reinterpret_cast<uint64_t*>(gpu.Sa_rank),
                     reinterpret_cast<uint64_t*>(gpu.Old_ranks),
@@ -489,6 +512,18 @@ private:
                     gpu.working_len, SORT_DOWN_TO_G, sizeof(ulong1) * 8,
                     mcontext.get_gpu_default_stream(gpu.index));
                 CUERR_CHECK(err);
+
+                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, true);
+
+                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, false);
+
+
+                //cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
+
+                //CUERR;
+                //exit(1);
+
+
                 // Now Sa_rank is sorted to Old_ranks,
                 // Isa is sorted to Sa_Index
                 // Temp2, 3, 4 used as temp space
@@ -606,7 +641,7 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-        }
+}
         mcontext.sync_default_streams();
 #endif
 

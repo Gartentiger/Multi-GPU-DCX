@@ -38,7 +38,7 @@ namespace crossGPUReMerge
 
         int_t begin = max(int_t(0), diag - b_count);
         int_t end = min(diag, a_count);
-
+        printf("fff %u", a_keys[4]);
         while (begin < end)
         {
             int_t mid = (begin + end) / 2;
@@ -132,9 +132,9 @@ namespace crossGPUReMerge
                 const uint node_index = node.info.index;
                 cudaSetDevice(mcontext.get_device_id(node_index));
                 CUERR;
+                printf("Merge node index %d\n", node_index);
                 if (world_rank() == node_index)
                 {
-                    printf("Merge node index %d\n", node_index);
 
                     QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
 
@@ -142,13 +142,13 @@ namespace crossGPUReMerge
                     {
                         uint other = (node_index == s->node_1) ? s->node_2 : s->node_1;
                         const cudaStream_t& stream = mcontext.get_streams(node_index).at(other);
-
                         key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
                         int64_t size_1 = s->node1_range.end - s->node1_range.start;
 
                         key_t* start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                         int64_t size_2 = s->node2_range.end - s->node2_range.start;
-
+                        printf("snode_1 %u, mnode info index %u\n", s->node_1, mnodes[s->node_1].info.index);
+                        printf("snode_2 %u, mnode info index %u\n", s->node_2, mnodes[s->node_2].info.index);
                         s->d_result_ptr = d_alloc.get<int64_t>(1);
                         s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
 
@@ -165,18 +165,20 @@ namespace crossGPUReMerge
                     for (auto ms : node.scheduled_work.multi_searches)
                     {
                         const size_t result_buffer_length = ms->ranges.size() + 1;
-                        const cudaStream_t& stream = mcontext.get_gpu_default_stream(node.info.index);
+                        const cudaStream_t& stream = mcontext.get_gpu_default_stream(node_index);
 
                         ms->d_result_ptr = d_alloc.get<int64_t>(result_buffer_length);
                         ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
 
                         ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
                         int i = 0;
+
                         for (const auto& r : ms->ranges)
                         {
+                            printf("r.start.node %u ---- --- - - -- - - start index %u\n", r.start.node, r.start.index);
                             ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                             ad.lengths[i] = r.end.index - r.start.index;
-                            printf("Ad length %d %lu\n", ad.lengths[i], world_rank());
+                            printf("Ad length %lu %lu\n", ad.lengths[i], world_rank());
                             i++;
                         }
 
@@ -186,7 +188,7 @@ namespace crossGPUReMerge
                         cudaStreamSynchronize(stream);
                         CUERR;
                         printf("after array descr %lu \n", world_rank());
-
+                        printf("ms->split_index: %lu\n", ms->split_index);
                         multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
@@ -195,7 +197,7 @@ namespace crossGPUReMerge
                         cudaStreamSynchronize(stream);
                         CUERR;
                         printf("multi find %lu\n", world_rank());
-
+                        exit(1);
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
                         CUERR;
@@ -220,7 +222,7 @@ namespace crossGPUReMerge
             std::vector<int> search_output_counts(comm_world().size());
             std::vector<int64_t> recv_send_result;
             comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_send_result), recv_counts(search_output_counts));
-            printf("Allgather %d\n", world_rank());
+            printf("Allgather %lu\n", world_rank());
             int enumer = 0;
             for (int i = 0; i < comm_world().size(); i++)
             {
@@ -232,7 +234,7 @@ namespace crossGPUReMerge
                     *node.scheduled_work.searches[j]->h_result_ptr = recv_send_result[enumer++];
                 }
             }
-            printf("Searches done %d\n", world_rank());
+            printf("Searches done %lu\n", world_rank());
 
             size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
             std::vector<int64_t> send_multi_search_result(mulit_search_size);
@@ -247,7 +249,7 @@ namespace crossGPUReMerge
             std::vector<int> multi_search_output_counts(comm_world().size());
             std::vector<int64_t> recv_multi_search_result;
             comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts(multi_search_output_counts));
-            printf("Mulit searches %d\n", world_rank());
+            printf("Mulit searches %lu\n", world_rank());
             size_t mulitSearches = 0;
             int enumerat = 0;
             for (int i = 0; i < comm_world().size(); i++)
