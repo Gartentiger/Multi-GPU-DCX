@@ -11,16 +11,18 @@
 using uint = unsigned int;
 
 template <uint NUM_GPUS,
-          bool THROW_EXCEPTIONS=true,
-          uint PEER_STATUS_SLOW_=0,
-          uint PEER_STATUS_FAST_=1,
-          uint PEER_STATUS_DIAG_=2>
+    bool THROW_EXCEPTIONS = true,
+    uint PEER_STATUS_SLOW_ = 0,
+    uint PEER_STATUS_FAST_ = 1,
+    uint PEER_STATUS_DIAG_ = 2>
 class MultiGPUContext {
 public:
     using device_id_t = uint;
-        enum PeerStatus { PEER_STATUS_SLOW = PEER_STATUS_SLOW_,
-                          PEER_STATUS_FAST = PEER_STATUS_FAST_,
-                          PEER_STATUS_DIAG = PEER_STATUS_DIAG_ };
+    enum PeerStatus {
+        PEER_STATUS_SLOW = PEER_STATUS_SLOW_,
+        PEER_STATUS_FAST = PEER_STATUS_FAST_,
+        PEER_STATUS_DIAG = PEER_STATUS_DIAG_
+    };
 private:
 
     std::array<std::array<cudaStream_t, NUM_GPUS>, NUM_GPUS> streams;
@@ -36,7 +38,7 @@ public:
     MultiGPUContext(const MultiGPUContext&) = delete;
     MultiGPUContext& operator=(const MultiGPUContext&) = delete;
 
-    MultiGPUContext(const std::array<device_id_t, NUM_GPUS>* device_ids_=nullptr) {
+    MultiGPUContext(const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr) {
 
         // Copy num_gpus many device identifiers
 
@@ -53,7 +55,7 @@ public:
             for (uint part = 0; part < num_gpus; ++part) {
                 cudaStreamCreate(&streams[src_gpu][part]);
                 mpgu_contexts[src_gpu][part] = new mgpu::my_mpgu_context_t(streams[src_gpu][part],
-                                                                           mdevice_temp_allocators[src_gpu]);
+                    mdevice_temp_allocators[src_gpu]);
             }
         } CUERR;
 
@@ -85,8 +87,10 @@ public:
 
                 if (src_gpu != dst_gpu) {
                     if (THROW_EXCEPTIONS) {
-                        if (src == dst)
-                            throw std::invalid_argument("Device identifiers are not unique.");
+                        if (src == dst) {
+                            //throw std::invalid_argument("Device identifiers are not unique.");
+                            continue;
+                        }
                     }
                 }
 
@@ -98,13 +102,13 @@ public:
 
                     if (cuerr == cudaErrorPeerAccessAlreadyEnabled) {
                         std::cout << "STATUS: redundant enabling of peer access from GPU " << src_gpu
-                                  << " to GPU " << dst << " attempted." << std::endl;
+                            << " to GPU " << dst << " attempted." << std::endl;
                     }
                     else if (cuerr) {
                         std::cout << "CUDA error: "
-                                  << cudaGetErrorString(cuerr) << " : "
-                                  << __FILE__ << ", line "
-                                  << __LINE__ << std::endl;
+                            << cudaGetErrorString(cuerr) << " : "
+                            << __FILE__ << ", line "
+                            << __LINE__ << std::endl;
                     }
                 }
 
@@ -112,7 +116,7 @@ public:
         } CUERR;
     }
 
-    ~MultiGPUContext () {
+    ~MultiGPUContext() {
 
         // Synchronize and destroy streams
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
@@ -140,23 +144,23 @@ public:
                     const cudaError_t cuerr = cudaGetLastError();
                     if (cuerr == cudaErrorPeerAccessNotEnabled) {
                         std::cout << "STATUS: redundant disabling of peer access from GPU " << src_gpu
-                                  << " to GPU " << dst << " attempted." << std::endl;
+                            << " to GPU " << dst << " attempted." << std::endl;
                     }
                     else if (cuerr) {
                         std::cout << "CUDA error: " << cudaGetErrorString(cuerr) << " : "
-                                   << __FILE__ << ", line " << __LINE__ << std::endl;
+                            << __FILE__ << ", line " << __LINE__ << std::endl;
                     }
                 }
             }
         } CUERR
     }
 
-    device_id_t get_device_id (uint gpu) const noexcept {
+    device_id_t get_device_id(uint gpu) const noexcept {
         // return the actual device identifier of GPU gpu
         return device_ids[gpu];
     }
 
-    const std::array<cudaStream_t, NUM_GPUS>& get_streams (uint gpu) const noexcept {
+    const std::array<cudaStream_t, NUM_GPUS>& get_streams(uint gpu) const noexcept {
         return streams[gpu];
     }
 
@@ -201,14 +205,14 @@ public:
         }
     }
 
-    void sync_all_streams () const noexcept {
+    void sync_all_streams() const noexcept {
         // sync all streams of the context
         for (uint gpu = 0; gpu < num_gpus; ++gpu)
             sync_gpu_streams(gpu);
         CUERR;
     }
 
-    void sync_hard () const noexcept {
+    void sync_hard() const noexcept {
         // sync all GPUs
         for (uint gpu = 0; gpu < num_gpus; ++gpu) {
             cudaSetDevice(get_device_id(gpu));
@@ -216,13 +220,13 @@ public:
         } CUERR;
     }
 
-    void print_connectivity_matrix () const {
+    void print_connectivity_matrix() const {
         std::cout << "STATUS: connectivity matrix:" << std::endl;
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu) {
                 std::cout << (dst_gpu == 0 ? "STATUS: |" : "")
-                          << uint(peer_status[src_gpu][dst_gpu])
-                          << (dst_gpu+1 == num_gpus ? "|\n" : " ");
+                    << uint(peer_status[src_gpu][dst_gpu])
+                    << (dst_gpu + 1 == num_gpus ? "|\n" : " ");
             }
         }
     }
