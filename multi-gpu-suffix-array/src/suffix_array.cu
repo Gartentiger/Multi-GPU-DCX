@@ -353,32 +353,34 @@ private:
     void copy_input()
     {
         using kmer_t = uint64_t;
-
-        SaGPU& gpu = mgpus[world_rank()];
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //{
+        auto gpu_index = world_rank();
+        SaGPU& gpu = mgpus[gpu_index];
 
         // Need the halo to the right for kmers...
         size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
 
-        cudaSetDevice(mcontext.get_device_id(world_rank()));
+        cudaSetDevice(mcontext.get_device_id(gpu_index));
         cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
-            mcontext.get_gpu_default_stream(world_rank()));
+            mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
-
-        if (world_rank() == NUM_GPUS - 1)
+        if (gpu_index == NUM_GPUS - 1)
         {
             cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer_t),
-                mcontext.get_gpu_default_stream(world_rank()));
+                mcontext.get_gpu_default_stream(gpu_index));
             CUERR;
         }
+        //}
 
         mcontext.sync_default_streams();
     }
 
     void produce_kmers()
     {
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS * NUM_NODES; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         //{
-        uint gpu_index = world_rank();
+        auto gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
 
         cudaSetDevice(mcontext.get_device_id(gpu_index));

@@ -202,9 +202,9 @@ public:
 
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
-            //if (world_rank() == gpu)
-            //{
-            cudaSetDevice(0);
+            // if (world_rank() == gpu)
+            // {
+            cudaSetDevice(mcontext.get_device_id(gpu));
             cudaMalloc(&malloc_base[gpu], malloc_size);
             CUERR;
             // cudaSetDevice(mcontext.get_device_id(gpu));
@@ -215,19 +215,19 @@ public:
                     mcontext.get_gpu_default_stream(gpu));
                 CUERR;
             }
-            //}
             marrays_pd[gpu] = make_pd_arrays(malloc_base[gpu]);
             marrays_prepare_S12[gpu] = make_prepare_S12_arrays(malloc_base[gpu]);
             marrays_prepare_S0[gpu] = make_prepare_S0_arrays(malloc_base[gpu]);
             marrays_merge_S12_S0[gpu] = make_merge_S12_S0_arrays(malloc_base[gpu]);
+            //}
         }
-        //if (mcontext.world_rank == NUM_GPUS - 1)
-        //{
-        cudaMallocHost(&mh_result, input_len * sizeof(sa_index_t));
-        CUERR;
-        cudaMallocHost(&mhost_temp_mem, HOST_TEMP_MEM_SIZE);
-        CUERR;
-        //}
+        if (world_rank() == NUM_GPUS - 1)
+        {
+            cudaMallocHost(&mh_result, input_len * sizeof(sa_index_t));
+            CUERR;
+            cudaMallocHost(&mhost_temp_mem, HOST_TEMP_MEM_SIZE);
+            CUERR;
+        }
 
 #ifdef ENABLE_DUMPING
         // Debugging:

@@ -105,46 +105,48 @@ public:
         }
         CUERR;
 
-        // for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
-        // {
-        //     const device_id_t src = get_device_id(src_gpu);
-        //     cudaSetDevice(src);
-        //     for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
-        //     {
-        //         device_id_t dst = get_device_id(dst_gpu);
+        for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
+        {
+            const device_id_t src = get_device_id(src_gpu);
+            cudaSetDevice(src);
+            for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
+            {
+                device_id_t dst = get_device_id(dst_gpu);
 
-        //         if (src_gpu != dst_gpu)
-        //         {
-        //             if (THROW_EXCEPTIONS)
-        //             {
-        //                 if (src == dst)
-        //                     throw std::invalid_argument("Device identifiers are not unique.");
-        //             }
-        //         }
+                if (src_gpu != dst_gpu)
+                {
+                    if (THROW_EXCEPTIONS)
+                    {
+                        if (src == dst) {
+                            continue;
+                            //throw std::invalid_argument("Device identifiers are not unique.");
+                        }
+                    }
+                }
 
-        //         if (peer_status[src_gpu][dst_gpu] == PEER_STATUS_FAST)
-        //         {
-        //             cudaDeviceEnablePeerAccess(dst, 0);
+                if (peer_status[src_gpu][dst_gpu] == PEER_STATUS_FAST)
+                {
+                    cudaDeviceEnablePeerAccess(dst, 0);
 
-        //             // Consume error for rendundant peer access initialization.
-        //             const cudaError_t cuerr = cudaGetLastError();
+                    // Consume error for rendundant peer access initialization.
+                    const cudaError_t cuerr = cudaGetLastError();
 
-        //             if (cuerr == cudaErrorPeerAccessAlreadyEnabled)
-        //             {
-        //                 std::cout << "STATUS: redundant enabling of peer access from GPU " << src_gpu
-        //                           << " to GPU " << dst << " attempted." << std::endl;
-        //             }
-        //             else if (cuerr)
-        //             {
-        //                 std::cout << "CUDA error: "
-        //                           << cudaGetErrorString(cuerr) << " : "
-        //                           << __FILE__ << ", line "
-        //                           << __LINE__ << std::endl;
-        //             }
-        //         }
-        //     }
-        // }
-        // CUERR;
+                    if (cuerr == cudaErrorPeerAccessAlreadyEnabled)
+                    {
+                        std::cout << "STATUS: redundant enabling of peer access from GPU " << src_gpu
+                            << " to GPU " << dst << " attempted." << std::endl;
+                    }
+                    else if (cuerr)
+                    {
+                        std::cout << "CUDA error: "
+                            << cudaGetErrorString(cuerr) << " : "
+                            << __FILE__ << ", line "
+                            << __LINE__ << std::endl;
+                    }
+                }
+            }
+        }
+        CUERR;
     }
 
     ~MultiGPUContext()

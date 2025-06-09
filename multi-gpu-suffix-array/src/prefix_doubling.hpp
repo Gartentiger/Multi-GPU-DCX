@@ -13,6 +13,9 @@
 #include "suffixarraymemorymanager.hpp"
 #include "suffix_array_kernels.cuh"
 #include "suffix_array_templated_kernels.cuh"
+#include <span>
+#include <kamping/p2p/recv.hpp>
+#include <kamping/p2p/send.hpp>
 
 // #define DEBUG_SET_ZERO_TO_SEE_BETTER
 // #define DUMP_EVERYTHING
@@ -471,8 +474,8 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             //uint gpu_index = mcontext.world_rank;
-            printf("SaGPU %lu\n", world_rank());
             SaGPU& gpu = mgpus[gpu_index];
+            printf("SaGPU world_rank(): %lu, gpu.index: %u, gpu_index: %u\n", world_rank(), gpu.index, gpu_index);
             if (world_rank() == gpu_index) {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
 
@@ -518,7 +521,7 @@ private:
                 //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, false);
 
 
-                //cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
+                cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
 
                 //CUERR;
                 //exit(1);
@@ -529,6 +532,26 @@ private:
                 // Temp2, 3, 4 used as temp space
 
                 //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
+                if (world_rank() == 0) {
+                    // cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
+                    printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, true);
+                    // Span<uint64_t> d(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
+                    printf("aaaaaaa\n");
+
+                    std::span<uint64_t> dd(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
+                    //printf("pointer gpu.Old_ranks: %lu", reinterpret_cast<uint64_t*>(gpu.Old_ranks));
+                    comm_world().send(send_buf(dd), send_count(gpu.working_len), destination(1));
+                }
+            }
+            cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
+            //comm_world().barrier();
+            if (world_rank() == 1 && gpu_index == 0) {
+                std::vector<uint64_t> dd;
+                // printf("Before pointer: %lu\n", reinterpret_cast<uint64_t*>(gpu.Old_ranks));
+
+                comm_world().recv(recv_buf<resize_to_fit>(dd), recv_count(gpu.working_len));
+
+                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, false);
             }
             // working_len == num_elements
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
@@ -536,6 +559,11 @@ private:
                 reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa,
                 reinterpret_cast<uint64_t*>(gpu.Temp2), gpu.Temp4 };
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp2, mreserved_len * 3 * sizeof(sa_index_t));
+
+
+
+
+
         }
         // TODO change for ds
         merge_manager.set_node_info(merge_nodes_info);
@@ -641,7 +669,7 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-}
+        }
         mcontext.sync_default_streams();
 #endif
 
