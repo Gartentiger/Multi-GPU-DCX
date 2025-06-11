@@ -534,35 +534,33 @@ private:
                 //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
                 if (world_rank() == 0) {
                     // cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
-                    printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, true);
+
+                    printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, true);
                     // Span<uint64_t> d(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
-                    printf("aaaaaaa\n");
 
                     std::span<uint64_t> dd(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
                     //printf("pointer gpu.Old_ranks: %lu", reinterpret_cast<uint64_t*>(gpu.Old_ranks));
                     comm_world().send(send_buf(dd), send_count(gpu.working_len), destination(1));
                 }
             }
-            cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
-            //comm_world().barrier();
+
             if (world_rank() == 1 && gpu_index == 0) {
-                std::vector<uint64_t> dd;
+
                 // printf("Before pointer: %lu\n", reinterpret_cast<uint64_t*>(gpu.Old_ranks));
+                std::span<uint64_t> dd(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
+                comm_world().recv(recv_buf(dd), recv_count(gpu.working_len));
 
-                comm_world().recv(recv_buf<resize_to_fit>(dd), recv_count(gpu.working_len));
-
-                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, false);
+                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, false);
             }
+            cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
+            comm_world().barrier();
+
             // working_len == num_elements
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
                 reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
                 reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa,
                 reinterpret_cast<uint64_t*>(gpu.Temp2), gpu.Temp4 };
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp2, mreserved_len * 3 * sizeof(sa_index_t));
-
-
-
-
 
         }
         // TODO change for ds

@@ -30,9 +30,9 @@ namespace crossGPUReMerge
 
     // This function comes from ModernGPU.
     template <MergePathBounds bounds = bounds_lower, typename a_keys_it,
-              typename b_keys_it, typename int_t, typename comp_t>
+        typename b_keys_it, typename int_t, typename comp_t>
     HOST_DEVICE int_t merge_path(a_keys_it a_keys, int_t a_count, b_keys_it b_keys, int_t b_count, int_t diag,
-                                 comp_t comp)
+        comp_t comp)
     {
         using type_t = typename std::iterator_traits<a_keys_it>::value_type;
 
@@ -56,46 +56,46 @@ namespace crossGPUReMerge
 
     template <typename a_keys_it, typename b_keys_it, typename comp_t>
     __global__ void run_partitioning_search(a_keys_it a_keys, int64_t a_count, b_keys_it b_keys, int64_t b_count,
-                                            int64_t diag, comp_t comp, int64_t *store_result)
+        int64_t diag, comp_t comp, int64_t* store_result)
     {
         *store_result = crossGPUReMerge::merge_path(a_keys, a_count, b_keys, b_count, diag, comp);
     }
 
     template <size_t NUM_GPUS, class mtypes>
-    std::array<std::vector<InterNodeCopy>, NUM_GPUS> partitions_to_copies(const std::array<MergeNode<mtypes>, NUM_GPUS> &nodes)
+    std::array<std::vector<InterNodeCopy>, NUM_GPUS> partitions_to_copies(const std::array<MergeNode<mtypes>, NUM_GPUS>& nodes)
     {
         std::array<std::vector<InterNodeCopy>, NUM_GPUS> copies;
 
-        for (const auto &node : nodes)
+        for (const auto& node : nodes)
         {
-            for (const MultiWayMergePartition *p : node.scheduled_work.multi_merge_partitions)
+            for (const MultiWayMergePartition* p : node.scheduled_work.multi_merge_partitions)
             {
-                for (const MergePartitionSource &s : p->sources)
+                for (const MergePartitionSource& s : p->sources)
                 {
-                    copies[s.node].push_back({s.node, p->dest_node,
+                    copies[s.node].push_back({ s.node, p->dest_node,
                                               s.range.start,
                                               p->dest_range.start + s.dest_offset,
-                                              s.range.end - s.range.start});
+                                              s.range.end - s.range.start });
                 }
             }
 
-            for (const MergePartition *p : node.scheduled_work.merge_partitions)
+            for (const MergePartition* p : node.scheduled_work.merge_partitions)
             {
                 sa_index_t dest1 = p->dest_range.start;
                 sa_index_t dest2 = dest1 + p->size_from_1;
-                for (const MergePartitionSource &s1 : p->sources_1)
+                for (const MergePartitionSource& s1 : p->sources_1)
                 {
-                    copies[s1.node].push_back({s1.node, p->dest_node,
+                    copies[s1.node].push_back({ s1.node, p->dest_node,
                                                s1.range.start,
                                                dest1 + s1.dest_offset,
-                                               s1.range.end - s1.range.start});
+                                               s1.range.end - s1.range.start });
                 }
-                for (const MergePartitionSource &s2 : p->sources_2)
+                for (const MergePartitionSource& s2 : p->sources_2)
                 {
-                    copies[s2.node].push_back({s2.node, p->dest_node,
+                    copies[s2.node].push_back({ s2.node, p->dest_node,
                                                s2.range.start,
                                                dest2 + s2.dest_offset,
-                                               s2.range.end - s2.range.start});
+                                               s2.range.end - s2.range.start });
                 }
             }
         }
@@ -114,9 +114,9 @@ namespace crossGPUReMerge
 
         using TopologyHelper = TopologyHelperT<NUM_GPUS, mtypes>;
 
-        GPUMergeProcessorT(Context &context, QDAllocator &host_temp_allocator)
+        GPUMergeProcessorT(Context& context, QDAllocator& host_temp_allocator)
             : mcontext(context), mtopology_helper(context, mnodes),
-              mhost_search_temp_allocator(host_temp_allocator)
+            mhost_search_temp_allocator(host_temp_allocator)
         {
         }
 
@@ -127,7 +127,7 @@ namespace crossGPUReMerge
 
             mcontext.sync_all_streams();
 
-            for (MergeNode &node : mnodes)
+            for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
                 cudaSetDevice(mcontext.get_device_id(node_index));
@@ -136,36 +136,36 @@ namespace crossGPUReMerge
                 if (world_rank() == node_index)
                 {
 
-                    QDAllocator &d_alloc = mcontext.get_device_temp_allocator(node_index);
+                    QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
 
                     for (auto s : node.scheduled_work.searches)
                     {
                         uint other = (node_index == s->node_1) ? s->node_2 : s->node_1;
-                        const cudaStream_t &stream = mcontext.get_streams(node_index).at(other);
-                        key_t *start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
+                        const cudaStream_t& stream = mcontext.get_streams(node_index).at(other);
+                        key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
                         int64_t size_1 = s->node1_range.end - s->node1_range.start;
 
-                        key_t *start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
+                        key_t* start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                         int64_t size_2 = s->node2_range.end - s->node2_range.start;
                         printf("snode_1 %u, mnode info index %u\n", s->node_1, mnodes[s->node_1].info.index);
                         printf("snode_2 %u, mnode info index %u\n", s->node_2, mnodes[s->node_2].info.index);
                         s->d_result_ptr = d_alloc.get<int64_t>(1);
                         s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
 
-                        run_partitioning_search<<<1, 1, 0, stream>>>(start_1, size_1, start_2, size_2, s->cross_diagonal,
-                                                                     comp, s->d_result_ptr);
+                        run_partitioning_search << <1, 1, 0, stream >> > (start_1, size_1, start_2, size_2, s->cross_diagonal,
+                            comp, s->d_result_ptr);
                         CUERR;
 
                         cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
-                                        sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
+                            sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
                         CUERR;
                     }
-                    mcontext.sync_all_streams();
+                    //mcontext.sync_all_streams();
                     // printf("sync complete %lu\n", world_rank());
                     for (auto ms : node.scheduled_work.multi_searches)
                     {
                         const size_t result_buffer_length = ms->ranges.size() + 1;
-                        const cudaStream_t &stream = mcontext.get_gpu_default_stream(node_index);
+                        const cudaStream_t& stream = mcontext.get_gpu_default_stream(node_index);
 
                         ms->d_result_ptr = d_alloc.get<int64_t>(result_buffer_length);
                         ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
@@ -173,9 +173,9 @@ namespace crossGPUReMerge
                         ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
                         int i = 0;
 
-                        for (const auto &r : ms->ranges)
+                        for (const auto& r : ms->ranges)
                         {
-                            cudaMallocAsync(mnodes[r.start.node].info.keys + r.start.index, ms->ranges.size());
+                            // cudaMallocAsync(mnodes[r.start.node].info.keys + r.start.index, ms->ranges.size());
                             ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                             ad.lengths[i] = r.end.index - r.start.index;
                             i++;
@@ -187,17 +187,17 @@ namespace crossGPUReMerge
                         cudaStreamSynchronize(stream);
                         CUERR;
                         printf("ms->split_index: %lu\n", ms->split_index);
-                        multi_find_partition_points<<<1, NUM_GPUS, 0, stream>>>(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
-                                                                                comp,
-                                                                                (int64_t *)ms->d_result_ptr,
-                                                                                (uint *)(ms->d_result_ptr + result_buffer_length - 1));
+                        multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
+                            comp,
+                            (int64_t*)ms->d_result_ptr,
+                            (uint*)(ms->d_result_ptr + result_buffer_length - 1));
                         CUERR;
                         cudaStreamSynchronize(stream);
                         CUERR;
                         printf("multi find %lu\n", world_rank());
                         exit(1);
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
-                                        result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
+                            result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
                         CUERR;
                         cudaStreamSynchronize(stream);
                         CUERR;
@@ -264,7 +264,7 @@ namespace crossGPUReMerge
             }
             printf("Multi searches done %lu\n", world_rank());
 
-            for (MergeNode &node : mnodes)
+            for (MergeNode& node : mnodes)
             {
 
                 for (auto s : node.scheduled_work.searches)
@@ -286,7 +286,7 @@ namespace crossGPUReMerge
             }
         }
 
-        void dump_array(const sa_index_t *idx, size_t size)
+        void dump_array(const sa_index_t* idx, size_t size)
         {
             for (size_t i = 0; i < size; ++i)
             {
@@ -309,9 +309,9 @@ namespace crossGPUReMerge
 
             std::vector<NodeMultiMerger<NUM_GPUS, mtypes, comp_fun_t>> multi_mergers;
             multi_mergers.reserve(mnodes.size() * mnodes.size()); // Essential because of pointer-init. in c'tor.
-            for (const MergeNode &node : mnodes)
+            for (const MergeNode& node : mnodes)
             {
-                for (const MultiWayMergePartition *p : node.scheduled_work.multi_merge_partitions)
+                for (const MultiWayMergePartition* p : node.scheduled_work.multi_merge_partitions)
                 {
                     multi_mergers.emplace_back(mcontext, node, *p, comp, do_values);
                 }
@@ -320,13 +320,13 @@ namespace crossGPUReMerge
             //            if (dbg_func)
             //                dbg_func();
 
-            for (const MergeNode &node : mnodes)
+            for (const MergeNode& node : mnodes)
             {
                 cudaSetDevice(mcontext.get_device_id(node.info.index));
 
-                mgpu::my_mpgu_context_t &mgpu_context = mcontext.get_mgpu_default_context_for_device(node.info.index);
+                mgpu::my_mpgu_context_t& mgpu_context = mcontext.get_mgpu_default_context_for_device(node.info.index);
 
-                for (const MergePartition *p : node.scheduled_work.merge_partitions)
+                for (const MergePartition* p : node.scheduled_work.merge_partitions)
                 {
                     sa_index_t dest1 = p->dest_range.start;
                     sa_index_t dest2 = dest1 + p->size_from_1;
@@ -336,15 +336,15 @@ namespace crossGPUReMerge
                     if (do_values)
                     {
                         mgpu::merge(node.info.key_buffer + dest1, node.info.value_buffer + dest1, (int)p->size_from_1,
-                                    node.info.key_buffer + dest2, node.info.value_buffer + dest2, (int)p->size_from_2,
-                                    node.info.keys + dest1, node.info.values + dest1, comp, mgpu_context);
+                            node.info.key_buffer + dest2, node.info.value_buffer + dest2, (int)p->size_from_2,
+                            node.info.keys + dest1, node.info.values + dest1, comp, mgpu_context);
                         CUERR;
                     }
                     else
                     {
                         mgpu::merge(node.info.key_buffer + dest1, (int)p->size_from_1,
-                                    node.info.key_buffer + dest2, (int)p->size_from_2,
-                                    node.info.keys + dest1, comp, mgpu_context);
+                            node.info.key_buffer + dest2, (int)p->size_from_2,
+                            node.info.keys + dest1, comp, mgpu_context);
                         CUERR;
                     }
                     //                        printf("\nScheduled merge with sizes %d, %d, on device %u",
@@ -369,15 +369,15 @@ namespace crossGPUReMerge
                 {
                     finished = true;
 
-                    for (auto &merger : multi_mergers)
+                    for (auto& merger : multi_mergers)
                     {
                         finished &= merger.do_merge_step();
                     }
-                    for (const MergeNode &node : mnodes)
+                    for (const MergeNode& node : mnodes)
                     {
                         mcontext.get_device_temp_allocator(node.info.index).reset();
                     }
-                    for (auto &merger : multi_mergers)
+                    for (auto& merger : multi_mergers)
                     {
                         merger.sync_used_streams();
                     }
@@ -389,7 +389,7 @@ namespace crossGPUReMerge
             mcontext.sync_all_streams();
         }
 
-        void init_nodes(const std::array<MergeNodeInfo<mtypes>, NUM_GPUS> &merge_node_info)
+        void init_nodes(const std::array<MergeNodeInfo<mtypes>, NUM_GPUS>& merge_node_info)
         {
             // first call merge_node_info.size() == NUM_GPUS
             for (uint n = 0; n < merge_node_info.size(); ++n)
@@ -398,14 +398,14 @@ namespace crossGPUReMerge
             }
         }
 
-        std::array<MergeNode, NUM_GPUS> &_get_nodes() { return mnodes; }
-        TopologyHelper &topology_helper() { return mtopology_helper; }
+        std::array<MergeNode, NUM_GPUS>& _get_nodes() { return mnodes; }
+        TopologyHelper& topology_helper() { return mtopology_helper; }
 
     private:
-        Context &mcontext;
+        Context& mcontext;
         std::array<MergeNode, NUM_GPUS> mnodes;
         TopologyHelper mtopology_helper;
-        QDAllocator &mhost_search_temp_allocator;
+        QDAllocator& mhost_search_temp_allocator;
     };
 
 }
