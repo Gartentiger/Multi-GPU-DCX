@@ -531,27 +531,36 @@ private:
                 // Isa is sorted to Sa_Index
                 // Temp2, 3, 4 used as temp space
 
-                //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
-                if (world_rank() == 0) {
-                    // cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
 
-                    printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, true);
+
+
                     // Span<uint64_t> d(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
 
-                    std::span<uint64_t> dd(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
                     //printf("pointer gpu.Old_ranks: %lu", reinterpret_cast<uint64_t*>(gpu.Old_ranks));
-                    comm_world().send(send_buf(dd), send_count(gpu.working_len), destination(1));
+
+                std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
+                size_t worldSize = comm_world().size();
+                std::vector<int> recCounts(worldSize);
+                for (int i = 0; i < worldSize; i++) {
+                    recCounts.push_back(mgpus[i].working_len);
                 }
+                std::vector<std::span<uint64_t>> recBuf(worldSize);
+                for (int i = 0; i < worldSize; i++) {
+                    std::span<uint64_t> n(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
+                    recBuf.push_back(n);
+                }
+                comm_world().allgatherv(send_buf(sendBuf), recv_buf(recBuf), recv_counts(recCounts));
             }
 
-            if (world_rank() == 1 && gpu_index == 0) {
-
-                // printf("Before pointer: %lu\n", reinterpret_cast<uint64_t*>(gpu.Old_ranks));
-                std::span<uint64_t> dd(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
-                comm_world().recv(recv_buf(dd), recv_count(gpu.working_len));
-
-                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, false);
+            if (world_rank() == 0) {
+                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(mgpus[1].Old_ranks), mgpus[1].Sa_index, mgpus[1].working_len, false);
             }
+
+            // printf("Before pointer: %lu\n", reinterpret_cast<uint64_t*>(gpu.Old_ranks));
+            // std::span<uint64_t> dd(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
+            // comm_world().recv(recv_buf(dd), recv_count(gpu.working_len));
+
+
             cudaStreamSynchronize(mcontext.get_gpu_default_stream(gpu.index));
             comm_world().barrier();
 
