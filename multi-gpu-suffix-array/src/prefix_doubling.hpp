@@ -568,13 +568,23 @@ private:
         merge_manager.set_node_info(merge_nodes_info);
 
         mcontext.sync_default_streams();
-        int rootIdx = 0;
+
         for (int i = 0; i < world_size();i++) {
             if (i == world_rank()) {
-                rootIdx = i;
+                std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
+                for (int j = 0; j < world_size(); i++) {
+                    if (i == j) {
+                        continue;
+                    }
+                    comm_world().send(send_buf(sendBuf), send_count(mgpus[i].working_len), tag(i), destination(j));
+                }
             }
-            std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
-            comm_world().bcast(send_recv_buf(sendBuf), send_recv_count(mgpus[i].working_len), root(rootIdx));
+            else {
+
+                std::span<uint64_t> recB(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
+                comm_world().recv(recv_buf(recB), recv_tag(i), recv_count(mgpus[i].working_len));
+
+            }
         }
         comm_world().barrier();
         if (world_rank() == 1) {
@@ -685,7 +695,7 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-}
+        }
         mcontext.sync_default_streams();
 #endif
 
