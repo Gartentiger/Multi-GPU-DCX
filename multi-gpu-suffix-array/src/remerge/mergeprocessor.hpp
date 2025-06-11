@@ -175,11 +175,9 @@ namespace crossGPUReMerge
 
                         for (const auto &r : ms->ranges)
                         {
-                            printf("ranges.size(): %lu\n", ms->ranges.size());
-                            // cudaMallocAsync(mnodes[r.start.node].info.keys, ms->ranges.size());
+                            cudaMallocAsync(mnodes[r.start.node].info.keys + r.start.index, ms->ranges.size());
                             ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                             ad.lengths[i] = r.end.index - r.start.index;
-                            printf("Ad length %lu %lu\n", ad.lengths[i], world_rank());
                             i++;
                         }
 
@@ -188,7 +186,6 @@ namespace crossGPUReMerge
                         CUERR;
                         cudaStreamSynchronize(stream);
                         CUERR;
-                        printf("after array descr %lu \n", world_rank());
                         printf("ms->split_index: %lu\n", ms->split_index);
                         multi_find_partition_points<<<1, NUM_GPUS, 0, stream>>>(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                                                                                 comp,
