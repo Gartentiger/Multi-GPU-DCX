@@ -38,7 +38,7 @@ namespace crossGPUReMerge
 
         int_t begin = max(int_t(0), diag - b_count);
         int_t end = min(diag, a_count);
-        printf("fff %u", a_keys[4]);
+        //printf("fff %u", a_keys[4]);
         while (begin < end)
         {
             int_t mid = (begin + end) / 2;
@@ -132,7 +132,7 @@ namespace crossGPUReMerge
                 const uint node_index = node.info.index;
                 cudaSetDevice(mcontext.get_device_id(node_index));
                 CUERR;
-                printf("Merge node index %d\n", node_index);
+                //printf("Merge node index %d\n", node_index);
                 if (world_rank() == node_index)
                 {
 
@@ -228,7 +228,9 @@ namespace crossGPUReMerge
 
 
             size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
-            std::vector<int64_t> send_multi_search_result(mulit_search_size);
+            std::vector<int64_t> send_multi_search_result;
+            send_multi_search_result.reserve(mulit_search_size);
+            send_multi_search_result.clear();
             for (auto ms : mergeNode.scheduled_work.multi_searches)
             {
                 size_t size = ms->ranges.size() + 1;
@@ -241,7 +243,7 @@ namespace crossGPUReMerge
 
             std::vector<int64_t> recv_multi_search_result;
             auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
-            printf("Multi searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
+            // printf("Multi searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
             size_t multiSearches = 0;
             int enumerat = 0;
             for (int64_t ah : recv_multi_search_result)
