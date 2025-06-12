@@ -24,7 +24,6 @@ namespace crossGPUReMerge {
         void schedule_partitioning_searches() {
             msearches.clear();
             size_t N = mmicro_source_ranges.size();
-            printf("4 ? %lu\n", N);
             msearches.reserve(N);
             size_t elems_offset = 0;
             for (uint i = 0; i < N - 1; ++i) {

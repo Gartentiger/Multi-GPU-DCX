@@ -181,7 +181,7 @@ namespace crossGPUReMerge
                             i++;
                         }
 
-                        // printf("before sync %lu\n", world_rank());
+                        printf("before %lu\n", world_rank());
 
 
                         multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
@@ -189,6 +189,7 @@ namespace crossGPUReMerge
                             (int64_t*)ms->d_result_ptr,
                             (uint*)(ms->d_result_ptr + result_buffer_length - 1));
 
+                        printf("after %lu\n", world_rank());
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
                     }

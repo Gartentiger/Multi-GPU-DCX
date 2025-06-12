@@ -221,13 +221,13 @@ public:
             marrays_merge_S12_S0[gpu] = make_merge_S12_S0_arrays(malloc_base[gpu]);
             //}
         }
-        if (world_rank() == NUM_GPUS - 1)
-        {
-            cudaMallocHost(&mh_result, input_len * sizeof(sa_index_t));
-            CUERR;
-            cudaMallocHost(&mhost_temp_mem, HOST_TEMP_MEM_SIZE);
-            CUERR;
-        }
+        //if (world_rank() == NUM_GPUS - 1)
+        //{
+        cudaMallocHost(&mh_result, input_len * sizeof(sa_index_t));
+        CUERR;
+        cudaMallocHost(&mhost_temp_mem, HOST_TEMP_MEM_SIZE);
+        CUERR;
+        //}
 
 #ifdef ENABLE_DUMPING
         // Debugging:
