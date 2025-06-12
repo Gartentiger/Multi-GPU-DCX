@@ -226,6 +226,7 @@ namespace crossGPUReMerge
             }
             // printf("Searches done %lu\n", world_rank());
 
+
             size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
             std::vector<int64_t> send_multi_search_result(mulit_search_size);
             for (auto ms : mergeNode.scheduled_work.multi_searches)
@@ -249,7 +250,7 @@ namespace crossGPUReMerge
                 if (world_rank() == 0) {
                     printf("real value %d", mnodes[0].scheduled_work.multi_searches[0]->h_result_ptr[i]);
                 }
-                printf("multi search output counts: %d, world_rank: %lu\n", multi_search_output_counts[i], world_rank());
+                printf("multi search output counts: %d == multisearch size: %lu, world_rank: %lu\n", multi_search_output_counts[i], mnodes[i].scheduled_work.multi_searches.size(), world_rank());
                 printf("recv multi search result: %d, size: %lu, world_rank: %lu\n", recv_multi_search_result[i], recv_multi_search_result.size(), world_rank());
                 ASSERT(mnodes[i].info.index == i);
                 for (int j = 0; j < multi_search_output_counts[i]; j++)
@@ -258,11 +259,12 @@ namespace crossGPUReMerge
                     int size = node.scheduled_work.multi_searches[multiSearches]->ranges.size() + 1;
                     mnodes[i].scheduled_work.multi_searches[multiSearches]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size); // recv_multi_search_result[enumerator++];
                     memcpy(mnodes[i].scheduled_work.multi_searches[j]->h_result_ptr, recv_multi_search_result.data() + enumerat, size * sizeof(int64_t));
-                    printf("results: %ld, index: %d, multiSearches: %lu, rank: %lu\n", mnodes[i].scheduled_work.multi_searches[multiSearches]->h_result_ptr[1], i, multiSearches, world_rank());
+                    printf("results: %ld, index: %d, multiSearches: %lu, rank: %lu\n", mnodes[i].scheduled_work.multi_searches[multiSearches]->h_result_ptr[0], i, multiSearches, world_rank());
                     enumerat += size;
                     multiSearches++;
                 }
             }
+
             printf("Multi searches done %lu\n", world_rank());
 
             for (MergeNode& node : mnodes)
