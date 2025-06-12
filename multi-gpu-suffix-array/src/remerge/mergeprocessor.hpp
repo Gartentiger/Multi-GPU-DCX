@@ -209,7 +209,8 @@ namespace crossGPUReMerge
                 }
                 std::vector<int> search_output_counts(comm_world().size());
                 std::vector<int64_t> recv_search_result;
-                comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result), recv_counts(search_output_counts));
+                comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result), recv_counts_out());
+
                 printf("Allgather %lu\n", world_rank());
                 int enumer = 0;
                 for (int i = 0; i < comm_world().size(); i++)
@@ -227,17 +228,17 @@ namespace crossGPUReMerge
 
             size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
             std::vector<int64_t> send_multi_search_result(mulit_search_size);
-            for (int i = 0; i < mulit_search_size; i++)
+            for (auto ms : mergeNode.scheduled_work.multi_searches)
             {
-                size_t size = mergeNode.scheduled_work.multi_searches[i]->ranges.size() + 1;
+                size_t size = ms->ranges.size() + 1;
                 for (size_t j = 0; j < size; j++)
                 {
-                    send_multi_search_result.push_back(mergeNode.scheduled_work.multi_searches[i]->h_result_ptr[j]);
+                    send_multi_search_result.push_back(ms->h_result_ptr[j]);
                 }
             }
-            std::vector<int> multi_search_output_counts(comm_world().size());
+
             std::vector<int64_t> recv_multi_search_result;
-            comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts(multi_search_output_counts));
+            auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
             printf("Mulit searches %lu\n", world_rank());
             size_t multiSearches = 0;
             int enumerat = 0;
