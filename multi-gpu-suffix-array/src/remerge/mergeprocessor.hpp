@@ -245,8 +245,11 @@ namespace crossGPUReMerge
 
             for (int i = 0; i < comm_world().size(); i++)
             {
+                if (world_rank() == 0) {
+                    printf("real value %d", mnodes[i].scheduled_work.multi_searches[0]->h_result_ptr[i]);
+                }
                 printf("multi search output counts: %d, world_rank: %lu\n", multi_search_output_counts[i], world_rank());
-                printf("recv multi search result: %d, world_rank: %lu\n", recv_multi_search_result[i], world_rank());
+                printf("recv multi search result: %d, size: %lu, world_rank: %lu\n", recv_multi_search_result[i], recv_multi_search_result.size(), world_rank());
                 ASSERT(mnodes[i].info.index == i);
                 for (int j = 0; j < multi_search_output_counts[i]; j++)
                 {
