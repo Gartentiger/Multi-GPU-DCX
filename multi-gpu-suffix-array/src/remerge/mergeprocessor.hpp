@@ -270,7 +270,7 @@ namespace crossGPUReMerge
                     ms->results.resize(ms->ranges.size());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
-                    r++;
+
                 }
             }
         }
