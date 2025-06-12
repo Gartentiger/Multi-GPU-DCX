@@ -183,52 +183,43 @@ namespace crossGPUReMerge
 
                         // printf("before sync %lu\n", world_rank());
 
-                        CUERR;
-                        cudaStreamSynchronize(stream);
-                        CUERR;
-                        printf("ms->split_index: %lu\n", ms->split_index);
+
                         multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
                             (uint*)(ms->d_result_ptr + result_buffer_length - 1));
-                        CUERR;
-                        cudaStreamSynchronize(stream);
-                        CUERR;
-                        printf("multi find %lu\n", world_rank());
-                        exit(1);
+
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
-                        CUERR;
-                        cudaStreamSynchronize(stream);
-                        CUERR;
-                        printf("cuda memcpy %lu\n", world_rank());
                     }
                 }
             }
 
             mcontext.sync_all_streams();
-            comm_world().barrier();
-            printf("All to all\n");
+
             MergeNode mergeNode = mnodes[world_rank()];
             size_t send_size = mergeNode.scheduled_work.searches.size();
-            std::vector<int64_t> send_search_result(send_size);
-            for (size_t i = 0; i < send_size; i++)
-            {
-                send_search_result.push_back(*mergeNode.scheduled_work.searches[i]->h_result_ptr);
-            }
-            std::vector<int> search_output_counts(comm_world().size());
-            std::vector<int64_t> recv_send_result;
-            comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_send_result), recv_counts(search_output_counts));
-            printf("Allgather %lu\n", world_rank());
-            int enumer = 0;
-            for (int i = 0; i < comm_world().size(); i++)
-            {
-                for (int j = 0; j < search_output_counts[i]; j++)
+            if (send_size > 0) {
+
+                std::vector<int64_t> send_search_result(send_size);
+                for (size_t i = 0; i < send_size; i++)
                 {
-                    MergeNode node = mnodes[i];
-                    ASSERT(node.info.index == i);
-                    node.scheduled_work.searches[j]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-                    *node.scheduled_work.searches[j]->h_result_ptr = recv_send_result[enumer++];
+                    send_search_result.push_back(*mergeNode.scheduled_work.searches[i]->h_result_ptr);
+                }
+                std::vector<int> search_output_counts(comm_world().size());
+                std::vector<int64_t> recv_search_result;
+                comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result), recv_counts(search_output_counts));
+                printf("Allgather %lu\n", world_rank());
+                int enumer = 0;
+                for (int i = 0; i < comm_world().size(); i++)
+                {
+                    for (int j = 0; j < search_output_counts[i]; j++)
+                    {
+                        MergeNode node = mnodes[i];
+                        ASSERT(node.info.index == i);
+                        node.scheduled_work.searches[j]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
+                        *node.scheduled_work.searches[j]->h_result_ptr = recv_search_result[enumer++];
+                    }
                 }
             }
             printf("Searches done %lu\n", world_rank());
@@ -271,17 +262,14 @@ namespace crossGPUReMerge
                 {
                     s->result = node.info.index == *s->h_result_ptr;
                 }
-
-                printf("ms %lu\n", world_rank());
+                int r = 0;
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
-                    printf("resize %lu\n", world_rank());
                     ms->results.resize(ms->ranges.size());
-                    printf("memcpy %lu\n", world_rank());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
-                    printf("range to take one %lu\n", world_rank());
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
-                    printf("com %lu\n", world_rank());
+                    printf("results: %ld, index: %d, rank: %lu\n", ms->results[1], r, world_rank());
+                    r++;
                 }
             }
         }

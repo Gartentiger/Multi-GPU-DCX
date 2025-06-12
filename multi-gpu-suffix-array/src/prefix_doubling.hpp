@@ -305,6 +305,8 @@ public:
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
         write_initial_ranks();
+        printf("write initial ranks\n");
+        exit(1);
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Ranking);
 
 #ifdef DUMP_EVERYTHING
@@ -475,14 +477,13 @@ private:
         {
             //uint gpu_index = mcontext.world_rank;
             SaGPU& gpu = mgpus[gpu_index];
-            printf("SaGPU world_rank(): %lu, gpu.index: %u, gpu_index: %u\n", world_rank(), gpu.index, gpu_index);
             if (world_rank() == gpu_index) {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
 
                 size_t temp_storage_bytes = 0;
 
                 const size_t SORT_DOWN_TO_G = gpu_index == NUM_GPUS - 1 ? SORT_DOWN_TO_LAST : SORT_DOWN_TO;
-                printf("working length %lu\n", gpu.working_len);
+
 
 
                 cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
@@ -564,11 +565,11 @@ private:
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp2, mreserved_len * 3 * sizeof(sa_index_t));
 
         }
-        // TODO change for ds
+
         merge_manager.set_node_info(merge_nodes_info);
 
         mcontext.sync_default_streams();
-        //int i = 0;
+
         for (int i = 0; i < world_size();i++) {
             if (world_rank() == i) {
                 std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
@@ -585,21 +586,13 @@ private:
             }
         }
         comm_world().barrier();
-        if (world_rank() == 1) {
 
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(mgpus[1].index) >> > (reinterpret_cast<uint64_t*>(mgpus[1].Old_ranks), mgpus[1].Sa_index, mgpus[1].working_len, true);
-        }
-        else {
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(mgpus[1].index) >> > (reinterpret_cast<uint64_t*>(mgpus[1].Old_ranks), mgpus[1].Sa_index, mgpus[1].working_len, false);
-        }
-        mcontext.sync_default_streams();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
         TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
 
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
 
-        printf("Merge %lu\n", world_rank());
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
@@ -608,20 +601,22 @@ private:
     {
         using rank_t = uint64_t;
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //{
+        uint gpu_index = world_rank();
+        SaGPU& gpu = mgpus[gpu_index];
+        cudaSetDevice(mcontext.get_device_id(gpu_index));
+
+        const rank_t* last_element_prev = nullptr;
+        if (gpu_index > 0)
         {
-            SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
-
-            const rank_t* last_element_prev = nullptr;
-            if (gpu_index > 0)
-            {
-                last_element_prev = &reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
-            }
-
-            kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const rank_t*>(gpu.Old_ranks), last_element_prev, gpu.offset + 1, 0, gpu.Temp1, gpu.working_len);
-            CUERR;
+            // neeeds last element of previous gpu
+            last_element_prev = &reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
         }
+
+        kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const rank_t*>(gpu.Old_ranks), last_element_prev, gpu.offset + 1, 0, gpu.Temp1, gpu.working_len);
+        CUERR;
+        //}
         mcontext.sync_default_streams();
         do_max_scan_on_ranks();
     }
@@ -1515,7 +1510,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
