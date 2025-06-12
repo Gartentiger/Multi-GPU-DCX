@@ -248,17 +248,17 @@ namespace crossGPUReMerge
             for (int i = 0; i < comm_world().size(); i++)
             {
                 if (world_rank() == 0) {
-                    printf("real value %d", mnodes[0].scheduled_work.multi_searches[0]->h_result_ptr[i]);
+                    printf("real value %ld", mnodes[0].scheduled_work.multi_searches[0]->h_result_ptr[i]);
                 }
-                printf("multi search output counts: %d == multisearch size: %lu, world_rank: %lu\n", multi_search_output_counts[i], mnodes[i].scheduled_work.multi_searches.size(), world_rank());
-                printf("recv multi search result: %d, size: %lu, world_rank: %lu\n", recv_multi_search_result[i], recv_multi_search_result.size(), world_rank());
+                printf("multi search output counts: %ld == multisearch size: %lu, world_rank: %lu\n", multi_search_output_counts[i], mnodes[i].scheduled_work.multi_searches.size(), world_rank());
+                printf("recv multi search result: %ld, size: %lu, world_rank: %lu\n", recv_multi_search_result[i], recv_multi_search_result.size(), world_rank());
                 ASSERT(mnodes[i].info.index == i);
-                for (crossGPUReMerge::MultiWayPartitioningSearch ms : mnodes[i].scheduled_work.multi_searches)
+                for (auto ms : mnodes[i].scheduled_work.multi_searches)
                 {
                     int size = ms->ranges.size() + 1;
                     ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size);
                     memcpy(ms->h_result_ptr, recv_multi_search_result.data() + enumerat, size * sizeof(int64_t));
-                    printf("results: %ld, index: %d, rank: %lu\n", ms->h_result_ptr[0], i, world_rank());
+                    printf("results: %ld, index: %ld, rank: %lu\n", ms->h_result_ptr[0], i, world_rank());
                     enumerat += size;
                 }
                 // while (enumerat < multi_search_output_counts[i])
