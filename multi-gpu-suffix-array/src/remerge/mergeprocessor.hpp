@@ -250,6 +250,7 @@ namespace crossGPUReMerge
                     int size = node.scheduled_work.multi_searches[mulitSearches]->ranges.size() + 1;
                     mnodes[i].scheduled_work.multi_searches[mulitSearches]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size); // recv_multi_search_result[enumerator++];
                     memcpy(mnodes[i].scheduled_work.multi_searches[j]->h_result_ptr, recv_multi_search_result.data() + enumerat, size * sizeof(int64_t));
+                    printf("results: %ld, index: %d, rank: %lu\n", mnodes[i].scheduled_work.multi_searches[mulitSearches]->h_result_ptr[1], r, world_rank());
                     enumerat += size;
                     mulitSearches++;
                 }
@@ -269,7 +270,6 @@ namespace crossGPUReMerge
                     ms->results.resize(ms->ranges.size());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
-                    printf("results: %ld, index: %d, rank: %lu\n", ms->results[1], r, world_rank());
                     r++;
                 }
             }
