@@ -181,7 +181,7 @@ namespace crossGPUReMerge
                             i++;
                         }
 
-                        printf("before %lu\n", world_rank());
+                        //printf("before %lu\n", world_rank());
 
 
                         multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
@@ -189,7 +189,7 @@ namespace crossGPUReMerge
                             (int64_t*)ms->d_result_ptr,
                             (uint*)(ms->d_result_ptr + result_buffer_length - 1));
 
-                        printf("after %lu\n", world_rank());
+                        //printf("after %lu\n", world_rank());
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
                     }
@@ -224,7 +224,7 @@ namespace crossGPUReMerge
                     }
                 }
             }
-            printf("Searches done %lu\n", world_rank());
+            // printf("Searches done %lu\n", world_rank());
 
             size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
             std::vector<int64_t> send_multi_search_result(mulit_search_size);
@@ -233,20 +233,21 @@ namespace crossGPUReMerge
                 size_t size = ms->ranges.size() + 1;
                 for (size_t j = 0; j < size; j++)
                 {
+                    printf("ms->h_result_ptr");
                     send_multi_search_result.push_back(ms->h_result_ptr[j]);
                 }
             }
 
             std::vector<int64_t> recv_multi_search_result;
             auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
-            printf("Mulit searches %lu\n", world_rank());
+            printf("Mulit searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
             size_t multiSearches = 0;
             int enumerat = 0;
 
             for (int i = 0; i < comm_world().size(); i++)
             {
                 if (world_rank() == 0) {
-                    printf("real value %d", mnodes[i].scheduled_work.multi_searches[0]->h_result_ptr[i]);
+                    printf("real value %d", mnodes[0].scheduled_work.multi_searches[0]->h_result_ptr[i]);
                 }
                 printf("multi search output counts: %d, world_rank: %lu\n", multi_search_output_counts[i], world_rank());
                 printf("recv multi search result: %d, size: %lu, world_rank: %lu\n", recv_multi_search_result[i], recv_multi_search_result.size(), world_rank());
