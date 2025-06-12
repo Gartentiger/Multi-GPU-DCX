@@ -239,7 +239,7 @@ namespace crossGPUReMerge
             std::vector<int64_t> recv_multi_search_result;
             comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts(multi_search_output_counts));
             printf("Mulit searches %lu\n", world_rank());
-            size_t mulitSearches = 0;
+            size_t multiSearches = 0;
             int enumerat = 0;
             for (int i = 0; i < comm_world().size(); i++)
             {
@@ -247,12 +247,12 @@ namespace crossGPUReMerge
                 for (int j = 0; j < multi_search_output_counts[i]; j++)
                 {
                     MergeNode node = mnodes[i];
-                    int size = node.scheduled_work.multi_searches[mulitSearches]->ranges.size() + 1;
-                    mnodes[i].scheduled_work.multi_searches[mulitSearches]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size); // recv_multi_search_result[enumerator++];
+                    int size = node.scheduled_work.multi_searches[multiSearches]->ranges.size() + 1;
+                    mnodes[i].scheduled_work.multi_searches[multiSearches]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size); // recv_multi_search_result[enumerator++];
                     memcpy(mnodes[i].scheduled_work.multi_searches[j]->h_result_ptr, recv_multi_search_result.data() + enumerat, size * sizeof(int64_t));
-                    printf("results: %ld, index: %d, rank: %lu\n", mnodes[i].scheduled_work.multi_searches[mulitSearches]->h_result_ptr[1], r, world_rank());
+                    printf("results: %ld, index: %d, multiSearches: %lu, rank: %lu\n", mnodes[i].scheduled_work.multi_searches[multiSearches]->h_result_ptr[1], i, multiSearches, world_rank());
                     enumerat += size;
-                    mulitSearches++;
+                    multiSearches++;
                 }
             }
             printf("Multi searches done %lu\n", world_rank());
@@ -264,7 +264,7 @@ namespace crossGPUReMerge
                 {
                     s->result = node.info.index == *s->h_result_ptr;
                 }
-                int r = 0;
+
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     ms->results.resize(ms->ranges.size());
