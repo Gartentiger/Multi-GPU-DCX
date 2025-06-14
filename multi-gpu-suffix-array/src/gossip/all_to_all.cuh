@@ -69,6 +69,8 @@ namespace gossip {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
                     v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
 
+                    printf("table[%u][%u]: %u,v_table: %u, next v_table: %u, rank: %lu\n", table[src_gpu][dest_gpu], src_gpu, dest_gpu, v_table, v_table[src_gpu + 1][dest_gpu], world_rank());
+
                     const table_t src_index = h_table[src_gpu][dest_gpu];
                     const table_t dest_index = v_table[src_gpu][dest_gpu];
                     const table_t len = table[src_gpu][dest_gpu];
