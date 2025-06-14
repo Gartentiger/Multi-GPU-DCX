@@ -680,12 +680,12 @@ private:
                 continue;
             }
             if (i == world_rank()) {
-                printf("send temp mem: %u, rank: %lu\n", mhost_temp_mem[i]);
+                printf("send temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
                 comm_world().bcast_single(send_recv_buf(mhost_temp_mem[i]), root(i));
             }
             else {
                 mhost_temp_mem[i] = comm_world().bcast_single<uint32_t>();
-                printf("recv temp mem: %u, rank: %lu\n", mhost_temp_mem[i]);
+                printf("recv temp mem: %u, idx: %d, rank: %lu\n", mhost_temp_mem[i], i, world_rank());
             }
         }
         for (int i = 0; i < world_size(); i++) {
