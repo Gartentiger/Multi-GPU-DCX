@@ -123,13 +123,22 @@ public:
         }
         // this sync is mandatory
         context.sync_default_streams();
-
+        for (int i = 0; i < world_size(); i++) {
+            for (int j = 0; j < num_gpus; j++) {
+                printf("[%lu]: before h_offsets[%d][%d]: %u\n", world_rank(), i, j, h_offsets[i][j]);
+            }
+        }
         // world_rank() == num_gpus
         std::span<uint32_t> sb(h_offsets[world_rank()], num_gpus);
         std::vector<uint32_t> recv;
         recv.reserve(num_gpus * world_size());
+        recv.clear();
         comm_world().allgather(send_buf(sb), recv_buf(recv));
-
+        for (int i = 0; i < world_size(); i++) {
+            for (int j = 0; j < num_gpus; j++) {
+                printf("[%lu]: recv buffer[%d][%d]: %u\n", world_rank(), i, j, recv[(i * num_gpus) + j]);
+            }
+        }
         for (int i = 0; i < world_size(); i++) {
             if (i == world_rank()) {
                 continue;
@@ -140,7 +149,7 @@ public:
 
         for (int i = 0; i < world_size(); i++) {
             for (int j = 0; j < num_gpus; j++) {
-                printf("[%lu]: h_offsets[%d][%d]: %u\n", world_rank(), i, j, h_offsets[i][j]);
+                printf("[%lu]: after h_offsets[%d][%d]: %u\n", world_rank(), i, j, h_offsets[i][j]);
             }
         }
 
