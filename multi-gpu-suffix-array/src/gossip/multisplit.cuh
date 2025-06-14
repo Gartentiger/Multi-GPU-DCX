@@ -89,28 +89,31 @@ public:
             const MultiSplitNodeInfo& info = node_info[gpu];
             if (info.src_len > 0)
             {
-                QDAllocator& d_alloc = context.get_device_temp_allocator(gpu);
-                d_offsets[gpu] = d_alloc.get<uint32_t>(effective_buckets);
+                if (world_rank == gpu) {
+                    //only the process with this gpu should allocate gpu memory 
+                    QDAllocator& d_alloc = context.get_device_temp_allocator(gpu);
+                    d_offsets[gpu] = d_alloc.get<uint32_t>(effective_buckets);
 
-                if (include_values)
-                {
-                    DispatchMultisplit::multisplit_kv(info.src_keys, info.dest_keys, info.src_values, info.dest_values,
-                        d_offsets[gpu], functor, info.src_len,
-                        context.get_device_temp_allocator(gpu),
-                        context.get_gpu_default_stream(gpu));
-                }
-                else
-                {
-                    DispatchMultisplit::multisplit(info.src_keys, info.dest_keys, d_offsets[gpu], functor,
-                        info.src_len, context.get_device_temp_allocator(gpu),
-                        context.get_gpu_default_stream(gpu));
-                }
+                    if (include_values)
+                    {
+                        DispatchMultisplit::multisplit_kv(info.src_keys, info.dest_keys, info.src_values, info.dest_values,
+                            d_offsets[gpu], functor, info.src_len,
+                            context.get_device_temp_allocator(gpu),
+                            context.get_gpu_default_stream(gpu));
+                    }
+                    else
+                    {
+                        DispatchMultisplit::multisplit(info.src_keys, info.dest_keys, d_offsets[gpu], functor,
+                            info.src_len, context.get_device_temp_allocator(gpu),
+                            context.get_gpu_default_stream(gpu));
+                    }
 
-                cudaMemcpyAsync(h_offsets[gpu],
-                    d_offsets[gpu],
-                    sizeof(uint32_t) * num_gpus, cudaMemcpyDeviceToHost,
-                    context.get_gpu_default_stream(gpu));
-                CUERR;
+                    cudaMemcpyAsync(h_offsets[gpu],
+                        d_offsets[gpu],
+                        sizeof(uint32_t) * num_gpus, cudaMemcpyDeviceToHost,
+                        context.get_gpu_default_stream(gpu));
+                    CUERR;
+                }
             }
             else
             {
@@ -120,6 +123,24 @@ public:
         }
         // this sync is mandatory
         context.sync_default_streams();
+
+        // world_rank() == num_gpus
+        std::span<uint32_t> sb(h_offsets[world_rank()], num_gpus * sizeof(uint32_t));
+        std::vector<uint32_t> recv;
+        recv.reserve(num_gpus * world_size());
+        comm_world().allgather(send_buf(sb), recv_buf<no_resize>(recv));
+        for (int i = 0; i < world_size(); i++) {
+            if (i == world_rank()) {
+                continue;
+            }
+            memcpy(h_offsets[i], recv.data() + i * num_gpus, num_gpus * sizeof(uint32_t));
+        }
+
+        for (int i = 0; i < world_size(); i++) {
+            for (int j = 0; j < num_gpus; j++) {
+                printf("h_offsets[%d]: %u, rank: %lu\n", i, h_offsets[i][j], world_rank());
+            }
+        }
 
         // recover the partition table from accumulated counters
         for (uint gpu = 0; gpu < num_gpus; ++gpu)

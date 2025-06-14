@@ -7,6 +7,7 @@
 #include "context.cuh"
 #include "auxiliary.cuh"
 #include "util.h"
+#include <kamping/request_pool.hpp>
 
 namespace gossip {
 
@@ -61,6 +62,7 @@ namespace gossip {
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
 
+            RequestPool pool;
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
@@ -72,21 +74,39 @@ namespace gossip {
 
                     key_t* from_k = node_info[src_gpu].src_keys + src_index;
                     key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
+                    if (src_gpu == world_rank()) {
+                        std::span<key_t> sb(from_k, len);
+                        comm_world().isend(send_buf(sb), send_count(len), destination(dest_gpu), request(pool.get_request()));
+                    }
+                    else if (dest_gpu == world_rank()) {
+                        std::span<key_t> rb(to_k, len);
+                        comm_world().irecv(recv_buf(rb), recv_count(len), request(pool.get_request()));
+                    }
 
-                    cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
-                        from_k, context.get_device_id(src_gpu),
-                        len * sizeof(key_t),
-                        context.get_streams(src_gpu)[dest_gpu]);
+                    // cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
+                    //     from_k, context.get_device_id(src_gpu),
+                    //     len * sizeof(key_t),
+                    //     context.get_streams(src_gpu)[dest_gpu]);
 
                     value_t* from_v = node_info[src_gpu].src_values + src_index;
                     value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
+                    if (src_gpu == world_rank()) {
+                        std::span<value_t> sb(from_v, len);
+                        comm_world().isend(send_buf(sb), send_count(len), destination(dest_gpu), request(pool.get_request()));
+                    }
+                    else if (dest_gpu == world_rank()) {
+                        std::span<value_t> rb(to_v, len);
+                        comm_world().irecv(recv_buf(rb), recv_count(len), request(pool.get_request()));
+                    }
 
-                    cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
-                        from_v, context.get_device_id(src_gpu),
-                        len * sizeof(value_t),
-                        context.get_streams(src_gpu)[dest_gpu]);
+                    // cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
+                    //     from_v, context.get_device_id(src_gpu),
+                    //     len * sizeof(value_t),
+                    //     context.get_streams(src_gpu)[dest_gpu]);
                 } CUERR;
             }
+            pool.wait_all();
+
             return check_tables(node_info, h_table, v_table);
         }
 
