@@ -709,9 +709,9 @@ private:
         //     }
         // }
         // pool.wait_all();
-        for (int i = 0; i < world_size(); i++) {
-            printf("mhost_temp_mem[%d]: %u, rank: %lu\n", i, mhost_temp_mem[i], world_rank());
-        }
+        // for (int i = 0; i < world_size(); i++) {
+        //     printf("mhost_temp_mem[%d]: %u, rank: %lu\n", i, mhost_temp_mem[i], world_rank());
+        // }
 
         for (uint i = 1; i < NUM_GPUS; ++i)
         {
@@ -720,18 +720,20 @@ private:
 
         //for (uint gpu_index = 1; gpu_index < NUM_GPUS; ++gpu_index)
         //{
-        uint gpu_index = world_rank();
-        SaGPU& gpu = mgpus[gpu_index];
-        if (gpu.working_len > 0)
-        {
-            printf("gpu.working length %lu, rank: %lu\n", gpu.working_len, world_rank());
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
-            kernels::write_if_eq _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_rank, gpu.Sa_rank, 0, mhost_temp_mem[gpu_index - 1], gpu.working_len);
-            CUERR;
+        if (world_rank() > 0) {
+            uint gpu_index = world_rank();
+            SaGPU& gpu = mgpus[gpu_index];
+            if (gpu.working_len > 0)
+            {
+                // printf("gpu.working length %lu, rank: %lu\n", gpu.working_len, world_rank());
+                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                kernels::write_if_eq _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_rank, gpu.Sa_rank, 0, mhost_temp_mem[gpu_index - 1], gpu.working_len);
+                CUERR;
+            }
         }
 
         mcontext.sync_default_streams();
-        printf("after write if eq, rank: %lu\n", world_rank());
+        // printf("after write if eq, rank: %lu\n", world_rank());
         //}
     }
 
