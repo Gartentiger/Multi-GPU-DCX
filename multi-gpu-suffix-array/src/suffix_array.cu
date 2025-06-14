@@ -212,11 +212,11 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Input);
-        printf("Copy Input\n");
+        // printf("Copy Input\n");
 
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
         produce_kmers();
-        printf("Produce kmers\n");
+        // printf("Produce kmers\n");
 
         TIMER_STOP_MAIN_STAGE(MainStages::Produce_KMers);
 
@@ -902,13 +902,13 @@ int main(int argc, char** argv)
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0,0,0,0 };
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids2);
-    printf("Multi GPU Context\n");
+    // printf("Multi GPU Context\n");
 #endif
     SuffixSorter sorter(context, realLen, input);
-    printf("Suffix Sorter\n");
+    // printf("Suffix Sorter\n");
 
     sorter.alloc();
-    printf("Alloc\n");
+    // printf("Alloc\n");
 
     // auto stringPath = ((std::string)argv[3]);
     // int pos = stringPath.find_last_of("/\\");
