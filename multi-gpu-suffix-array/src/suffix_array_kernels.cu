@@ -27,11 +27,11 @@ namespace kernels {
             printf("max input: %u, output %u\n", Input[N - 1], Output[N - 1]);
         for (int tidx = blockIdx.x * blockDim.x + threadIdx.x;
             tidx < N; tidx += blockDim.x * gridDim.x) {
-            if (Input[tidx] == value_eq) {
-                printf("kernel tidx %d, value to write %u, input: %u\n", tidx, value_to_write, Input[tidx]);
+            printf("kernel tidx %d, value to write %u, input: %u\n", tidx, value_to_write, Input[tidx]);
+            //if (Input[tidx] == value_eq) {
                 // Output[tidx] = value_to_write;
 
-            }
+            //}
         }
     }
 
