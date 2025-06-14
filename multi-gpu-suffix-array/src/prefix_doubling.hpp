@@ -685,6 +685,8 @@ private:
         std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
         std::span<uint32_t> rb(mhost_temp_mem, world_size());
         comm_world().allgather(send_buf(sb), recv_buf(rb));
+        mcontext.sync_default_streams();
+        printf("after allgather, rank %lu\n", world_rank());
         // RequestPool pool;
         // for (int i = 0; i < world_size(); i++) {
         //     if (mgpus[i].working_len <= 0)
