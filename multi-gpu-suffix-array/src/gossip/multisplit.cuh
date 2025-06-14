@@ -24,11 +24,11 @@ public:
     {
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
-            if (world_rank() == gpu)
-            {
-                cudaSetDevice(0);
-                cudaMallocHost(&h_offsets[gpu], sizeof(uint32_t) * NUM_GPUS);
-            }
+            //if (world_rank() == gpu)
+            //{
+            cudaSetDevice(0);
+            cudaMallocHost(&h_offsets[gpu], sizeof(uint32_t) * NUM_GPUS);
+            //}
         }
         CUERR;
     }
@@ -96,7 +96,6 @@ public:
 
                     if (include_values)
                     {
-                        printf("multisplit_kv, rank: %lu\n", world_rank());
                         DispatchMultisplit::multisplit_kv(info.src_keys, info.dest_keys, info.src_values, info.dest_values,
                             d_offsets[gpu], functor, info.src_len,
                             context.get_device_temp_allocator(gpu),
@@ -108,7 +107,6 @@ public:
                             info.src_len, context.get_device_temp_allocator(gpu),
                             context.get_gpu_default_stream(gpu));
                     }
-                    printf("cudaMemcpyAsync, rank: %lu\n", world_rank());
 
                     cudaMemcpyAsync(h_offsets[gpu],
                         d_offsets[gpu],
@@ -125,14 +123,13 @@ public:
         }
         // this sync is mandatory
         context.sync_default_streams();
-        printf("span h_offsets, rank: %lu\n", world_rank());
 
         // world_rank() == num_gpus
         std::span<uint32_t> sb(h_offsets[world_rank()], num_gpus);
         std::vector<uint32_t> recv;
         recv.reserve(num_gpus * world_size());
         comm_world().allgather(send_buf(sb), recv_buf(recv));
-        printf("allgather, rank: %lu\n", world_rank());
+
         for (int i = 0; i < world_size(); i++) {
             if (i == world_rank()) {
                 continue;

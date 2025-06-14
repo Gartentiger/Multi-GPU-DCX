@@ -965,7 +965,6 @@ private:
         }
 
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
-        printf("before multi execKVAsync, rank: %lu\n", world_rank());
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
