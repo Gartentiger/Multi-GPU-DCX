@@ -244,8 +244,7 @@ namespace crossGPUReMerge
             std::vector<int64_t> recv_multi_search_result;
             auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
             // printf("Multi searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
-            size_t multiSearches = 0;
-            int enumerat = 0;
+            int totalIdx = 0;
             for (int64_t ah : recv_multi_search_result)
             {
                 printf("------ received multi search results %ld, rank: %lu\n", ah, world_rank());
@@ -258,8 +257,8 @@ namespace crossGPUReMerge
                 {
                     int size = ms->ranges.size() + 1;
                     ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size);
-                    memcpy(ms->h_result_ptr, recv_multi_search_result.data() + enumerat, size * sizeof(int64_t));
-                    enumerat += size;
+                    memcpy(ms->h_result_ptr, recv_multi_search_result.data() + totalIdx, size * sizeof(int64_t));
+                    totalIdx += size;
                 }
 
             }

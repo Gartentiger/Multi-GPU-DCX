@@ -8,6 +8,8 @@
 #include "auxiliary.cuh"
 #include "util.h"
 #include <kamping/request_pool.hpp>
+#include <kamping/p2p/irecv.hpp>
+#include <kamping/p2p/isend.hpp>
 
 namespace gossip {
 
