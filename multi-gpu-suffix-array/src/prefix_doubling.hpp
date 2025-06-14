@@ -654,14 +654,14 @@ private:
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
                     //printf("done inclusive scan\n");
                     mcontext.sync_default_streams();
-                    printf("inclusive scan, rank: %lu\n");
+                    printf("inclusive scan, rank: %lu\n", world_rank());
                     CUERR_CHECK(err);
                     cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Sa_rank + gpu.working_len - 1,
                         sizeof(sa_index_t), cudaMemcpyDeviceToHost,
                         mcontext.get_gpu_default_stream(gpu_index));
                     CUERR;
                     mcontext.sync_default_streams();
-                    printf("memcpy, rank: %lu\n");
+                    printf("memcpy, rank: %lu\n", world_rank());
 
                 }
 
