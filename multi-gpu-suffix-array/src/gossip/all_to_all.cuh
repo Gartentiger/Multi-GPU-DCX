@@ -75,15 +75,15 @@ namespace gossip {
 
                     key_t* from_k = node_info[src_gpu].src_keys + src_index;
                     key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
-                    printf("src[%u] to dst[%u], rank %lu\n", src_gpu, dest_gpu, world_rank());
-                    // if (src_gpu == world_rank()) {
-                    //     std::span<key_t> sb(from_k, len);
-                    //     comm_world().send(send_buf(sb), send_count(len), destination((size_t)dest_gpu));
-                    // }
-                    // else if (dest_gpu == world_rank()) {
-                    //     std::span<key_t> rb(to_k, len);
-                    //     comm_world().recv(recv_buf(rb), recv_count(len));
-                    // }
+                    // printf("src[%u] to dst[%u], rank %lu\n", src_gpu, dest_gpu, world_rank());
+                    if (src_gpu == world_rank()) {
+                        std::span<key_t> sb(from_k, len);
+                        comm_world().send(send_buf(sb), send_count(len), destination((size_t)dest_gpu));
+                    }
+                    if (dest_gpu == world_rank()) {
+                        std::span<key_t> rb(to_k, len);
+                        comm_world().recv(recv_buf(rb), recv_count(len));
+                    }
 
                     // cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
                     //     from_k, context.get_device_id(src_gpu),
@@ -92,14 +92,14 @@ namespace gossip {
 
                     value_t* from_v = node_info[src_gpu].src_values + src_index;
                     value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
-                    // if (src_gpu == world_rank()) {
-                    //     std::span<value_t> sb(from_v, len);
-                    //     comm_world().send(send_buf(sb), send_count(len), destination((size_t)dest_gpu));
-                    // }
-                    // else if (dest_gpu == world_rank()) {
-                    //     std::span<value_t> rb(to_v, len);
-                    //     comm_world().recv(recv_buf(rb), recv_count(len));
-                    // }
+                    if (src_gpu == world_rank()) {
+                        std::span<value_t> sb(from_v, len);
+                        comm_world().send(send_buf(sb), send_count(len), destination((size_t)dest_gpu));
+                    }
+                    if (dest_gpu == world_rank()) {
+                        std::span<value_t> rb(to_v, len);
+                        comm_world().recv(recv_buf(rb), recv_count(len));
+                    }
 
                     // cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
                     //     from_v, context.get_device_id(src_gpu),
