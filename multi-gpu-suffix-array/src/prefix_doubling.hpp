@@ -679,6 +679,11 @@ private:
         // Send mhost_temp_mem[world_rank()] to all other processes 
 
         for (int i = 0; i < world_size(); i++) {
+            printf("check temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
+        }
+        comm_world().barrier();
+
+        for (int i = 0; i < world_size(); i++) {
             // all processes know all working lengths 
             if (mgpus[i].working_len <= 0) {
                 continue;
@@ -692,6 +697,7 @@ private:
                 printf("recv temp mem: %u, idx: %d, rank: %lu\n", mhost_temp_mem[i], i, world_rank());
             }
         }
+        comm_world().barrier();
         for (int i = 0; i < world_size(); i++) {
             printf("mhost_temp_mem[%d]: %u, rank: %lu\n", i, mhost_temp_mem[i], world_rank());
         }
@@ -1555,7 +1561,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
