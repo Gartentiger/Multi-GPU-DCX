@@ -147,8 +147,8 @@ namespace crossGPUReMerge
 
                         key_t* start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                         int64_t size_2 = s->node2_range.end - s->node2_range.start;
-                        printf("snode_1 %u, mnode info index %u\n", s->node_1, mnodes[s->node_1].info.index);
-                        printf("snode_2 %u, mnode info index %u\n", s->node_2, mnodes[s->node_2].info.index);
+                        // printf("snode_1 %u, mnode info index %u\n", s->node_1, mnodes[s->node_1].info.index);
+                        // printf("snode_2 %u, mnode info index %u\n", s->node_2, mnodes[s->node_2].info.index);
                         s->d_result_ptr = d_alloc.get<int64_t>(1);
                         s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
 
@@ -211,7 +211,7 @@ namespace crossGPUReMerge
                 std::vector<int64_t> recv_search_result;
                 comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result), recv_counts_out());
 
-                printf("Allgather %lu\n", world_rank());
+                //printf("Allgather %lu\n", world_rank());
                 int enumer = 0;
                 for (int i = 0; i < comm_world().size(); i++)
                 {
