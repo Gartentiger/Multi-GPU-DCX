@@ -654,14 +654,14 @@ private:
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
                     //printf("done inclusive scan\n");
                     mcontext.sync_default_streams();
-                    printf("inclusive scan, rank: %lu\n", world_rank());
+                    //printf("inclusive scan, rank: %lu\n", world_rank());
                     CUERR_CHECK(err);
                     cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Sa_rank + gpu.working_len - 1,
                         sizeof(sa_index_t), cudaMemcpyDeviceToHost,
                         mcontext.get_gpu_default_stream(gpu_index));
                     CUERR;
                     mcontext.sync_default_streams();
-                    printf("memcpy, rank: %lu\n", world_rank());
+                    //printf("memcpy, rank: %lu\n", world_rank());
 
                 }
 
@@ -678,9 +678,9 @@ private:
         //printf("sync streams\n");
         // Send mhost_temp_mem[world_rank()] to all other processes 
 
-        for (int i = 0; i < world_size(); i++) {
-            printf("check temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
-        }
+        // for (int i = 0; i < world_size(); i++) {
+        //     printf("check temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
+        // }
         comm_world().barrier();
         std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
         std::span<uint32_t> rb(mhost_temp_mem, world_size());
@@ -717,7 +717,7 @@ private:
         {
             mhost_temp_mem[i] = std::max(mhost_temp_mem[i], mhost_temp_mem[i - 1]);
         }
-
+        printf("after max, rank: %lu\n", world_rank());
         //for (uint gpu_index = 1; gpu_index < NUM_GPUS; ++gpu_index)
         //{
         uint gpu_index = world_rank();
@@ -729,8 +729,9 @@ private:
             CUERR;
         }
 
-        //}
         mcontext.sync_default_streams();
+        printf("after write if eq, rank: %lu\n", world_rank());
+        //}
     }
 
     bool compact()
