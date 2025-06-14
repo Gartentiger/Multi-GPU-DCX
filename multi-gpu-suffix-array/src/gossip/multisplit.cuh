@@ -89,7 +89,7 @@ public:
             const MultiSplitNodeInfo& info = node_info[gpu];
             if (info.src_len > 0)
             {
-                if (world_rank == gpu) {
+                if (world_rank() == gpu) {
                     //only the process with this gpu should allocate gpu memory 
                     QDAllocator& d_alloc = context.get_device_temp_allocator(gpu);
                     d_offsets[gpu] = d_alloc.get<uint32_t>(effective_buckets);

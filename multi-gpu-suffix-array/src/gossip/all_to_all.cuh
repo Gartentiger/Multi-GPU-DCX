@@ -76,7 +76,7 @@ namespace gossip {
                     key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                     if (src_gpu == world_rank()) {
                         std::span<key_t> sb(from_k, len);
-                        comm_world().isend(send_buf(sb), send_count(len), destination(dest_gpu), request(pool.get_request()));
+                        comm_world().isend(send_buf(sb), send_count(len), destination((size_t)dest_gpu), request(pool.get_request()));
                     }
                     else if (dest_gpu == world_rank()) {
                         std::span<key_t> rb(to_k, len);
@@ -92,7 +92,7 @@ namespace gossip {
                     value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
                     if (src_gpu == world_rank()) {
                         std::span<value_t> sb(from_v, len);
-                        comm_world().isend(send_buf(sb), send_count(len), destination(dest_gpu), request(pool.get_request()));
+                        comm_world().isend(send_buf(sb), send_count(len), destination((size_t)dest_gpu), request(pool.get_request()));
                     }
                     else if (dest_gpu == world_rank()) {
                         std::span<value_t> rb(to_v, len);
