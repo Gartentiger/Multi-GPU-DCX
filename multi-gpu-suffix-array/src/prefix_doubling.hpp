@@ -984,7 +984,6 @@ private:
             all2all_node_info[gpu_index].src_keys = gpu.Temp1;
             all2all_node_info[gpu_index].src_values = gpu.Temp2;
             all2all_node_info[gpu_index].src_len = gpu.working_len;
-            ;
 
             all2all_node_info[gpu_index].dest_keys = gpu.Old_ranks;
             all2all_node_info[gpu_index].dest_values = gpu.Segment_heads;
