@@ -607,17 +607,18 @@ private:
         uint gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
         cudaSetDevice(mcontext.get_device_id(gpu_index));
-
+        printf("initial\n");
         const rank_t* last_element_prev = nullptr;
         if (gpu_index > 0)
         {
             //  last element of previous gpu
             last_element_prev = &reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
         }
-
+        printf("last element\n");
         kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const rank_t*>(gpu.Old_ranks), last_element_prev, gpu.offset + 1, 0, gpu.Temp1, gpu.working_len);
         CUERR;
         //}
+        printf("write ranks diff multi\n");
         mcontext.sync_default_streams();
         do_max_scan_on_ranks();
     }
@@ -631,7 +632,8 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 0)
             {
-                if (gpu.index == world_rank()) {
+                if (gpu.index == world_rank())
+                {
 
                     cudaSetDevice(mcontext.get_device_id(gpu_index));
                     // Temp1 --> Sa_rank
@@ -640,7 +642,7 @@ private:
                     MaxFunctor max_op;
 
                     size_t temp_storage_bytes = 0;
-
+                    printf("inclusive scan\n");
                     cudaError_t err = cub::DeviceScan::InclusiveScan(nullptr, temp_storage_bytes, gpu.Temp1,
                         gpu.Sa_rank, max_op, gpu.working_len,
                         mcontext.get_gpu_default_stream(gpu_index));
@@ -650,6 +652,7 @@ private:
                         ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t));
                     err = cub::DeviceScan::InclusiveScan(gpu.Temp3, temp_storage_bytes, gpu.Temp1, gpu.Sa_rank,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
+                    printf("done inclusive scan\n");
 
                     CUERR_CHECK(err);
                     cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Sa_rank + gpu.working_len - 1,
@@ -669,7 +672,7 @@ private:
 
         }
         mcontext.sync_default_streams();
-
+        printf("sync streams\n");
         // Send mhost_temp_mem[world_rank()] to all other processes 
         for (int i = 0; i < world_size(); i++) {
             // all processes know all working lengths 
