@@ -682,22 +682,33 @@ private:
             printf("check temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
         }
         comm_world().barrier();
+        std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
+        std::span<uint32_t> rb(mhost_temp_mem, world_size());
+        comm_world().allgather(send_buf(sb), recv_buf(rb));
+        // RequestPool pool;
+        // for (int i = 0; i < world_size(); i++) {
+        //     if (mgpus[i].working_len <= 0)
+        //         continue;
 
-        for (int i = 0; i < world_size(); i++) {
-            // all processes know all working lengths 
-            if (mgpus[i].working_len <= 0) {
-                continue;
-            }
-            if (i == world_rank()) {
-                printf("send temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
-                comm_world().bcast_single(send_recv_buf(mhost_temp_mem[i]), root(i));
-            }
-            else {
-                mhost_temp_mem[i] = comm_world().bcast_single<uint32_t>();
-                printf("recv temp mem: %u, idx: %d, rank: %lu\n", mhost_temp_mem[i], i, world_rank());
-            }
-        }
-        comm_world().barrier();
+
+        //     if (i == world_rank()) {
+        //         for (int j = 0; j < world_size(); j++)
+        //         {
+        //             // all processes know all working lengths 
+        //             printf("send temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
+        //             std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
+        //             comm_world().isend(send_buf(sb), send_count(1), destination(j), request(pool.get_request()));
+        //         }
+        //     }
+        //     else {
+        //         for (int j = 0; j < world_size(); j++)
+        //         {
+        //             std::span<uint32_t> rb(mhost_temp_mem + j, 1);
+        //             comm_world().irecv();
+        //         }
+        //     }
+        // }
+        // pool.wait_all();
         for (int i = 0; i < world_size(); i++) {
             printf("mhost_temp_mem[%d]: %u, rank: %lu\n", i, mhost_temp_mem[i], world_rank());
         }
@@ -1561,7 +1572,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
