@@ -138,11 +138,11 @@ public:
             memcpy(h_offsets[i], recv.data() + i * num_gpus, num_gpus * sizeof(uint32_t));
         }
 
-        // for (int i = 0; i < world_size(); i++) {
-        //     for (int j = 0; j < num_gpus; j++) {
-        //         printf("h_offsets[%d]: %u, rank: %lu\n", i, h_offsets[i][j], world_rank());
-        //     }
-        // }
+        for (int i = 0; i < world_size(); i++) {
+            for (int j = 0; j < num_gpus; j++) {
+                printf("[%lu]: h_offsets[%d][%d]: %u\n", world_rank(), i, j, h_offsets[i][j]);
+            }
+        }
 
         // recover the partition table from accumulated counters
         for (uint gpu = 0; gpu < num_gpus; ++gpu)
