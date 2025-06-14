@@ -685,8 +685,6 @@ private:
         std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
         std::span<uint32_t> rb(mhost_temp_mem, world_size());
         comm_world().allgather(send_buf(sb), recv_buf(rb));
-        mcontext.sync_default_streams();
-        printf("after allgather, rank %lu\n", world_rank());
         // RequestPool pool;
         // for (int i = 0; i < world_size(); i++) {
         //     if (mgpus[i].working_len <= 0)
@@ -719,13 +717,14 @@ private:
         {
             mhost_temp_mem[i] = std::max(mhost_temp_mem[i], mhost_temp_mem[i - 1]);
         }
-        printf("after max, rank: %lu\n", world_rank());
+
         //for (uint gpu_index = 1; gpu_index < NUM_GPUS; ++gpu_index)
         //{
         uint gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
         if (gpu.working_len > 0)
         {
+            printf("gpu.working length %lu, rank: %lu\n", gpu.working_len, world_rank());
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             kernels::write_if_eq _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_rank, gpu.Sa_rank, 0, mhost_temp_mem[gpu_index - 1], gpu.working_len);
             CUERR;
