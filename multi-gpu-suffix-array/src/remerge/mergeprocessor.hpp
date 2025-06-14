@@ -236,7 +236,7 @@ namespace crossGPUReMerge
                 size_t size = ms->ranges.size() + 1;
                 for (size_t j = 0; j < size; j++)
                 {
-                    printf("ms->h_result_ptr %ld, rank %lu\n", ms->h_result_ptr[j], world_rank());
+                    // printf("ms->h_result_ptr %ld, rank %lu\n", ms->h_result_ptr[j], world_rank());
                     send_multi_search_result.push_back(ms->h_result_ptr[j]);
                 }
             }
@@ -245,10 +245,10 @@ namespace crossGPUReMerge
             auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
             // printf("Multi searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
             int totalIdx = 0;
-            for (int64_t ah : recv_multi_search_result)
-            {
-                printf("------ received multi search results %ld, rank: %lu\n", ah, world_rank());
-            }
+            // for (int64_t ah : recv_multi_search_result)
+            // {
+            //     printf("------ received multi search results %ld, rank: %lu\n", ah, world_rank());
+            // }
 
             for (int i = 0; i < comm_world().size(); i++)
             {
@@ -262,16 +262,16 @@ namespace crossGPUReMerge
                 }
 
             }
-            for (MergeNode node : mnodes) {
-                for (auto ms : node.scheduled_work.multi_searches)
-                {
-                    for (int i = 0; i < ms->ranges.size() + 1; i++) {
-                        printf("------ ms->h_result_ptr[%d]: %ld, rank: %lu\n", i, ms->h_result_ptr[i], world_rank());
-                    }
+            // for (MergeNode node : mnodes) {
+            //     for (auto ms : node.scheduled_work.multi_searches)
+            //     {
+            //         for (int i = 0; i < ms->ranges.size() + 1; i++) {
+            //             printf("------ ms->h_result_ptr[%d]: %ld, rank: %lu\n", i, ms->h_result_ptr[i], world_rank());
+            //         }
 
-                }
-            }
-            printf("Multi searches done %lu\n", world_rank());
+            //     }
+            // }
+            // printf("Multi searches done %lu\n", world_rank());
 
             for (MergeNode& node : mnodes)
             {
