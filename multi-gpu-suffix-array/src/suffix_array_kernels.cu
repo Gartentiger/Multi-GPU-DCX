@@ -23,7 +23,8 @@ namespace kernels {
 
     __global__ void write_if_eq(const sa_index_t* Input, sa_index_t* Output, sa_index_t value_eq,
         sa_index_t value_to_write, sa_index_t N) {
-        printf("max input: %u\n", Input[N - 1]);
+        if (blockIdx.x * blockDim.x + threadIdx.x == 0)
+            printf("max input: %u\n", Input[N - 1]);
         for (int tidx = blockIdx.x * blockDim.x + threadIdx.x;
             tidx < N; tidx += blockDim.x * gridDim.x) {
             printf("kernel tidx %d, value to write %u, input: %u\n", tidx, value_to_write, Input[tidx]);
