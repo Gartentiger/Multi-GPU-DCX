@@ -21,7 +21,17 @@ __global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t r
 {
     for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu]: arr 1: %u, arr 2: %u\n", rank, key[i], value[i]);
+        printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
+
+
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
+__global__ void printArray(uint64_t* key, uint64_t* value, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+
+        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
 
 
     }
@@ -496,7 +506,8 @@ private:
             // Now Sa_rank is sorted to Old_ranks,
             // Isa is sorted to Sa_Index
             // Temp2, 3, 4 used as temp space
-
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
             //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
                                            reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
@@ -821,7 +832,6 @@ private:
             multi_split_node_info[gpu_index].dest_values = gpu.Temp2;
             multi_split_node_info[gpu_index].dest_len = gpu.working_len;
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
         }
 
 
