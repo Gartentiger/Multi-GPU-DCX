@@ -23,7 +23,17 @@ __global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t r
 {
     for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu]: arr 1: %u, arr 2: %u\n", rank, key[i], value[i]);
+        printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
+
+
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
+__global__ void printArray(uint64_t* key, uint64_t* value, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+
+        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
 
 
     }
@@ -553,6 +563,8 @@ private:
             // std::span<uint64_t> dd(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
             // comm_world().recv(recv_buf(dd), recv_count(gpu.working_len));
 
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
 
             // working_len == num_elements
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
@@ -583,6 +595,9 @@ private:
             }
         }
         comm_world().barrier();
+
+        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[0].keys, merge_nodes_info[1].keys, merge_nodes_info[0].num_elements, world_rank());
+        mcontext.sync_default_streams();
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
         TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
