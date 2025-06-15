@@ -330,31 +330,33 @@ namespace crossGPUReMerge
                 cudaSetDevice(mcontext.get_device_id(node.info.index));
 
                 mgpu::my_mpgu_context_t& mgpu_context = mcontext.get_mgpu_default_context_for_device(node.info.index);
+                if (node.info.index == world_rank()) {
 
-                for (const MergePartition* p : node.scheduled_work.merge_partitions)
-                {
-                    sa_index_t dest1 = p->dest_range.start;
-                    sa_index_t dest2 = dest1 + p->size_from_1;
-                    mgpu_context.reset_temp_memory();
+                    for (const MergePartition* p : node.scheduled_work.merge_partitions)
+                    {
+                        sa_index_t dest1 = p->dest_range.start;
+                        sa_index_t dest2 = dest1 + p->size_from_1;
+                        mgpu_context.reset_temp_memory();
 
-                    //                    if (p->size_from_1 > 0 && p->size_from_2 > 0) {
-                    if (do_values)
-                    {
-                        mgpu::merge(node.info.key_buffer + dest1, node.info.value_buffer + dest1, (int)p->size_from_1,
-                            node.info.key_buffer + dest2, node.info.value_buffer + dest2, (int)p->size_from_2,
-                            node.info.keys + dest1, node.info.values + dest1, comp, mgpu_context);
-                        CUERR;
+                        //                    if (p->size_from_1 > 0 && p->size_from_2 > 0) {
+                        if (do_values)
+                        {
+                            mgpu::merge(node.info.key_buffer + dest1, node.info.value_buffer + dest1, (int)p->size_from_1,
+                                node.info.key_buffer + dest2, node.info.value_buffer + dest2, (int)p->size_from_2,
+                                node.info.keys + dest1, node.info.values + dest1, comp, mgpu_context);
+                            CUERR;
+                        }
+                        else
+                        {
+                            mgpu::merge(node.info.key_buffer + dest1, (int)p->size_from_1,
+                                node.info.key_buffer + dest2, (int)p->size_from_2,
+                                node.info.keys + dest1, comp, mgpu_context);
+                            CUERR;
+                        }
+                        //                        printf("\nScheduled merge with sizes %d, %d, on device %u",
+                        //                                (int)p->size_from_1, (int)p->size_from_2, node.info.index);
+                        //                    }
                     }
-                    else
-                    {
-                        mgpu::merge(node.info.key_buffer + dest1, (int)p->size_from_1,
-                            node.info.key_buffer + dest2, (int)p->size_from_2,
-                            node.info.keys + dest1, comp, mgpu_context);
-                        CUERR;
-                    }
-                    //                        printf("\nScheduled merge with sizes %d, %d, on device %u",
-                    //                                (int)p->size_from_1, (int)p->size_from_2, node.info.index);
-                    //                    }
                 }
             }
 
