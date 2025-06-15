@@ -821,7 +821,7 @@ private:
             multi_split_node_info[gpu_index].dest_values = gpu.Temp2;
             multi_split_node_info[gpu_index].dest_len = gpu.working_len;
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
-            // printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Sa_rank, gpu.Temp1, gpu.working_len, gpu_index);
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
         }
 
 
