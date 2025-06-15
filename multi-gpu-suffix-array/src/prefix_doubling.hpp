@@ -19,16 +19,12 @@
 
 // #define DEBUG_SET_ZERO_TO_SEE_BETTER
 // #define DUMP_EVERYTHING
-__global__ void printArray(uint64_t* key, sa_index_t* value, size_t size, bool in)
+__global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t rank)
 {
     for (size_t i = 0; i < size; i++) {
-        if (in) {
-            printf("key_in: %lu, value_in: %u\n", key[i], value[i]);
-        }
-        else {
-            printf("key_out: %lu, value_out: %u\n", key[i], value[i]);
 
-        }
+        printf("[%lu]: arr 1: %u, arr 2: %u\n", rank, key[i], value[i]);
+
 
     }
     printf("---------------------------------------------------------------------------\n");
@@ -959,10 +955,13 @@ private:
             multi_split_node_info[gpu_index].dest_keys = gpu.Temp1;
             multi_split_node_info[gpu_index].dest_values = gpu.Temp2;
             multi_split_node_info[gpu_index].dest_len = gpu.working_len;
+
             if (gpu_index == world_rank()) {
+                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
             }
         }
+        mcontext.sync_default_streams();
 
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
