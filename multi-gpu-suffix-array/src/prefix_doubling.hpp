@@ -859,6 +859,7 @@ private:
 
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
+        exit(1);
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::Sort);
