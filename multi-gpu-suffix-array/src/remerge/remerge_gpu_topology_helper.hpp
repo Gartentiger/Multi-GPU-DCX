@@ -12,6 +12,7 @@
 
 #include "../merge_copy_detour_guide.hpp"
 
+#include <span>
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 
