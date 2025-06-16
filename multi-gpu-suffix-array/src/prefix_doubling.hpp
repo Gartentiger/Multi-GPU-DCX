@@ -990,7 +990,9 @@ private:
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
             }
         }
+        //......................................
         mcontext.sync_default_streams();
+        //
 
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
@@ -1021,7 +1023,7 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-        printf("before all2all execKVAsync, rank: %lu\n", world_rank());
+
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
