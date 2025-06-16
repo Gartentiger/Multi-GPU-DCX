@@ -601,9 +601,9 @@ private:
 
         merge_manager.set_node_info(merge_nodes_info);
 
-        mcontext.sync_default_streams();
+        // mcontext.sync_default_streams();
 
-        for (int i = 0; i < world_size();i++) {
+        // for (int i = 0; i < world_size();i++) {
             // all2allDevicePointer(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), i, mgpus[i].working_len);
             // if (world_rank() == i) {
             //     std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
@@ -618,7 +618,7 @@ private:
             //     std::span<uint64_t> recB(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
             //     comm_world().recv(recv_buf(recB), tag(i), recv_count(mgpus[i].working_len));
             // }
-        }
+        // }
 
         mcontext.sync_default_streams();
 

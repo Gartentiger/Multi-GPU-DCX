@@ -179,9 +179,11 @@ namespace crossGPUReMerge
                             // identify receiver id (node.info.index)
                             if (node.info.index == world_rank()) {
                                 // sender == reveiver
+                                printf("**** [%lu] receiving own\n", world_rank());
                                 ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                             }
                             else {
+                                printf("** [%lu] sending\n", world_rank());
                                 // sender != reveiver -> send data
                                 std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
                                 comm_world().send(send_buf(sb), send_count(len), destination((size_t)node.info.index));
@@ -191,6 +193,7 @@ namespace crossGPUReMerge
                             // identify receiver id (node.info.index)
                             if (node.info.index == world_rank()) {
                                 // sender != receiver
+                                printf("** [%lu] receiving\n", world_rank());
                                 key_t* temp;
                                 cudaMalloc((void**)&temp, len * sizeof(key_t));
                                 tempPointers.push_back(temp);
@@ -206,7 +209,10 @@ namespace crossGPUReMerge
                     if (node.info.index == world_rank()) {
                         ads.push_back(ad);
                     }
+                    printf("[%lu] sender: %lu\n", r.start.node, world_rank());
                 }
+                printf("[%lu] receiver: %lu\n", node.info.index, world_rank());
+                comm_world().barrier();
             }
 
 
