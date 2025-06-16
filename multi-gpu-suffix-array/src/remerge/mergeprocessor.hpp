@@ -205,16 +205,19 @@ namespace crossGPUReMerge
                                 ad.keys[i] = temp;//mnodes[r.start.node].info.keys + r.start.index;
                             }
                         }
-
+                        comm_world().barrier();
                         printf("[%lu] sender: %u, receiver: %u, i: %d\n", world_rank(), r.start.node, node.info.index, i);
+                        break;
                         i++;
                     }
                     // not needed otherwise
                     if (node.info.index == world_rank()) {
                         ads.push_back(ad);
                     }
+                    break;
                 }
-                comm_world().barrier();
+                break;
+                //comm_world().barrier();
             }
 
 
