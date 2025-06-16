@@ -199,6 +199,7 @@ namespace crossGPUReMerge
 
                                 key_t* temp;
                                 cudaMalloc((void**)&temp, len * sizeof(key_t));
+                                CUERR;
                                 tempPointers.push_back(temp);
                                 std::span<key_t> rb(temp, len);
                                 comm_world().recv(recv_buf(rb), recv_count(len));
@@ -207,7 +208,6 @@ namespace crossGPUReMerge
                         }
                         comm_world().barrier();
                         printf("[%lu] sender: %u, receiver: %u, i: %d\n", world_rank(), r.start.node, node.info.index, i);
-                        break;
                         i++;
                     }
                     // not needed otherwise
@@ -221,6 +221,8 @@ namespace crossGPUReMerge
             }
 
 
+            printf("[%lu] done\n", world_rank());
+            exit(0);
 
             for (MergeNode& node : mnodes)
             {
