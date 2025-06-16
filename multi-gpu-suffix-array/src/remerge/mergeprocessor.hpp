@@ -220,10 +220,6 @@ namespace crossGPUReMerge
                 //comm_world().barrier();
             }
 
-
-            printf("[%lu] done\n", world_rank());
-            exit(0);
-
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
@@ -294,7 +290,7 @@ namespace crossGPUReMerge
             }
 
             mcontext.sync_all_streams();
-
+            printf("[%lu] done\n", world_rank());
             MergeNode mergeNode = mnodes[world_rank()];
             size_t send_size = mergeNode.scheduled_work.searches.size();
             if (send_size > 0) {
