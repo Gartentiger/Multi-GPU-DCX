@@ -214,23 +214,23 @@ namespace crossGPUReMerge {
                     //     mcontext.get_streams(node)[c.dest_node]);CUERR;
                     if (c.src_node == world_rank()) {
                         key_t* src_k_buff = mnodes[c.src_node].info.key + c.src_indexs;
-                        std::span<uint64_t> sb(reinterpret_cast<uint64_t>(src_k_buff), c.len);
+                        std::span<uint64_t> sb(reinterpret_cast<uint64_t>(src_k_buff), 3);
                         comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
                     }
                     if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
-                        std::span<uint64_t> rb(reinterpret_cast<uint64_t>(dest_k_buff), c.len);
+                        std::span<uint64_t> rb(reinterpret_cast<uint64_t>(dest_k_buff), 2);
                         comm_world().recv(recv_buf(rb), recv_count(c.len));
                     }
                     if (do_values) {
                         if (c.src_node == world_rank()) {
                             value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
-                            std::span<uint32_t> sb(reinterpret_cast<uint32_t>(src_v_buff), c.len);
+                            std::span<uint32_t> sb(reinterpret_cast<uint32_t>(src_v_buff), 3);
                             comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
                         }
                         if (c.dest_node == world_rank()) {
                             value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer + c.dest_index;
-                            std::span<uint32_t> rb(reinterpret_cast<uint32_t>(dest_v_buff), c.len);
+                            std::span<uint32_t> rb(reinterpret_cast<uint32_t>(dest_v_buff), 3);
                             comm_world().recv(recv_buf(rb), recv_count(c.len));
                         }
                         // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
