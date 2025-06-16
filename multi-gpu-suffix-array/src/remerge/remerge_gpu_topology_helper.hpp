@@ -215,24 +215,25 @@ namespace crossGPUReMerge {
                     if (c.src_node == world_rank()) {
 
                         const key_t* src_k_buff = mnodes[c.src_node].info.keys;
-                        std::span<key_t> sb(src_k_buff + c.src_index);
+                        uint64_t* buf = reinterpret_cast<uint64_t>(src_k_buff);
+                        std::span<uint64_t> sb(buf);
                         comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
                     }
                     if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer;
-                        std::span rb(dest_k_buff + c.dest_index);
-                        comm_world().recv(recv_buf(rb), recv_count(c.len));
+                        //std::span<key_t> rb(dest_k_buff + c.dest_index);
+                        //comm_world().recv(recv_buf(rb), recv_count(c.len));
                     }
                     if (do_values) {
                         if (c.src_node == world_rank()) {
                             const value_t* src_v_buff = mnodes[c.src_node].info.values;
-                            std::span sb(src_v_buff + c.src_index);
-                            comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
+                            //std::span<value_t> sb(src_v_buff + c.src_index);
+                            //comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
                         }
                         if (c.dest_node == world_rank()) {
                             value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer;
-                            std::span rb(dest_v_buff + c.dest_index);
-                            comm_world().recv(recv_buf(rb), recv_count(c.len));
+                            //std::span<value_t> rb(dest_v_buff + c.dest_index);
+                            //comm_world().recv(recv_buf(rb), recv_count(c.len));
                         }
                         // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
                         //     src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
