@@ -416,9 +416,11 @@ namespace crossGPUReMerge
             multi_mergers.reserve(mnodes.size() * mnodes.size()); // Essential because of pointer-init. in c'tor.
             for (const MergeNode& node : mnodes)
             {
-                for (const MultiWayMergePartition* p : node.scheduled_work.multi_merge_partitions)
-                {
-                    multi_mergers.emplace_back(mcontext, node, *p, comp, do_values);
+                if (node.info.index == world_rank()) {
+                    for (const MultiWayMergePartition* p : node.scheduled_work.multi_merge_partitions)
+                    {
+                        multi_mergers.emplace_back(mcontext, node, *p, comp, do_values);
+                    }
                 }
             }
             mcontext.sync_all_streams();
@@ -478,6 +480,7 @@ namespace crossGPUReMerge
             //     printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.value_buffer, mnode.info.values, mnode.info.num_elements, mnode.info.index);
             //     mcontext.sync_gpu_default_stream(mnode.info.index);
             // }
+
             if (!multi_mergers.empty())
             {
                 bool finished = false;
@@ -491,7 +494,8 @@ namespace crossGPUReMerge
                     }
                     for (const MergeNode& node : mnodes)
                     {
-                        mcontext.get_device_temp_allocator(node.info.index).reset();
+                        if (world_rank() == node.info.index)
+                            mcontext.get_device_temp_allocator(node.info.index).reset();
                     }
                     for (auto& merger : multi_mergers)
                     {
