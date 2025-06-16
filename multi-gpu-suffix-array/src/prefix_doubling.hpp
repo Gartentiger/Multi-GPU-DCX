@@ -617,7 +617,7 @@ private:
 
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
         printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
-        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values merge_nodes_info[world_rank()].num_elements, world_rank());
+        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values, merge_nodes_info[world_rank()].num_elements, world_rank());
         mcontext.sync_default_streams();
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
@@ -1602,7 +1602,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
