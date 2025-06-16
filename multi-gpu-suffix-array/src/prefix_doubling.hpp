@@ -471,22 +471,22 @@ private:
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 
-    template<typename sendType>
-    void all2allDevicePointer(sendType* sendRecvPointer, size_t sendId, size_t size) {
-        if (world_rank() == sendId) {
-            std::span<sendType> sendBuf(sendRecvPointer, size);
-            for (int j = 0; j < world_size(); j++) {
-                if (sendId == j) {
-                    continue;
-                }
-                comm_world().send(send_buf(sendBuf), send_count(size), tag(sendId), destination(j));
-            }
-        }
-        else {
-            std::span<sendType> recB(sendRecvPointer, size);
-            comm_world().recv(recv_buf(recB), tag(sendId), recv_count(size));
-        }
-    }
+    // template<typename sendType>
+    // void all2allDevicePointer(sendType* sendRecvPointer, size_t sendId, size_t size) {
+    //     if (world_rank() == sendId) {
+    //         std::span<sendType> sendBuf(sendRecvPointer, size);
+    //         for (int j = 0; j < world_size(); j++) {
+    //             if (sendId == j) {
+    //                 continue;
+    //             }
+    //             comm_world().send(send_buf(sendBuf), send_count(size), tag(sendId), destination(j));
+    //         }
+    //     }
+    //     else {
+    //         std::span<sendType> recB(sendRecvPointer, size);
+    //         comm_world().recv(recv_buf(recB), tag(sendId), recv_count(size));
+    //     }
+    // }
     // Sorting Sa_rank to Old_Ranks, Isa to Sa_index
     void initial_sort_64()
     {
@@ -580,6 +580,8 @@ private:
                 //     recBuf.push_back(n);
                 // }
                 // comm_world().allgatherv(send_buf(sendBuf), recv_buf(recBuf), recv_counts(recCounts));
+                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
+                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
             }
 
 
@@ -587,8 +589,6 @@ private:
             // std::span<uint64_t> dd(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
             // comm_world().recv(recv_buf(dd), recv_count(gpu.working_len));
 
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
 
             // working_len == num_elements
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
@@ -604,7 +604,7 @@ private:
         mcontext.sync_default_streams();
 
         for (int i = 0; i < world_size();i++) {
-            all2allDevicePointer(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), i, mgpus[i].working_len);
+            // all2allDevicePointer(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), i, mgpus[i].working_len);
             // if (world_rank() == i) {
             //     std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
             //     for (int j = 0; j < world_size(); j++) {
@@ -761,9 +761,9 @@ private:
         }
         mcontext.sync_default_streams();
 #endif
-        for (int i = 0; i < world_size();i++) {
-            all2allDevicePointer(mgpus[i].Sa_rank, i, mgpus[i].working_len);
-        }
+        // for (int i = 0; i < world_size();i++) {
+        //     all2allDevicePointer(mgpus[i].Sa_rank, i, mgpus[i].working_len);
+        // }
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];

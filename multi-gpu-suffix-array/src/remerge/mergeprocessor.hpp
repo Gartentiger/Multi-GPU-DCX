@@ -364,7 +364,7 @@ namespace crossGPUReMerge
                 {
                     s->result = node.info.index == *s->h_result_ptr;
                 }
-                int adCount = 0;
+
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     ms->results.resize(ms->ranges.size());
