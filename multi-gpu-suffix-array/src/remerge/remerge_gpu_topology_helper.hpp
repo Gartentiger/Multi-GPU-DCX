@@ -15,37 +15,7 @@
 #include <span>
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
-__global__ void printArrayss(uint32_t* key, uint32_t* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
-
-
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
-__global__ void printArrayss(uint64_t* key, uint64_t* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
-
-        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
-
-
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
-template<typename key_>
-__global__ void printArrayss(key_* key, key_* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
-
-        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
-
-
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
 namespace crossGPUReMerge {
 
     template <size_t NUM_GPUS, class mtypes>
@@ -235,9 +205,7 @@ namespace crossGPUReMerge {
             printf("[%lu] do values: %s\n", world_rank(), do_values ? "true" : "false");
             (void)detour_buffer_sizes;
             for (uint node = 0; node < NUM_GPUS; ++node) {
-                if (world_rank() == node) {
-                    printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.key_buffer, mnodes[world_rank()].info.keys, mnodes[world_rank()].info.num_elements, world_rank());
-                }
+
                 cudaSetDevice(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
                     ASSERT(c.src_node == node);
@@ -250,35 +218,32 @@ namespace crossGPUReMerge {
                         //const
                         key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
                         std::span<key_t> sb(src_k_buff, c.len);
-                        // comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
+                        comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
                     }
                     if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
                         std::span<key_t> rb(dest_k_buff, c.len);
-                        // comm_world().recv(recv_buf(rb), recv_count(c.len));
+                        comm_world().recv(recv_buf(rb), recv_count(c.len));
                     }
                     if (do_values) {
                         if (c.src_node == world_rank()) {
                             //const
                             value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
                             std::span<value_t> sb(src_v_buff, c.len);
-                            // comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
+                            comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
                         }
                         if (c.dest_node == world_rank()) {
                             value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer + c.dest_index;
                             std::span<value_t> rb(dest_v_buff, c.len);
-                            // comm_world().recv(recv_buf(rb), recv_count(c.len));
+                            comm_world().recv(recv_buf(rb), recv_count(c.len));
                         }
                         // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
                         //     src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
                         //     c.len * sizeof(typename mtypes::value_t),
                         //     mcontext.get_streams(node)[c.dest_node]);CUERR;
                     }
-                    //comm_world().barrier();
                 }
             }
-            mcontext.sync_all_streams();
-            exit(1);
         }
     };
 }

@@ -318,7 +318,8 @@ public:
 #ifdef DUMP_EVERYTHING
         dump("After initial sort");
 #endif
-
+        printf("[%lu] done\n", world_rank());
+        exit(0);
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
         write_initial_ranks();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Ranking);
@@ -647,6 +648,7 @@ private:
         cudaSetDevice(mcontext.get_device_id(gpu_index));
         //printf("initial\n");
         const rank_t* last_element_prev = nullptr;
+
         if (gpu_index > 0)
         {
             //  last element of previous gpu
@@ -1593,7 +1595,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 

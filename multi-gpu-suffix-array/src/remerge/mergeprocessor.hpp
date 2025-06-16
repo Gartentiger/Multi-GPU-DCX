@@ -405,6 +405,12 @@ namespace crossGPUReMerge
                 detour_sizes[i] = mnodes[i].info.detour_buffer_size;
 
             bool do_values = mnodes[0].info.values != nullptr;
+            if (world_rank() == 0) {
+                comm_world().bcast_single(send_recv_buf(do_values), root(0));
+            }
+            else {
+                do_values = comm_world().bcast_single<bool>();
+            }
 
             mtopology_helper.do_copies_async(copies, detour_sizes, do_values);
 
