@@ -232,6 +232,7 @@ namespace crossGPUReMerge {
             using value_t = typename mtypes::value_t;
             // make sure computations are done before copying
             mcontext.sync_all_streams();
+            printf("[%lu] do values: %s\n", world_rank(), do_values ? "true" : "false");
             (void)detour_buffer_sizes;
             for (uint node = 0; node < NUM_GPUS; ++node) {
                 if (world_rank() == node) {
@@ -240,7 +241,7 @@ namespace crossGPUReMerge {
                 cudaSetDevice(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
                     ASSERT(c.src_node == node);
-                    printf("[%lu] node: %u, c.src_node: %u, c.dest_node: %u, c.len: %lu\n", world_rank(), node, c.src_node, c.dest_node, c.len);
+                    printf("[%lu] node: %u, c.src_node: %u, c.dest_node: %u, c.src_index %u, c.dest_index: %u, c.len: %lu\n", world_rank(), node, c.src_node, c.dest_node, c.src_index, c.dest_index, c.len);
                     // cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
                     //     src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
                     //     c.len * sizeof(typename mtypes::key_t),
@@ -276,6 +277,8 @@ namespace crossGPUReMerge {
                     //comm_world().barrier();
                 }
             }
+            mcontext.sync_all_streams();
+            exit(1);
         }
     };
 }
