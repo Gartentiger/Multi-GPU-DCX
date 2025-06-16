@@ -214,9 +214,9 @@ namespace crossGPUReMerge
                     if (node.info.index == world_rank()) {
                         ads.push_back(ad);
                     }
-                    break;
+
                 }
-                break;
+
                 //comm_world().barrier();
             }
 
