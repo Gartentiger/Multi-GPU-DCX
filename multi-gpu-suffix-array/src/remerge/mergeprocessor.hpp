@@ -204,12 +204,12 @@ namespace crossGPUReMerge
                         }
 
                         i++;
+                        printf("[%lu] sender: %lu\n", r.start.node, world_rank());
                     }
                     // not needed otherwise
                     if (node.info.index == world_rank()) {
                         ads.push_back(ad);
                     }
-                    printf("[%lu] sender: %lu\n", r.start.node, world_rank());
                 }
                 printf("[%lu] receiver: %lu\n", node.info.index, world_rank());
                 comm_world().barrier();
