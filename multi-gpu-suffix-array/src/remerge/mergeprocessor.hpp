@@ -184,7 +184,7 @@ namespace crossGPUReMerge
                             else {
                                 // sender != reveiver -> send data
                                 std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
-                                comm_world().send(send_buf(sb), send_count(len), destination(node.info.index));
+                                comm_world().send(send_buf(sb), send_count(len), destination((size_t)node.info.index));
                             }
                         }
                         else {
