@@ -17,8 +17,9 @@
 #include <kamping/data_buffer.hpp>
 #include <kamping/named_parameters.hpp>
 #include <kamping/checking_casts.hpp>
+#include <kamping/p2p/send.hpp>
+#include <kamping/p2p/recv.hpp>
 #include <span>
-#include <thrust/device_vector.h>
 
 namespace crossGPUReMerge
 {
