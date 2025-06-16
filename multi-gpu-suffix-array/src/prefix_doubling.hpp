@@ -37,6 +37,17 @@ __global__ void printArray(uint64_t* key, uint64_t* value, size_t size, size_t r
     }
     printf("---------------------------------------------------------------------------\n");
 }
+template<typename ke>
+__global__ void printArray(ke* key, ke* value, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+
+        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
+
+
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
 struct MaxFunctor
 {
     template <typename T>
