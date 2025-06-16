@@ -39,6 +39,17 @@ __global__ void printArray(uint64_t* key, uint64_t* value, size_t size, size_t r
     }
     printf("---------------------------------------------------------------------------\n");
 }
+template<typename key_>
+__global__ void printArray(key_* key, key_* value, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+
+        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
+
+
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
 struct MaxFunctor
 {
     template <typename T>
@@ -596,7 +607,6 @@ private:
         }
         comm_world().barrier();
 
-        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[0].keys, merge_nodes_info[1].keys, merge_nodes_info[0].num_elements, world_rank());
         mcontext.sync_default_streams();
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
@@ -606,6 +616,10 @@ private:
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
 
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
+        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
+        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values merge_nodes_info[world_rank()].num_elements, world_rank());
+        mcontext.sync_default_streams();
+
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 
@@ -1588,7 +1602,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
