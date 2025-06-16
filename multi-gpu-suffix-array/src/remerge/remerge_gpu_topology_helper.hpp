@@ -242,7 +242,8 @@ namespace crossGPUReMerge {
                     //     src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
                     //     c.len * sizeof(typename mtypes::key_t),
                     //     mcontext.get_streams(node)[c.dest_node]);CUERR;
-                    printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, mnodes[world_rank()].info.values, mnodes[world_rank()].info.num_elements, world_rank());
+                    printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.key_buffer, mnodes[world_rank()].info.keys, mnodes[world_rank()].info.num_elements, world_rank());
+                    printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.value_buffer, mnodes[world_rank()].info.values, mnodes[world_rank()].info.num_elements, world_rank());
                     if (c.src_node == world_rank()) {
                         //const
                         key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
