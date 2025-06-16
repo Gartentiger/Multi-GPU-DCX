@@ -15,7 +15,37 @@
 #include <span>
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
+__global__ void printArrayss(uint32_t* key, uint32_t* value, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
 
+        printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
+
+
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
+__global__ void printArrayss(uint64_t* key, uint64_t* value, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+
+        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
+
+
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
+template<typename key_>
+__global__ void printArrayss(key_* key, key_* value, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+
+        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
+
+
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
 namespace crossGPUReMerge {
 
     template <size_t NUM_GPUS, class mtypes>
@@ -207,11 +237,12 @@ namespace crossGPUReMerge {
                 cudaSetDevice(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
                     ASSERT(c.src_node == node);
-
+                    //printf("[%lu] Before\n", world_rank());
                     // cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
                     //     src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
                     //     c.len * sizeof(typename mtypes::key_t),
                     //     mcontext.get_streams(node)[c.dest_node]);CUERR;
+                    printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, mnodes[world_rank()].info.values, gpu.working_len, world_rank());
                     if (c.src_node == world_rank()) {
                         //const
                         key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
