@@ -12,6 +12,9 @@
 
 #include "../merge_copy_detour_guide.hpp"
 
+#include <kamping/p2p/recv.hpp>
+#include <kamping/p2p/send.hpp>
+
 namespace crossGPUReMerge {
 
     template <size_t NUM_GPUS, class mtypes>
@@ -211,7 +214,7 @@ namespace crossGPUReMerge {
                     if (c.src_node == world_rank()) {
                         const key_t* src_k_buff = mnodes[c.src_node].info.keys;
                         std::span<key_t> sb(src_k_buff + c.src_index, c.len);
-                        comm_world().send(send_buf(sb), send_count(c.len), destination(c.dest_node));
+                        comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
                     }
                     if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer;
@@ -222,7 +225,7 @@ namespace crossGPUReMerge {
                         if (c.src_node == world_rank()) {
                             const value_t* src_v_buff = mnodes[c.src_node].info.values;
                             std::span<value_t> sb(src_v_buff + c.src_index, c.len);
-                            comm_world().send(send_buf(sb), send_count(c.len), destination(c.dest_node));
+                            comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
                         }
                         if (c.dest_node == world_rank()) {
                             value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer;
