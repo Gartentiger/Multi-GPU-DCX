@@ -233,7 +233,10 @@ namespace crossGPUReMerge {
                     multi_mergers.emplace_back(mcontext, node, *p, comp, do_values);
                 }
             }
+            //.......................................................
             mcontext.sync_all_streams();
+            //
+
             //            if (dbg_func)
             //                dbg_func();
 
@@ -272,16 +275,16 @@ namespace crossGPUReMerge {
             //                    do_multi_merges(node, *p);
             //                }
             //            }
-            for (MergeNode mnode : mnodes) {
-                mcontext.sync_gpu_default_stream(mnode.info.index);
-                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.key_buffer, mnode.info.keys, mnode.info.num_elements, mnode.info.index);
-                mcontext.sync_gpu_default_stream(mnode.info.index);
-            }
-            for (MergeNode mnode : mnodes) {
-                mcontext.sync_gpu_default_stream(mnode.info.index);
-                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.value_buffer, mnode.info.values, mnode.info.num_elements, mnode.info.index);
-                mcontext.sync_gpu_default_stream(mnode.info.index);
-            }
+            // for (MergeNode mnode : mnodes) {
+            //     mcontext.sync_gpu_default_stream(mnode.info.index);
+            //     printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.key_buffer, mnode.info.keys, mnode.info.num_elements, mnode.info.index);
+            //     mcontext.sync_gpu_default_stream(mnode.info.index);
+            // }
+            // for (MergeNode mnode : mnodes) {
+            //     mcontext.sync_gpu_default_stream(mnode.info.index);
+            //     printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.value_buffer, mnode.info.values, mnode.info.num_elements, mnode.info.index);
+            //     mcontext.sync_gpu_default_stream(mnode.info.index);
+            // }
             if (!multi_mergers.empty()) {
                 bool finished = false;
                 while (!finished) {

@@ -528,7 +528,7 @@ private:
         }
         merge_manager.set_node_info(merge_nodes_info);
 
-        mcontext.sync_default_streams();
+        mcontext.sync_default_streams();mcontext.sync_default_streams();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
