@@ -214,10 +214,9 @@ namespace crossGPUReMerge {
                     //     mcontext.get_streams(node)[c.dest_node]);CUERR;
                     if (c.src_node == world_rank()) {
 
-                        const key_t* src_k_buff = mnodes[c.src_node].info.keys;
-                        //uint64_t* buf = reinterpret_cast<uint64_t*>(src_k_buff);
-                        uint64_t* v;
-                        std::span<uint64_t> sb(v, 1);
+                        const key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
+                        uint64_t* buf = reinterpret_cast<uint64_t*>(src_k_buff);
+                        std::span<uint64_t> sb(buf, c.len);
                         //comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
                     }
                     if (c.dest_node == world_rank()) {
