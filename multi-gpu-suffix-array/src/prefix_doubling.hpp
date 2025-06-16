@@ -596,7 +596,7 @@ private:
         }
         comm_world().barrier();
 
-        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[0].keys, merge_nodes_info[1].keys, merge_nodes_info[0].num_elements, world_rank());
+        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[0].keys, merge_nodes_info[1].keys, merge_nodes_info[0].num_elements, world_rank());
         mcontext.sync_default_streams();
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);

@@ -21,6 +21,37 @@
 
 namespace crossGPUReMerge
 {
+    __global__ void printArrays(uint32_t* key, uint32_t* value, size_t size, size_t rank)
+    {
+        for (size_t i = 0; i < size; i++) {
+
+            printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
+
+
+        }
+        printf("---------------------------------------------------------------------------\n");
+    }
+    __global__ void printArrays(uint64_t* key, uint64_t* value, size_t size, size_t rank)
+    {
+        for (size_t i = 0; i < size; i++) {
+
+            printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
+
+
+        }
+        printf("---------------------------------------------------------------------------\n");
+    }
+    template<typename ke>
+    __global__ void printArrays(ke* key, ke* value, size_t size, size_t rank)
+    {
+        for (size_t i = 0; i < size; i++) {
+
+            printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
+
+
+        }
+        printf("---------------------------------------------------------------------------\n");
+    }
 
     enum MergePathBounds
     {
@@ -368,7 +399,16 @@ namespace crossGPUReMerge
             //                    do_multi_merges(node, *p);
             //                }
             //            }
-
+            for (MergeNode mnode : mnodes) {
+                mcontext.sync_gpu_default_stream(mnode.info.index);
+                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.key_buffer, mnode.info.keys, mnode.info.num_elements, mnode.info.index);
+                mcontext.sync_gpu_default_stream(mnode.info.index);
+            }
+            for (MergeNode mnode : mnodes) {
+                mcontext.sync_gpu_default_stream(mnode.info.index);
+                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.value_buffer, mnode.info.values, mnode.info.num_elements, mnode.info.index);
+                mcontext.sync_gpu_default_stream(mnode.info.index);
+            }
             if (!multi_mergers.empty())
             {
                 bool finished = false;
