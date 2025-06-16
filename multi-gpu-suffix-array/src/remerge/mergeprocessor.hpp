@@ -15,6 +15,7 @@
 
 #include <kamping/collectives/allgather.hpp>
 #include <kamping/data_buffer.hpp>
+#include "kamping/collectives/bcast.hpp"
 #include <kamping/named_parameters.hpp>
 #include <kamping/checking_casts.hpp>
 #include <kamping/p2p/send.hpp>
