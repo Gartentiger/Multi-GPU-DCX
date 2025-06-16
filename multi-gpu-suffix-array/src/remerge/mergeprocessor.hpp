@@ -18,6 +18,7 @@
 #include <kamping/named_parameters.hpp>
 #include <kamping/checking_casts.hpp>
 #include <span>
+#include <thrust/device_vector.h>
 
 namespace crossGPUReMerge
 {
@@ -157,6 +158,57 @@ namespace crossGPUReMerge
             mhost_search_temp_allocator.reset();
 
             mcontext.sync_all_streams();
+            std::vector<ArrayDescriptor<NUM_GPUS, key_t, int64_t>> ads;
+            std::vector<key_t*> tempPointers;
+            tempPointers.clear();
+            ads.clear();
+            for (MergeNode& node : mnodes)
+            {
+                for (auto ms : node.scheduled_work.multi_searches)
+                {
+                    ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
+                    int i = 0;
+                    for (const auto& r : ms->ranges)
+                    {
+                        sa_index_t len = r.end.index - r.start.index;
+                        ad.lengths[i] = r.end.index - r.start.index;
+
+                        // identify sender id (r.start.node)
+                        if (r.start.node == world_rank()) {
+                            // identify receiver id (node.info.index)
+                            if (node.info.index == world_rank()) {
+                                // sender == reveiver
+                                ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
+                            }
+                            else {
+                                // sender != reveiver -> send data
+                                std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
+                                comm_world().send(send_buf(sb), send_count(len), destination(node.info.index));
+                            }
+                        }
+                        else {
+                            // identify receiver id (node.info.index)
+                            if (node.info.index == world_rank()) {
+                                // sender != receiver
+                                key_t* temp;
+                                cudaMalloc((void**)&temp, len * sizeof(key_t));
+                                tempPointers.push_back(temp);
+                                std::span<key_t> rb(temp, len);
+                                comm_world().recv(recv_buf(rb), recv_count(len));
+                                ad.keys[i] = temp;//mnodes[r.start.node].info.keys + r.start.index;
+                            }
+                        }
+
+                        i++;
+                    }
+                    // not needed otherwise
+                    if (node.info.index == world_rank()) {
+                        ads.push_back(ad);
+                    }
+                }
+            }
+
+
 
             for (MergeNode& node : mnodes)
             {
@@ -193,6 +245,7 @@ namespace crossGPUReMerge
                     }
                     //mcontext.sync_all_streams();
                     // printf("sync complete %lu\n", world_rank());
+                    int adCount = 0;
                     for (auto ms : node.scheduled_work.multi_searches)
                     {
                         const size_t result_buffer_length = ms->ranges.size() + 1;
@@ -201,30 +254,29 @@ namespace crossGPUReMerge
                         ms->d_result_ptr = d_alloc.get<int64_t>(result_buffer_length);
                         ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
 
-                        ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
-                        int i = 0;
+                        // ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
+                        // int i = 0;
 
-                        for (const auto& r : ms->ranges)
-                        {
-                            // cudaMallocAsync(mnodes[r.start.node].info.keys + r.start.index, ms->ranges.size());
-                            ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
-                            ad.lengths[i] = r.end.index - r.start.index;
-                            i++;
-                        }
-
-                        //printf("before %lu\n", world_rank());
+                        // for (const auto& r : ms->ranges)
+                        // {
+                        //     ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
+                        //     ad.lengths[i] = r.end.index - r.start.index;
+                        //     i++;
+                        // }
 
 
-                        multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
+
+                        multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ads[adCount++], (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
                             (uint*)(ms->d_result_ptr + result_buffer_length - 1));
 
-                        //printf("after %lu\n", world_rank());
+
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
                     }
                 }
+
             }
 
             mcontext.sync_all_streams();
@@ -311,15 +363,18 @@ namespace crossGPUReMerge
                 {
                     s->result = node.info.index == *s->h_result_ptr;
                 }
-
+                int adCount = 0;
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     ms->results.resize(ms->ranges.size());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
-
                 }
             }
+
+            // free temp buffers
+            for (key_t* deviceP : tempPointers)
+                cudaFree(deviceP);
         }
 
         void dump_array(const sa_index_t* idx, size_t size)

@@ -321,8 +321,6 @@ public:
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
         write_initial_ranks();
-        printf("write initial ranks\n");
-
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Ranking);
 
 #ifdef DUMP_EVERYTHING
@@ -332,7 +330,6 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         printf("write to isa done, rank: %lu\n", world_rank());
-        exit(0);
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
 
 #ifdef DUMP_EVERYTHING
@@ -474,6 +471,22 @@ private:
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 
+    template<typename sendType>
+    void all2allDevicePointer(sendType* sendRecvPointer, size_t sendId, size_t size) {
+        if (world_rank() == sendId) {
+            std::span<sendType> sendBuf(sendRecvPointer, size);
+            for (int j = 0; j < world_size(); j++) {
+                if (sendId == j) {
+                    continue;
+                }
+                comm_world().send(send_buf(sendBuf), send_count(size), tag(sendId), destination(j));
+            }
+        }
+        else {
+            std::span<sendType> recB(sendRecvPointer, size);
+            comm_world().recv(recv_buf(recB), tag(sendId), recv_count(size));
+        }
+    }
     // Sorting Sa_rank to Old_Ranks, Isa to Sa_index
     void initial_sort_64()
     {
@@ -591,21 +604,21 @@ private:
         mcontext.sync_default_streams();
 
         for (int i = 0; i < world_size();i++) {
-            if (world_rank() == i) {
-                std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
-                for (int j = 0; j < world_size(); j++) {
-                    if (i == j) {
-                        continue;
-                    }
-                    comm_world().send(send_buf(sendBuf), send_count(mgpus[i].working_len), tag(i), destination(j));
-                }
-            }
-            else {
-                std::span<uint64_t> recB(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
-                comm_world().recv(recv_buf(recB), tag(i), recv_count(mgpus[i].working_len));
-            }
+            all2allDevicePointer(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), i, mgpus[i].working_len);
+            // if (world_rank() == i) {
+            //     std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
+            //     for (int j = 0; j < world_size(); j++) {
+            //         if (i == j) {
+            //             continue;
+            //         }
+            //         comm_world().send(send_buf(sendBuf), send_count(mgpus[i].working_len), tag(i), destination(j));
+            //     }
+            // }
+            // else {
+            //     std::span<uint64_t> recB(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
+            //     comm_world().recv(recv_buf(recB), tag(i), recv_count(mgpus[i].working_len));
+            // }
         }
-        comm_world().barrier();
 
         mcontext.sync_default_streams();
 
@@ -710,33 +723,7 @@ private:
         std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
         std::span<uint32_t> rb(mhost_temp_mem, world_size());
         comm_world().allgather(send_buf(sb), recv_buf(rb));
-        // RequestPool pool;
-        // for (int i = 0; i < world_size(); i++) {
-        //     if (mgpus[i].working_len <= 0)
-        //         continue;
 
-
-        //     if (i == world_rank()) {
-        //         for (int j = 0; j < world_size(); j++)
-        //         {
-        //             // all processes know all working lengths 
-        //             printf("send temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
-        //             std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
-        //             comm_world().isend(send_buf(sb), send_count(1), destination(j), request(pool.get_request()));
-        //         }
-        //     }
-        //     else {
-        //         for (int j = 0; j < world_size(); j++)
-        //         {
-        //             std::span<uint32_t> rb(mhost_temp_mem + j, 1);
-        //             comm_world().irecv();
-        //         }
-        //     }
-        // }
-        // pool.wait_all();
-        // for (int i = 0; i < world_size(); i++) {
-        //     printf("mhost_temp_mem[%d]: %u, rank: %lu\n", i, mhost_temp_mem[i], world_rank());
-        // }
 
         for (uint i = 1; i < NUM_GPUS; ++i)
         {
@@ -774,48 +761,53 @@ private:
         }
         mcontext.sync_default_streams();
 #endif
-
+        for (int i = 0; i < world_size();i++) {
+            all2allDevicePointer(mgpus[i].Sa_rank, i, mgpus[i].working_len);
+        }
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
+            if (gpu_index == world_rank()) {
 
-            if (gpu.working_len > 0)
-            {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
-                const sa_index_t* Last_rank_prev;
-                const sa_index_t* First_rank_next;
+                if (gpu.working_len > 0)
+                {
+                    cudaSetDevice(mcontext.get_device_id(gpu_index));
+                    const sa_index_t* Last_rank_prev;
+                    const sa_index_t* First_rank_next;
 
-                First_rank_next = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].Sa_rank
-                    : nullptr;
-                Last_rank_prev = (gpu_index > 0) ? mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1
-                    : nullptr;
-                kernels::write_compact_flags_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_rank, Last_rank_prev, First_rank_next, gpu.Temp1, gpu.working_len);
-                CUERR;
+                    First_rank_next = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].Sa_rank
+                        : nullptr;
+                    // pointer to const sa_index_t, last element from next gpu Sa_rank
+                    Last_rank_prev = (gpu_index > 0) ? mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1
+                        : nullptr;
+                    kernels::write_compact_flags_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_rank, Last_rank_prev, First_rank_next, gpu.Temp1, gpu.working_len);
+                    CUERR;
 
-                size_t temp_storage_bytes = 0;
-                cudaError_t err = cub::DeviceSelect::Flagged(nullptr, temp_storage_bytes, gpu.Sa_index,
-                    gpu.Temp1, gpu.Temp2, gpu.Temp3, gpu.working_len,
-                    mcontext.get_gpu_default_stream(gpu_index));
-                CUERR_CHECK(err)
+                    size_t temp_storage_bytes = 0;
+                    cudaError_t err = cub::DeviceSelect::Flagged(nullptr, temp_storage_bytes, gpu.Sa_index,
+                        gpu.Temp1, gpu.Temp2, gpu.Temp3, gpu.working_len,
+                        mcontext.get_gpu_default_stream(gpu_index));
+                    CUERR_CHECK(err)
 
-                    //            printf("\nTemp storage required for compacting: %zu bytes.\n", temp_storage_bytes);
-                    // Run selection
-                    ASSERT(temp_storage_bytes < mreserved_len * sizeof(sa_index_t));
-                err = cub::DeviceSelect::Flagged(gpu.Temp4, temp_storage_bytes, gpu.Sa_index, gpu.Temp1, gpu.Temp2,
-                    gpu.Temp3, gpu.working_len);
-                // compact Sa_index -> Temp2 according to flags from Temp1
+                        //            printf("\nTemp storage required for compacting: %zu bytes.\n", temp_storage_bytes);
+                        // Run selection
+                        ASSERT(temp_storage_bytes < mreserved_len * sizeof(sa_index_t));
+                    err = cub::DeviceSelect::Flagged(gpu.Temp4, temp_storage_bytes, gpu.Sa_index, gpu.Temp1, gpu.Temp2,
+                        gpu.Temp3, gpu.working_len);
+                    // compact Sa_index -> Temp2 according to flags from Temp1
 
-                CUERR_CHECK(err);
+                    CUERR_CHECK(err);
 
-                err = cub::DeviceSelect::Flagged(gpu.Temp4, temp_storage_bytes, gpu.Sa_rank,
-                    gpu.Temp1, gpu.Old_ranks, gpu.Temp3, gpu.working_len,
-                    mcontext.get_gpu_default_stream(gpu_index));
-                // --> compact Sa_rank -> Old_Ranks according to flags from Temp1
-                CUERR_CHECK(err);
+                    err = cub::DeviceSelect::Flagged(gpu.Temp4, temp_storage_bytes, gpu.Sa_rank,
+                        gpu.Temp1, gpu.Old_ranks, gpu.Temp3, gpu.working_len,
+                        mcontext.get_gpu_default_stream(gpu_index));
+                    // --> compact Sa_rank -> Old_Ranks according to flags from Temp1
+                    CUERR_CHECK(err);
 
-                cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Temp3, sizeof(sa_index_t), cudaMemcpyDeviceToHost,
-                    mcontext.get_gpu_default_stream(gpu_index));
-                CUERR;
+                    cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Temp3, sizeof(sa_index_t), cudaMemcpyDeviceToHost,
+                        mcontext.get_gpu_default_stream(gpu_index));
+                    CUERR;
+                }
             }
         }
 
@@ -990,9 +982,6 @@ private:
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
             }
         }
-        //......................................
-        mcontext.sync_default_streams();
-        //
 
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
