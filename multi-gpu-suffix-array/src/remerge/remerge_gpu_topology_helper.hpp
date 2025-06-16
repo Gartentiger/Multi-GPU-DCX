@@ -234,6 +234,9 @@ namespace crossGPUReMerge {
             mcontext.sync_all_streams();
             (void)detour_buffer_sizes;
             for (uint node = 0; node < NUM_GPUS; ++node) {
+                if (world_rank() == node) {
+                    printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.key_buffer, mnodes[world_rank()].info.keys, mnodes[world_rank()].info.num_elements, world_rank());
+                }
                 cudaSetDevice(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
                     ASSERT(c.src_node == node);
@@ -272,11 +275,9 @@ namespace crossGPUReMerge {
                     }
                     //comm_world().barrier();
                 }
-
             }
         }
     };
-
 }
 
 #endif // REMERGE_GPU_TOPOLOGY_HPP
