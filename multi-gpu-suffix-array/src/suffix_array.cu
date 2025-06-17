@@ -458,6 +458,7 @@ private:
                 std::span<sa_index_t> rbIsa(tempIsa, 1);
                 comm_world().recv(recv_buf(rbIsa), tag(0), recv_count(1));
                 next_Isa = tempIsa;
+                printf("[%lu]: received!\n", world_rank());
                 //
                 unsigned char* tempInput = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(1);
                 //
@@ -465,7 +466,8 @@ private:
                 comm_world().recv(recv_buf(rbInput), tag(1), recv_count(1));
                 next_Input = tempInput;
             }
-            printf("[%lu]: received!\n", world_rank());
+            comm_world().barrier();
+            printf("[%lu]: received all!\n", world_rank());
             exit(0);
             kernels::prepare_S12_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                 gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
