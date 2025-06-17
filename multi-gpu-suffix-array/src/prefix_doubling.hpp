@@ -851,9 +851,11 @@ private:
 
         mcontext.sync_default_streams();
         printf("[%lu] after first kernel phase\n", world_rank());
-        std::span<sa_index_t> sb(mhost_temp_mem + world_rank(), 1);
-        std::span<sa_index_t> rb(mhost_temp_mem, world_size());
-        comm_world().allgather(send_buf(sb), recv_buf(rb));
+        {
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank(), 1);
+            std::span<sa_index_t> rb(mhost_temp_mem, world_size());
+            comm_world().allgather(send_buf(sb), recv_buf(rb));
+        }
         printf("[%lu] after first allgather\n", world_rank());
 
 #ifdef DEBUG_SET_ZERO_TO_SEE_BETTER
@@ -948,19 +950,20 @@ private:
 
         mcontext.sync_default_streams();
         printf("[%lu] after second kernel phase\n", world_rank());
-        //could be prettier
-        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() + NUM_GPUS, 1);
-        std::span<sa_index_t> rb(mhost_temp_mem + NUM_GPUS, world_size());
-        comm_world().allgather(send_buf(sb), recv_buf(rb));
+        {
+            //could be prettier
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() + NUM_GPUS, 1);
+            std::span<sa_index_t> rb(mhost_temp_mem + NUM_GPUS, world_size());
+            comm_world().allgather(send_buf(sb), recv_buf(rb));
 
-        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
-        std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
-        comm_world().allgather(send_buf(sb), recv_buf(rb));
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
+            std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
+            comm_world().allgather(send_buf(sb), recv_buf(rb));
 
-        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
-        std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
-        comm_world().allgather(send_buf(sb), recv_buf(rb));
-
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
+            std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
+            comm_world().allgather(send_buf(sb), recv_buf(rb));
+        }
         printf("[%lu] after second allgather\n", world_rank());
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -1203,12 +1206,13 @@ private:
         std::array<sa_index_t, NUM_GPUS> src_lens, dest_lens;
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::Prepare_Indices);
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 0)
             {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                // cudaSetDevice(mcontext.get_device_id(gpu_index));
 
                 kernels::write_sa_index_adding_h _KLC_SIMPLE_(SDIV(gpu.working_len, 2), mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_index, h, minput_len - 1, gpu.Temp1, gpu.Temp2, gpu.working_len);
                 CUERR;
@@ -1226,7 +1230,8 @@ private:
             multi_split_node_info[gpu_index].dest_keys = gpu.Temp3;
             multi_split_node_info[gpu_index].dest_values = gpu.Temp4;
             multi_split_node_info[gpu_index].dest_len = gpu.isa_len; // FIXME
-            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Sa_rank, mreserved_len * sizeof(sa_index_t));
+            if (world_rank() == gpu_index)
+                mcontext.get_device_temp_allocator(gpu_index).init(gpu.Sa_rank, mreserved_len * sizeof(sa_index_t));
         }
 
         //            PartioningFunctorFilteringZeroes<uint> f(misa_divisor, NUM_GPUS-1);
