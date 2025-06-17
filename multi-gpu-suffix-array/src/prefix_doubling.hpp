@@ -318,21 +318,22 @@ public:
 #ifdef DUMP_EVERYTHING
         dump("After initial sort");
 #endif
-        printf("[%lu] done\n", world_rank());
+        printf("[%lu] Initial sort done\n", world_rank());
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
         write_initial_ranks();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Ranking);
-        exit(0);
+
 #ifdef DUMP_EVERYTHING
         dump("Initial ranking");
 #endif
-
+        printf("[%lu] Write initial ranks done\n", world_rank());
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
-        printf("write to isa done, rank: %lu\n", world_rank());
+        printf("[%lu] Write to isa done\n", world_rank());
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
-
+        mcontext.sync_gpu_default_stream(world_rank());
+        exit(0);
 #ifdef DUMP_EVERYTHING
         dump("Initial write to ISA");
 #endif

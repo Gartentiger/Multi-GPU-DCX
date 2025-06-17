@@ -253,7 +253,6 @@ public:
         CUERR;
         cudaStreamSynchronize(get_gpu_default_stream(world_rank()));
         CUERR;
-        comm_world().barrier();
     }
 
     void sync_gpu_streams(uint gpu) const noexcept
@@ -280,7 +279,6 @@ public:
         // for (uint gpu = 0; gpu < num_gpus; ++gpu)
         sync_gpu_streams(world_rank());
         CUERR;
-        comm_world().barrier();
     }
 
     void sync_hard() const noexcept
