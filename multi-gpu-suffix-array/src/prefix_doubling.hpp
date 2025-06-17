@@ -1487,7 +1487,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                     // maybe we need cudaMalloc here
                     sa_index_t* tempRank = mcontext.get_device_temp_allocator(world_rank()).get<sa_index_t>(1);
                     std::span<sa_index_t> rb(tempRank, 1);
-                    comm_world().recv(send_buf(rb), recv_count(1));
+                    comm_world().recv(recv_buf(rb), recv_count(1));
                     Rank_prev_gpu = tempRank;//mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
                 }
 
