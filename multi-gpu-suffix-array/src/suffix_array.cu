@@ -449,9 +449,9 @@ private:
                 std::span<sa_index_t> sbIsa(gpu.prepare_S12_ptr.Isa, 1);
                 comm_world().isend(send_buf(sbIsa), send_count(1), tag(0), destination((size_t)gpu_index - 1));
 
-                //std::span<const unsigned char> sbInput(gpu.prepare_S12_ptr.Input, 1);
-                //comm_world().isend(send_buf(sbInput), send_count(1), tag(1), destination((size_t)gpu_index - 1));
-                MPI_Send(gpu.prepare_S12_ptr.Input, 4, MPI_CHAR, (int)gpu_index - 1, 1, MPI_COMM_WORLD);
+                std::span<const unsigned char> sbInput(gpu.prepare_S12_ptr.Input, 1);
+                comm_world().isend(send_buf(sbInput), send_count(1), tag(1), destination((size_t)gpu_index - 1));
+                //MPI_Send(gpu.prepare_S12_ptr.Input, 4, MPI_CHAR, (int)gpu_index - 1, 1, MPI_COMM_WORLD);
             }
             if (gpu_index < NUM_GPUS - 1) {
                 sa_index_t* tempIsa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(1);
@@ -465,7 +465,8 @@ private:
                 comm_world().recv(recv_buf(rbInput), tag(1), recv_count(1));
                 next_Input = tempInput;
             }
-
+            printf("[%lu]: received!\n", world_rank());
+            exit(0);
             kernels::prepare_S12_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                 gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
                 next_Isa, next_Input, gpu.offset, gpu.num_elements,
