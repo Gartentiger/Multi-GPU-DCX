@@ -651,13 +651,13 @@ private:
 
         mcontext.get_device_temp_allocator(gpu_index).reset();
         if (world_rank() < world_size() - 1) {
-            std::span<const rank_t> sb(reinterpret_cast<const rank_t*>(gpu.Old_ranks) + gpu.working_len - 1, 1);
+            std::span<rank_t> sb(reinterpret_cast<rank_t*>(gpu.Old_ranks) + gpu.working_len - 1, 1);
             comm_world().send(send_buf(sb), send_count(1), destination(world_rank() + 1));
         }
         if (gpu_index > 0)
         {
-            const rank_t* temp = mcontext.get_device_temp_allocator(gpu_index).get<const rank_t>(1);
-            std::span<const rank_t> rb(temp, 1);
+            rank_t* temp = mcontext.get_device_temp_allocator(gpu_index).get<rank_t>(1);
+            std::span<rank_t> rb(temp, 1);
             comm_world().recv(recv_buf(rb), recv_count(1));
 
             //  last element of previous gpu
