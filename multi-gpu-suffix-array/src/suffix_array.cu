@@ -468,7 +468,7 @@ private:
             }
             comm_world().barrier();
             printf("[%lu]: received all!\n", world_rank());
-            exit(0);
+            // exit(0);
             kernels::prepare_S12_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                 gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
                 next_Isa, next_Input, gpu.offset, gpu.num_elements,
