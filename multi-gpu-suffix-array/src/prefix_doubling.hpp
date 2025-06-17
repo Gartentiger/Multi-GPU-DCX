@@ -1014,14 +1014,16 @@ private:
         }
         mcontext.sync_all_streams();
         printf("[%lu] after segment update\n", world_rank());
-        //could be more efficient if num_segments is checked before sending data
-        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
-        std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
-        comm_world().allgather(send_buf(sb), recv_buf(rb));
+        {
+            //could be more efficient if num_segments is checked before sending data
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
+            std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
+            comm_world().allgather(send_buf(sb), recv_buf(rb));
 
-        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
-        std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
-        comm_world().allgather(send_buf(sb), recv_buf(rb));
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
+            std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
+            comm_world().allgather(send_buf(sb), recv_buf(rb));
+        }
         printf("[%lu] after third allgather\n", world_rank());
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -1683,7 +1685,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
