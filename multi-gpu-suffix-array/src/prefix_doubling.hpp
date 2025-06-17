@@ -343,7 +343,7 @@ public:
         done = compact();
         mcontext.sync_gpu_default_stream(world_rank());
         printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
-        exit(0);
+
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Compacting);
 
 #ifdef DUMP_EVERYTHING
@@ -363,6 +363,7 @@ public:
 
             TIMER_START_LOOP_STAGE(LoopStages::Fetch_Rank);
             fetch_rank_for_sorting(h);
+            printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
             TIMER_STOP_LOOP_STAGE(LoopStages::Fetch_Rank);
 
 #ifdef DUMP_EVERYTHING
@@ -370,13 +371,15 @@ public:
 #endif
 
             do_segmented_sort();
-
+            printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
 #ifdef DUMP_EVERYTHING
             dump("After sort");
 #endif
 
             TIMER_START_LOOP_STAGE(LoopStages::Rebucket);
             rebucket();
+            printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
+
             TIMER_STOP_LOOP_STAGE(LoopStages::Rebucket);
 
 #ifdef DUMP_EVERYTHING
@@ -385,6 +388,8 @@ public:
 
             TIMER_START_LOOP_STAGE(LoopStages::Write_Isa);
             write_to_isa();
+            printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
+
             TIMER_STOP_LOOP_STAGE(LoopStages::Write_Isa);
 
 #ifdef DUMP_EVERYTHING
@@ -395,6 +400,8 @@ public:
 
             TIMER_START_LOOP_STAGE(LoopStages::Compacting);
             done = compact();
+            printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
+
             TIMER_STOP_LOOP_STAGE(LoopStages::Compacting);
 
             //                if (h > 1024*1024*1024) {
@@ -414,7 +421,9 @@ public:
         //            TIMER_START_MAIN_STAGE(MainStages::Final_Transpose);
         //            transpose_isa();
         //            TIMER_STOP_MAIN_STAGE(MainStages::Final_Transpose);
-
+        mcontext.sync_all_streams();
+        printf("[%lu] all done\n", world_rank());
+        exit(0);
         return iterations;
     }
 
@@ -850,6 +859,8 @@ private:
         }
 
         mcontext.sync_default_streams();
+        //dont need Last_rank_prev, First_rank_next anymore
+        mcontext.get_device_temp_allocator(world_rank()).reset();
         printf("[%lu] after first kernel phase\n", world_rank());
         {
             std::span<sa_index_t> sb(mhost_temp_mem + world_rank(), 1);
@@ -1276,8 +1287,9 @@ private:
         //            }
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::Fetch);
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
             if (dest_lens[gpu_index] > 0)
             {
@@ -1311,8 +1323,9 @@ private:
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::WriteRanks);
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
             if (src_lens[gpu_index] > 0)
             {
@@ -1372,8 +1385,9 @@ private:
         // Uses: Temp2, Temp3, Temp4
         mgpu::less_t<sa_index_t> less;
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 1)
             {
@@ -1398,7 +1412,8 @@ private:
                                             gpu.Sa_rank, gpu.Sa_index,
                                             gpu.Temp1, gpu.Temp2,
                                             gpu.Temp3, gpu.Temp4 };
-            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
+            if (gpu_index == world_rank())
+                mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
             gpu.rank_of_first_entry_within_segment = 0;
             if (gpu_index > 0)
             {
@@ -1445,8 +1460,9 @@ private:
 public: // Needs to be public because lamda wouldn't work otherwise...
     void rebucket()
     {
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 0)
@@ -1458,12 +1474,23 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 sa_index_t* Rank_prev_gpu = nullptr;
                 sa_index_t rank_of_first_entry_within_segment = gpu.rank_of_first_entry_within_segment;
 
-                if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
-                {
-                    Rank_prev_gpu = mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
+                // should be mreserved_len * 2 * sizeof(sa_index_t) but 1 extra for Rank_prev_gpu
+                mcontext.get_device_temp_allocator(gpu_index).init(temp, mreserved_len * 3 * sizeof(sa_index_t));
+
+                if (gpu_index < NUM_GPUS - 1 && gpu.old_rank_start == mgpus[gpu_index + 1].old_rank_end) {
+                    std::span<sa_index_t> sb(gpu.Sa_rank + gpu.working_len - 1, 1);
+                    comm_world().isend(send_buf(sb), send_count(1), destination((size_t)gpu_index + 1));
                 }
 
-                mcontext.get_device_temp_allocator(gpu_index).init(temp, mreserved_len * 2 * sizeof(sa_index_t));
+                if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
+                {
+                    // maybe we need cudaMalloc here
+                    sa_index_t* tempRank = mcontext.get_device_temp_allocator(world_rank()).get<sa_index_t>(1);
+                    std::span<sa_index_t> rb(tempRank, 1);
+                    comm_world().recv(send_buf(rb), recv_count(1));
+                    Rank_prev_gpu = tempRank;//mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
+                }
+
 
                 auto my_lambda = [=] __device__(int index, int seg, int index_within_seg)
                 {

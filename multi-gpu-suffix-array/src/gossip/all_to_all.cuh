@@ -30,11 +30,12 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
-
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
 
+            // necessary sync because we cant use the stream for communication 
+            context.sync_gpu_default_stream(world_rank());
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
@@ -44,13 +45,20 @@ namespace gossip {
                     const table_t dest_index = v_table[src_gpu][dest_gpu];
                     const table_t len = table[src_gpu][dest_gpu];
 
-                    key_t* from_k = node_info[src_gpu].src_keys + src_index;
-                    key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
-
-                    cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
-                        from_k, context.get_device_id(src_gpu),
-                        len * sizeof(key_t),
-                        context.get_streams(src_gpu)[dest_gpu]);
+                    if (src_gpu == world_rank()) {
+                        key_t* from_k = node_info[src_gpu].src_keys + src_index;
+                        std::span<key_t> sb(from_k, len);
+                        comm_world().send(send_buf(sb), send_count(len), destination((size_t)dest_gpu));
+                    }
+                    if (dest_gpu == world_rank()) {
+                        key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
+                        std::span<key_t> rb(to_k, len);
+                        comm_world().recv(recv_buf(rb), recv_count(len));
+                    }
+                    // cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
+                    // from_k, context.get_device_id(src_gpu),
+                    // len * sizeof(key_t),
+                    //     context.get_streams(src_gpu)[dest_gpu]);
                 } CUERR;
             }
             return check_tables(node_info, h_table, v_table);
@@ -59,11 +67,11 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execKVAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {  // [src_gpu, partition]
-
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
-
+            // necessary sync because we cant use the stream for communication 
+            context.sync_gpu_default_stream(world_rank());
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
@@ -75,14 +83,14 @@ namespace gossip {
                     const table_t dest_index = v_table[src_gpu][dest_gpu];
                     const table_t len = table[src_gpu][dest_gpu];
 
-                    key_t* from_k = node_info[src_gpu].src_keys + src_index;
-                    key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                     // printf("src[%u] to dst[%u], rank %lu\n", src_gpu, dest_gpu, world_rank());
                     if (src_gpu == world_rank()) {
+                        key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         std::span<key_t> sb(from_k, len);
                         comm_world().send(send_buf(sb), send_count(len), destination((size_t)dest_gpu));
                     }
                     if (dest_gpu == world_rank()) {
+                        key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         std::span<key_t> rb(to_k, len);
                         comm_world().recv(recv_buf(rb), recv_count(len));
                     }
@@ -92,13 +100,13 @@ namespace gossip {
                     //     len * sizeof(key_t),
                     //     context.get_streams(src_gpu)[dest_gpu]);
 
-                    value_t* from_v = node_info[src_gpu].src_values + src_index;
-                    value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
                     if (src_gpu == world_rank()) {
+                        value_t* from_v = node_info[src_gpu].src_values + src_index;
                         std::span<value_t> sb(from_v, len);
                         comm_world().send(send_buf(sb), send_count(len), destination((size_t)dest_gpu));
                     }
                     if (dest_gpu == world_rank()) {
+                        value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
                         std::span<value_t> rb(to_v, len);
                         comm_world().recv(recv_buf(rb), recv_count(len));
                     }
