@@ -332,8 +332,6 @@ public:
         write_to_isa(true);
         printf("[%lu] Write to isa done\n", world_rank());
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
-        mcontext.sync_gpu_default_stream(world_rank());
-        exit(0);
 #ifdef DUMP_EVERYTHING
         dump("Initial write to ISA");
 #endif
@@ -343,6 +341,9 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Initial_Compacting);
         bool done = false;
         done = compact();
+        mcontext.sync_gpu_default_stream(world_rank());
+        printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
+        exit(0);
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Compacting);
 
 #ifdef DUMP_EVERYTHING
@@ -473,22 +474,6 @@ private:
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 
-    // template<typename sendType>
-    // void all2allDevicePointer(sendType* sendRecvPointer, size_t sendId, size_t size) {
-    //     if (world_rank() == sendId) {
-    //         std::span<sendType> sendBuf(sendRecvPointer, size);
-    //         for (int j = 0; j < world_size(); j++) {
-    //             if (sendId == j) {
-    //                 continue;
-    //             }
-    //             comm_world().send(send_buf(sendBuf), send_count(size), tag(sendId), destination(j));
-    //         }
-    //     }
-    //     else {
-    //         std::span<sendType> recB(sendRecvPointer, size);
-    //         comm_world().recv(recv_buf(recB), tag(sendId), recv_count(size));
-    //     }
-    // }
     // Sorting Sa_rank to Old_Ranks, Isa to Sa_index
     void initial_sort_64()
     {
@@ -775,57 +760,101 @@ private:
         }
         mcontext.sync_default_streams();
 #endif
-        // for (int i = 0; i < world_size();i++) {
-        //     all2allDevicePointer(mgpus[i].Sa_rank, i, mgpus[i].working_len);
-        // }
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+
+        printf("[%lu] compacting\n", world_rank());
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
-            if (gpu_index == world_rank()) {
 
-                if (gpu.working_len > 0)
-                {
-                    cudaSetDevice(mcontext.get_device_id(gpu_index));
-                    const sa_index_t* Last_rank_prev;
-                    const sa_index_t* First_rank_next;
+            // for First_rank_next
+            if (gpu_index > 0) {
 
-                    First_rank_next = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].Sa_rank
-                        : nullptr;
-                    // pointer to const sa_index_t, last element from next gpu Sa_rank
-                    Last_rank_prev = (gpu_index > 0) ? mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1
-                        : nullptr;
-                    kernels::write_compact_flags_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_rank, Last_rank_prev, First_rank_next, gpu.Temp1, gpu.working_len);
-                    CUERR;
-
-                    size_t temp_storage_bytes = 0;
-                    cudaError_t err = cub::DeviceSelect::Flagged(nullptr, temp_storage_bytes, gpu.Sa_index,
-                        gpu.Temp1, gpu.Temp2, gpu.Temp3, gpu.working_len,
-                        mcontext.get_gpu_default_stream(gpu_index));
-                    CUERR_CHECK(err)
-
-                        //            printf("\nTemp storage required for compacting: %zu bytes.\n", temp_storage_bytes);
-                        // Run selection
-                        ASSERT(temp_storage_bytes < mreserved_len * sizeof(sa_index_t));
-                    err = cub::DeviceSelect::Flagged(gpu.Temp4, temp_storage_bytes, gpu.Sa_index, gpu.Temp1, gpu.Temp2,
-                        gpu.Temp3, gpu.working_len);
-                    // compact Sa_index -> Temp2 according to flags from Temp1
-
-                    CUERR_CHECK(err);
-
-                    err = cub::DeviceSelect::Flagged(gpu.Temp4, temp_storage_bytes, gpu.Sa_rank,
-                        gpu.Temp1, gpu.Old_ranks, gpu.Temp3, gpu.working_len,
-                        mcontext.get_gpu_default_stream(gpu_index));
-                    // --> compact Sa_rank -> Old_Ranks according to flags from Temp1
-                    CUERR_CHECK(err);
-
-                    cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Temp3, sizeof(sa_index_t), cudaMemcpyDeviceToHost,
-                        mcontext.get_gpu_default_stream(gpu_index));
-                    CUERR;
+                // is the next process receiving ?
+                if (mgpus[gpu_index - 1].working_len > 0) {
+                    std::span<sa_index_t> sb(gpu.Sa_rank, 1);
+                    comm_world().isend(send_buf(sb), send_count(1), tag(gpu_index), destination((size_t)gpu_index - 1));
                 }
             }
+
+            // for Last_rank_prev
+            if (gpu_index < NUM_GPUS - 1) {
+                // is the next process receiving ?
+                if (mgpus[gpu_index + 1].working_len > 0) {
+                    std::span<sa_index_t> sb(gpu.Sa_rank + gpu.working_len - 1, 1);
+                    comm_world().isend(send_buf(sb), send_count(1), tag(gpu_index), destination((size_t)gpu_index + 1));
+                }
+            }
+
+            printf("[%lu] after isend\n", world_rank());
+            if (gpu.working_len > 0)
+            {
+                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                const sa_index_t* Last_rank_prev;
+                const sa_index_t* First_rank_next;
+
+                mcontext.get_device_temp_allocator(gpu_index).reset();
+                if (gpu_index < NUM_GPUS - 1) {
+                    sa_index_t* temp = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(1);
+                    std::span<sa_index_t> rb(temp, 1);
+                    comm_world().recv(recv_buf(rb), tag(gpu_index + 1), recv_count(1));
+                    First_rank_next = temp;
+                }
+                else {
+                    First_rank_next = nullptr;
+                }
+                if (gpu_index > 0) {
+                    sa_index_t* temp = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(1);
+                    std::span<sa_index_t> rb(temp, 1);
+                    comm_world().recv(recv_buf(rb), tag(gpu_index - 1), recv_count(1));
+                    Last_rank_prev = temp;
+                }
+                else {
+                    Last_rank_prev = nullptr;
+                }
+
+                //First_rank_next = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].Sa_rank
+                //    : nullptr;
+                // pointer to const sa_index_t, last element from next gpu Sa_rank
+                //Last_rank_prev = (gpu_index > 0) ? mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1
+                //    : nullptr;
+                kernels::write_compact_flags_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_rank, Last_rank_prev, First_rank_next, gpu.Temp1, gpu.working_len);
+                CUERR;
+
+                size_t temp_storage_bytes = 0;
+                cudaError_t err = cub::DeviceSelect::Flagged(nullptr, temp_storage_bytes, gpu.Sa_index,
+                    gpu.Temp1, gpu.Temp2, gpu.Temp3, gpu.working_len,
+                    mcontext.get_gpu_default_stream(gpu_index));
+                CUERR_CHECK(err)
+
+                    //            printf("\nTemp storage required for compacting: %zu bytes.\n", temp_storage_bytes);
+                    // Run selection
+                    ASSERT(temp_storage_bytes < mreserved_len * sizeof(sa_index_t));
+                err = cub::DeviceSelect::Flagged(gpu.Temp4, temp_storage_bytes, gpu.Sa_index, gpu.Temp1, gpu.Temp2,
+                    gpu.Temp3, gpu.working_len);
+                // compact Sa_index -> Temp2 according to flags from Temp1
+
+                CUERR_CHECK(err);
+
+                err = cub::DeviceSelect::Flagged(gpu.Temp4, temp_storage_bytes, gpu.Sa_rank,
+                    gpu.Temp1, gpu.Old_ranks, gpu.Temp3, gpu.working_len,
+                    mcontext.get_gpu_default_stream(gpu_index));
+                // --> compact Sa_rank -> Old_Ranks according to flags from Temp1
+                CUERR_CHECK(err);
+
+                cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Temp3, sizeof(sa_index_t), cudaMemcpyDeviceToHost,
+                    mcontext.get_gpu_default_stream(gpu_index));
+                CUERR;
+            }
+
         }
 
         mcontext.sync_default_streams();
+        printf("[%lu] after first kernel phase\n", world_rank());
+        std::span<sa_index_t> sb(mhost_temp_mem + world_rank(), 1);
+        std::span<sa_index_t> rb(mhost_temp_mem, world_size());
+        comm_world().allgather(send_buf(sb), recv_buf(rb));
+        printf("[%lu] after first allgather\n", world_rank());
 
 #ifdef DEBUG_SET_ZERO_TO_SEE_BETTER
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -837,23 +866,27 @@ private:
         }
         mcontext.sync_default_streams();
 #endif
-        std::array<sa_index_t, NUM_GPUS> lens_after_compacting;
+        sa_index_t lens_after_compacting;
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 0)
             {
-                lens_after_compacting[gpu_index] = mhost_temp_mem[gpu_index];
+
+
+                if (gpu_index == world_rank())
+                    lens_after_compacting = mhost_temp_mem[gpu_index];
                 //                    printf("\nGPU %u: After compacting, there are %u entries left!", gpu_index,
                 //                           lens_after_compacting[gpu_index]);
 
-                if (lens_after_compacting[gpu_index] == 0)
+                if (mhost_temp_mem[gpu_index] == 0)
                 {
                     gpu.working_len = 0;
                     gpu.num_segments = 0;
                 }
             }
+            printf("[%lu] gpu[%u].working length: %lu\n", world_rank(), gpu_index, gpu.working_len);
         }
 
         // Ok, now we need to identify segments, these are local.
@@ -866,48 +899,69 @@ private:
             if (gpu.working_len > 0)
             {
                 finished = false;
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                if (gpu_index == world_rank()) {
 
-                kernels::write_ranks_diff _KLC_SIMPLE_((size_t)lens_after_compacting[gpu_index],
-                    mcontext.get_gpu_default_stream(gpu_index))(gpu.Old_ranks, gpu.Temp1, 0, SA_INDEX_T_MAX, lens_after_compacting[gpu_index]);
-                CUERR;
-                // Ranks diff --> Temp1
+                    cudaSetDevice(mcontext.get_device_id(gpu_index));
 
-                //                ASSERT(temp_storage_bytes < reserved_len * sizeof(sa_index_t));
-                size_t temp_storage_bytes = mreserved_len * sizeof(sa_index_t);
-                cudaError_t err = cub::DeviceSelect::If(gpu.Temp4, temp_storage_bytes,
-                    gpu.Temp1, gpu.Segment_heads, gpu.Temp3,
-                    lens_after_compacting[gpu_index], select_op,
-                    mcontext.get_gpu_default_stream(gpu_index));
-                // Write to Segments_heads from Temp1 ...
-                CUERR_CHECK(err);
-                cudaMemcpyAsync(mhost_temp_mem + gpu_index + NUM_GPUS, gpu.Temp3, sizeof(sa_index_t), cudaMemcpyDeviceToHost,
-                    mcontext.get_gpu_default_stream(gpu_index));
-                CUERR;
+                    kernels::write_ranks_diff _KLC_SIMPLE_((size_t)lens_after_compacting,
+                        mcontext.get_gpu_default_stream(gpu_index))(gpu.Old_ranks, gpu.Temp1, 0, SA_INDEX_T_MAX, lens_after_compacting);
+                    CUERR;
+                    // Ranks diff --> Temp1
 
-                // unrelated: copy first and last rank so we can see if there are split-buckets
-                cudaMemcpyAsync(mhost_temp_mem + 2 * NUM_GPUS + gpu_index, gpu.Old_ranks,
-                    sizeof(sa_index_t), cudaMemcpyDeviceToHost,
-                    mcontext.get_gpu_default_stream(gpu_index));
-                CUERR;
-                printf("671,PrefixDoubling %d", 0);
-                cudaMemcpyAsync(gpu.Sa_index, gpu.Temp2, lens_after_compacting[gpu_index] * sizeof(sa_index_t),
-                    cudaMemcpyDeviceToDevice, mcontext.get_streams(gpu_index)[1]);
-                CUERR;
-                printf("671,PrefixDoubling %d", 1);
-                if (lens_after_compacting[gpu_index] > 0)
-                {
-                    cudaMemcpyAsync(mhost_temp_mem + 3 * NUM_GPUS + gpu_index, gpu.Old_ranks + lens_after_compacting[gpu_index] - 1,
+                    //                ASSERT(temp_storage_bytes < reserved_len * sizeof(sa_index_t));
+                    size_t temp_storage_bytes = mreserved_len * sizeof(sa_index_t);
+                    cudaError_t err = cub::DeviceSelect::If(gpu.Temp4, temp_storage_bytes,
+                        gpu.Temp1, gpu.Segment_heads, gpu.Temp3,
+                        lens_after_compacting, select_op,
+                        mcontext.get_gpu_default_stream(gpu_index));
+                    // Write to Segments_heads from Temp1 ...
+                    CUERR_CHECK(err);
+                    cudaMemcpyAsync(mhost_temp_mem + gpu_index + NUM_GPUS, gpu.Temp3, sizeof(sa_index_t), cudaMemcpyDeviceToHost,
+                        mcontext.get_gpu_default_stream(gpu_index));
+                    CUERR;
+
+                    // unrelated: copy first and last rank so we can see if there are split-buckets
+                    cudaMemcpyAsync(mhost_temp_mem + 2 * NUM_GPUS + gpu_index, gpu.Old_ranks,
                         sizeof(sa_index_t), cudaMemcpyDeviceToHost,
                         mcontext.get_gpu_default_stream(gpu_index));
                     CUERR;
+                    printf("671,PrefixDoubling %d", 0);
+                    cudaMemcpyAsync(gpu.Sa_index, gpu.Temp2, lens_after_compacting * sizeof(sa_index_t),
+                        cudaMemcpyDeviceToDevice, mcontext.get_streams(gpu_index)[1]);
+                    CUERR;
+                    printf("671,PrefixDoubling %d", 1);
+                    if (lens_after_compacting > 0)
+                    {
+                        cudaMemcpyAsync(mhost_temp_mem + 3 * NUM_GPUS + gpu_index, gpu.Old_ranks + lens_after_compacting - 1,
+                            sizeof(sa_index_t), cudaMemcpyDeviceToHost,
+                            mcontext.get_gpu_default_stream(gpu_index));
+                        CUERR;
+                    }
                 }
             }
         }
+
+        printf("[%lu] finished: %s\n", world_rank(), finished ? "true" : "false");
+
         if (finished)
             return true;
 
         mcontext.sync_default_streams();
+        printf("[%lu] after second kernel phase\n", world_rank());
+        //could be prettier
+        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() + NUM_GPUS, 1);
+        std::span<sa_index_t> rb(mhost_temp_mem + NUM_GPUS, world_size());
+        comm_world().allgather(send_buf(sb), recv_buf(rb));
+
+        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
+        std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
+        comm_world().allgather(send_buf(sb), recv_buf(rb));
+
+        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
+        std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
+        comm_world().allgather(send_buf(sb), recv_buf(rb));
+
+        printf("[%lu] after second allgather\n", world_rank());
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -917,9 +971,9 @@ private:
             gpu.old_rank_end = *(mhost_temp_mem + 3 * NUM_GPUS + gpu_index);
             if (gpu.working_len > 0)
             {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                // cudaSetDevice(mcontext.get_device_id(gpu_index));
 
-                gpu.working_len = lens_after_compacting[gpu_index];
+                gpu.working_len = mhost_temp_mem[gpu_index];
                 gpu.num_segments = mhost_temp_mem[gpu_index + NUM_GPUS];
 
                 //                    printf("\nGPU %u has %zu segments left.", gpu_index, gpu.num_segments);
@@ -932,24 +986,40 @@ private:
 
                 if (gpu.num_segments > 1)
                 {
-                    // Copy first segment end
-                    cudaMemcpyAsync(mhost_temp_mem + 2 * NUM_GPUS + gpu_index, gpu.Segment_heads + 1,
-                        sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
-                    CUERR;
+                    if (gpu_index == world_rank()) {
+
+                        // Copy first segment end
+                        cudaMemcpyAsync(mhost_temp_mem + 2 * NUM_GPUS + gpu_index, gpu.Segment_heads + 1,
+                            sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
+                        CUERR;
+                    }
                 }
                 else
                 {
                     *(mhost_temp_mem + 2 * NUM_GPUS + gpu_index) = gpu.working_len;
                 }
-
-                // Copy last segment start
-                cudaMemcpyAsync(mhost_temp_mem + 3 * NUM_GPUS + gpu_index, gpu.Segment_heads + gpu.num_segments - 1,
-                    sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
-                CUERR;
+                if (gpu_index == world_rank()) {
+                    // Copy last segment start
+                    cudaMemcpyAsync(mhost_temp_mem + 3 * NUM_GPUS + gpu_index, gpu.Segment_heads + gpu.num_segments - 1,
+                        sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
+                    CUERR;
+                }
             }
+            printf("[%lu] gpu[%u].working length: %lu, gpu[%u].num_segments: %lu\n", world_rank(), gpu_index, gpu.working_len, gpu_index, gpu.num_segments);
+
+
         }
         mcontext.sync_all_streams();
+        printf("[%lu] after segment update\n", world_rank());
+        //could be more efficient if num_segments is checked before sending data
+        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
+        std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
+        comm_world().allgather(send_buf(sb), recv_buf(rb));
 
+        std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
+        std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
+        comm_world().allgather(send_buf(sb), recv_buf(rb));
+        printf("[%lu] after third allgather\n", world_rank());
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
@@ -962,6 +1032,7 @@ private:
                 //                           gpu.first_segment_end, gpu.last_segment_start);
             }
         }
+
         return false;
     }
 
