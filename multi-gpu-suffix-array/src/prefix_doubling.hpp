@@ -319,11 +319,11 @@ public:
         dump("After initial sort");
 #endif
         printf("[%lu] done\n", world_rank());
-        exit(0);
+
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
         write_initial_ranks();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Ranking);
-
+        exit(0);
 #ifdef DUMP_EVERYTHING
         dump("Initial ranking");
 #endif
@@ -649,10 +649,18 @@ private:
         //printf("initial\n");
         const rank_t* last_element_prev = nullptr;
 
+        mcontext.get_device_temp_allocator(gpu_index).reset();
+        if (world_rank() < world_size() - 1) {
+            std::span<const rank_t> sb(reinterpret_cast<const rank_t*>(gpu.Old_ranks) + gpu.working_len - 1, 1);
+            comm_world().send(send_buf(sb), send_count(1), destination(world_rank() + 1));
+        }
         if (gpu_index > 0)
         {
+            const rank_t* rb = mcontext.get_device_temp_allocator(gpu_index).get<const rank_t>(1);
+            comm_world().recv(recv_buf(rb), recv_count(1));
+
             //  last element of previous gpu
-            last_element_prev = &reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
+            last_element_prev = rb;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
         }
         //printf("last element\n");
         kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const rank_t*>(gpu.Old_ranks), last_element_prev, gpu.offset + 1, 0, gpu.Temp1, gpu.working_len);
@@ -660,6 +668,8 @@ private:
         //}
         //printf("write ranks diff multi\n");
         mcontext.sync_default_streams();
+        mcontext.get_device_temp_allocator(gpu_index).reset();
+
         do_max_scan_on_ranks();
     }
 
@@ -721,7 +731,7 @@ private:
         // for (int i = 0; i < world_size(); i++) {
         //     printf("check temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
         // }
-        comm_world().barrier();
+
         std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
         std::span<uint32_t> rb(mhost_temp_mem, world_size());
         comm_world().allgather(send_buf(sb), recv_buf(rb));
@@ -1595,7 +1605,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
