@@ -461,7 +461,7 @@ private:
                 const unsigned char* tempInput = mcontext.get_device_temp_allocator(gpu_index).get<const unsigned char>(1);
                 //
                 std::span<const unsigned char> rbInput(tempInput, 1);
-                // comm_world().recv(recv_buf(rbInput), tag(1), recv_count(1));
+                comm_world().recv<const unsigned char>(recv_buf(rbInput), tag(1), recv_count(1));
                 next_Input = tempInput;
             }
 
