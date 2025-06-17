@@ -453,7 +453,7 @@ private:
                 comm_world().isend(send_buf(sbInput), send_count(1), tag(1), destination((size_t)gpu_index - 1));
                 //MPI_Send(gpu.prepare_S12_ptr.Input, 4, MPI_CHAR, (int)gpu_index - 1, 1, MPI_COMM_WORLD);
             }
-            if (gpu_index < NUM_GPUS - 1) {
+            if (gpu_index + 1 < NUM_GPUS) {
                 sa_index_t* tempIsa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(1);
                 std::span<sa_index_t> rbIsa(tempIsa, 1);
                 comm_world().recv(recv_buf(rbIsa), tag(0), recv_count(1));
