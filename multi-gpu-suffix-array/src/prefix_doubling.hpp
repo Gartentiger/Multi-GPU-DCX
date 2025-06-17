@@ -955,11 +955,13 @@ private:
             std::span<sa_index_t> sb(mhost_temp_mem + world_rank() + NUM_GPUS, 1);
             std::span<sa_index_t> rb(mhost_temp_mem + NUM_GPUS, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
-
+        }
+        {
             std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
             std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
-
+        }
+        {
             std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
             std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
@@ -1019,7 +1021,8 @@ private:
             std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
             std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
-
+        }
+        {
             std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
             std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
@@ -1685,7 +1688,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
