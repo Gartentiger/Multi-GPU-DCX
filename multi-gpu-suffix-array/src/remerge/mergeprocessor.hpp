@@ -198,8 +198,7 @@ namespace crossGPUReMerge
                                 // sender != receiver
                                 printf("[%lu] receiving, sender: %u, i: %d\n", world_rank(), r.start.node, i);
 
-                                key_t* temp;// = (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
-                                cudaMalloc(&temp, sizeof(key_t) * len);
+                                key_t* temp = (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
                                 tempPointers.push_back(temp);
                                 std::span<key_t> rb(temp, len);
                                 comm_world().recv(recv_buf(rb), recv_count(len));

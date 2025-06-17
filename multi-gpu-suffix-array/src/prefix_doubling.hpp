@@ -656,11 +656,12 @@ private:
         }
         if (gpu_index > 0)
         {
-            const rank_t* rb = mcontext.get_device_temp_allocator(gpu_index).get<const rank_t>(1);
+            const rank_t* temp = mcontext.get_device_temp_allocator(gpu_index).get<const rank_t>(1);
+            std::span<const rank_t> rb(temp, 1);
             comm_world().recv(recv_buf(rb), recv_count(1));
 
             //  last element of previous gpu
-            last_element_prev = rb;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
+            last_element_prev = temp;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
         }
         //printf("last element\n");
         kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const rank_t*>(gpu.Old_ranks), last_element_prev, gpu.offset + 1, 0, gpu.Temp1, gpu.working_len);
