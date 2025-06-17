@@ -105,7 +105,7 @@ public:
         context.sync_default_streams();
         for (int i = 0; i < num_gpus; i++) {
             for (int j = 0; j < num_gpus; j++) {
-                printf("h_offsets[%d][%d]: %u\n", i, j, h_offsets[i][j]);
+                // printf("h_offsets[%d][%d]: %u\n", i, j, h_offsets[i][j]);
             }
         }
         // recover the partition table from accumulated counters

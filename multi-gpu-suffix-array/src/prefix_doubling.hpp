@@ -517,8 +517,8 @@ private:
             // Now Sa_rank is sorted to Old_ranks,
             // Isa is sorted to Sa_Index
             // Temp2, 3, 4 used as temp space
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
+            //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
+            //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
             //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
                                            reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
@@ -880,7 +880,7 @@ private:
 
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        exit(1);
+        // exit(1);
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::Sort);
