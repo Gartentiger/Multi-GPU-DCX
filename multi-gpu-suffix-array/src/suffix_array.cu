@@ -407,25 +407,24 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            SaGPU& gpu = mgpus[gpu_index];
             if (world_rank() == gpu_index)
             {
 
-                SaGPU& gpu = mgpus[gpu_index];
-                cudaSetDevice(0);
+                // cudaSetDevice(0);
                 kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
                 CUERR;
-
-                multi_split_node_info[gpu_index].src_keys = gpu.prepare_S12_ptr.Isa;
-                multi_split_node_info[gpu_index].src_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result;
-                multi_split_node_info[gpu_index].src_len = gpu.pd_elements;
-
-                multi_split_node_info[gpu_index].dest_keys = (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2;
-                multi_split_node_info[gpu_index].dest_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half;
-                multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
-                ;
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.prepare_S12_ptr.S12_buffer1,
                     mpd_reserved_len * sizeof(MergeStageSuffixS12));
             }
+
+            multi_split_node_info[gpu_index].src_keys = gpu.prepare_S12_ptr.Isa;
+            multi_split_node_info[gpu_index].src_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result;
+            multi_split_node_info[gpu_index].src_len = gpu.pd_elements;
+
+            multi_split_node_info[gpu_index].dest_keys = (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2;
+            multi_split_node_info[gpu_index].dest_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half;
+            multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
         }
         S12PartitioningFunctor f(mpd_per_gpu, NUM_GPUS - 1);
 
@@ -437,13 +436,34 @@ private:
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
             cudaSetDevice(mcontext.get_device_id(gpu_index));
 
-            const sa_index_t* next_Isa = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
-            const unsigned char* next_Input = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
+            const sa_index_t* next_Isa = nullptr; //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
+            const unsigned char* next_Input = nullptr; //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
+
+            if (gpu_index > 0) {
+                std::span<sa_index_t> sbIsa(gpu.prepare_S12_ptr.Isa, 1);
+                comm_world().isend(send_buf(sbIsa), send_count(1), tag(0), destination((size_t)gpu_index - 1));
+
+                std::span<const unsigned char> sbInput(gpu.prepare_S12_ptr.Input, 1);
+                comm_world().isend(send_buf(sbInput), send_count(1), tag(1), destination((size_t)gpu_index - 1));
+            }
+            if (gpu_index < NUM_GPUS - 1) {
+                sa_index_t* tempIsa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(1);
+                std::span<sa_index_t> rbIsa(tempIsa, 1);
+                comm_world().recv(recv_buf(rbIsa), tag(0), recv_count(1));
+                next_Isa = tempIsa;
+                //
+                const unsigned char* tempInput = mcontext.get_device_temp_allocator(gpu_index).get<const unsigned char>(1);
+                //
+                std::span<const unsigned char> rbInput(tempInput, 1);
+                comm_world().recv(recv_buf(rbInput), tag(1), recv_count(1));
+                next_Input = tempInput;
+            }
 
             kernels::prepare_S12_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                 gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
@@ -470,6 +490,9 @@ private:
             all2all_node_info[gpu_index].temp_len = mpd_reserved_len; // not sure...
         }
         mcontext.sync_default_streams();
+        //
+        mcontext.get_device_temp_allocator(world_rank()).reset();
+        //
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
@@ -483,8 +506,9 @@ private:
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             const uint SORT_DOWN_TO_BIT = 11;
 
             SaGPU& gpu = mgpus[gpu_index];
@@ -545,31 +569,33 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
-
+            // cudaSetDevice(mcontext.get_device_id(gpu_index));
             size_t count = gpu.num_elements - gpu.pd_elements;
-            kernels::prepare_S0 _KLC_SIMPLE_(count, mcontext.get_gpu_default_stream(gpu_index))(gpu.prepare_S0_ptr.Isa, gpu.prepare_S0_ptr.Input, gpu.offset,
-                gpu.num_elements, gpu.pd_elements,
-                gpu_index == NUM_GPUS - 1,
-                reinterpret_cast<MergeStageSuffixS0HalfKey*>(gpu.prepare_S0_ptr.S0_buffer1_keys),
-                gpu.prepare_S0_ptr.S0_buffer1_values,
-                count);
-            CUERR;
-            cub::DoubleBuffer<uint64_t> keys(reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer1_keys),
-                reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer2_keys));
-            cub::DoubleBuffer<uint64_t> values(reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer1_values),
-                reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer2_values));
+            if (world_rank() == gpu_index) {
 
-            size_t temp_storage_size = 0;
-            cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size, keys, values, count, 0, 40);
-            CUERR_CHECK(err);
-            //                printf("Needed temp storage: %zu, provided %zu.\n", temp_storage_size, ms0_reserved_len*sizeof(MergeStageSuffix));
-            ASSERT(temp_storage_size <= ms0_reserved_len * sizeof(MergeStageSuffix));
-            err = cub::DeviceRadixSort::SortPairs(gpu.prepare_S0_ptr.S0_result, temp_storage_size,
-                keys, values, count, 0, 40, mcontext.get_gpu_default_stream(gpu_index));
-            CUERR_CHECK(err);
+                kernels::prepare_S0 _KLC_SIMPLE_(count, mcontext.get_gpu_default_stream(gpu_index))(gpu.prepare_S0_ptr.Isa, gpu.prepare_S0_ptr.Input, gpu.offset,
+                    gpu.num_elements, gpu.pd_elements,
+                    gpu_index == NUM_GPUS - 1,
+                    reinterpret_cast<MergeStageSuffixS0HalfKey*>(gpu.prepare_S0_ptr.S0_buffer1_keys),
+                    gpu.prepare_S0_ptr.S0_buffer1_values,
+                    count);
+                CUERR;
+                cub::DoubleBuffer<uint64_t> keys(reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer1_keys),
+                    reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer2_keys));
+                cub::DoubleBuffer<uint64_t> values(reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer1_values),
+                    reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer2_values));
 
-            is_buffer_2_current[gpu_index] = keys.Current() == reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer2_keys);
+                size_t temp_storage_size = 0;
+                cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size, keys, values, count, 0, 40);
+                CUERR_CHECK(err);
+                //                printf("Needed temp storage: %zu, provided %zu.\n", temp_storage_size, ms0_reserved_len*sizeof(MergeStageSuffix));
+                ASSERT(temp_storage_size <= ms0_reserved_len * sizeof(MergeStageSuffix));
+                err = cub::DeviceRadixSort::SortPairs(gpu.prepare_S0_ptr.S0_result, temp_storage_size,
+                    keys, values, count, 0, 40, mcontext.get_gpu_default_stream(gpu_index));
+                CUERR_CHECK(err);
+
+                is_buffer_2_current[gpu_index] = keys.Current() == reinterpret_cast<uint64_t*>(gpu.prepare_S0_ptr.S0_buffer2_keys);
+            }
 
             merge_nodes_info[gpu_index] = { count, ms0_reserved_len, gpu_index,
                                            is_buffer_2_current[gpu_index] ? gpu.prepare_S0_ptr.S0_buffer2_keys
@@ -582,8 +608,11 @@ private:
                                                                           : gpu.prepare_S0_ptr.S0_buffer2_values,
                                            reinterpret_cast<MergeStageSuffixS0HalfKey*>(gpu.prepare_S0_ptr.S0_result),
                                            gpu.prepare_S0_ptr.S0_result_2nd_half };
-            mcontext.get_device_temp_allocator(gpu_index).init(reinterpret_cast<MergeStageSuffixS0HalfKey*>(gpu.prepare_S0_ptr.S0_result),
-                ms0_reserved_len * sizeof(MergeStageSuffixS0));
+
+            if (world_rank() == gpu_index) {
+                mcontext.get_device_temp_allocator(gpu_index).init(reinterpret_cast<MergeStageSuffixS0HalfKey*>(gpu.prepare_S0_ptr.S0_result),
+                    ms0_reserved_len * sizeof(MergeStageSuffixS0));
+            }
         }
         //            dump_prepare_s0("Before S0 merge");
 
@@ -606,8 +635,9 @@ private:
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Combine);
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
             cudaSetDevice(mcontext.get_device_id(gpu_index));
 
@@ -631,6 +661,7 @@ private:
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+
             SaGPU& gpu = mgpus[gpu_index];
 
             const size_t S0_count = gpu.num_elements - gpu.pd_elements;
@@ -639,20 +670,24 @@ private:
             inp_S12[gpu_index] = { gpu_index, (sa_index_t)S12_count, gpu.merge_ptr.S12_result, nullptr, nullptr, nullptr };
             inp_S0[gpu_index] = { gpu_index, (sa_index_t)S0_count, gpu.merge_ptr.S0_result, nullptr, nullptr, nullptr };
             result[gpu_index] = { gpu_index, (sa_index_t)result_count, gpu.merge_ptr.S12_result, nullptr, gpu.merge_ptr.buffer, nullptr };
-            mcontext.get_device_temp_allocator(gpu_index).init(gpu.merge_ptr.remaining_storage,
-                gpu.merge_ptr.remaining_storage_size);
+            if (world_rank() == gpu_index) {
+                mcontext.get_device_temp_allocator(gpu_index).init(gpu.merge_ptr.remaining_storage,
+                    gpu.merge_ptr.remaining_storage_size);
+            }
         }
         auto h_temp_mem = mmemory_manager.get_host_temp_mem();
         QDAllocator qd_alloc_h_temp(h_temp_mem.first, h_temp_mem.second);
+        exit(0);
         distrib_merge::DistributedMerge<MergeStageSuffix, int, sa_index_t, NUM_GPUS, DistribMergeTopology>::
             merge_async(inp_S12, inp_S0, result, MergeCompFunctor(), false, mcontext, qd_alloc_h_temp);
 
         //            dump_final_merge("after final merge");
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            // cudaSetDevice(mcontext.get_device_id(gpu_index));
             kernels::from_merge_suffix_to_index _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.merge_ptr.S12_result, gpu.merge_ptr.result, gpu.num_elements);
             CUERR;
         }

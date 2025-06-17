@@ -422,8 +422,8 @@ public:
         //            transpose_isa();
         //            TIMER_STOP_MAIN_STAGE(MainStages::Final_Transpose);
         mcontext.sync_all_streams();
-        printf("[%lu] all done\n", world_rank());
-        exit(0);
+        printf("[%lu] prefix doubling done\n", world_rank());
+
         return iterations;
     }
 
@@ -1715,8 +1715,8 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
-};
+    };
 
 #endif // PREFIX_DOUBLING_HPP
