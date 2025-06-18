@@ -186,14 +186,14 @@ namespace distrib_merge {
                     searches_on_nodes[search.scheduled_on].push_back(&search);
                 }
             }
-
-            // for (uint node = 0; node < NUM_NODES; ++node) 
+            printf("[%lu]---------------------------------------------------------------\n", world_rank());
+            for (uint node = 0; node < NUM_NODES; ++node)
             {
-                uint node = world_rank();
+                //uint node = world_rank();
                 QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node);
 
-                int i = 0;
                 if (node != world_rank()) {
+                    int i = 0;
                     for (Search* s : searches_on_nodes[node]) {
                         ASSERT(!(s->node_a == world_rank() && s->node_b == world_rank()));
                         if (s->node_a == world_rank()) {
@@ -206,8 +206,9 @@ namespace distrib_merge {
                             std::span<key_t> sb(node_b.keys, size_t(node_b.count));
                             comm_world().isend(send_buf(sb), send_count(size_t(node_b.count)), tag(i), destination((size_t)s->node_a));
                         }
+                        i++;
                     }
-                    i++;
+                    printf("[%lu] sends done\n", world_rank());
                 }
                 else {
 
