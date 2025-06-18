@@ -250,7 +250,7 @@ namespace distrib_merge {
                             cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
 
                             std::span<key_t> rb(temp, size_t(node_a.count));
-                            comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_b.count)));
+                            comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_a.count)));
                             run_partitioning_search << <1, 1, 0, stream >> > (temp,
                                 int64_t(node_a.count),
                                 node_b.keys,
@@ -260,7 +260,7 @@ namespace distrib_merge {
                                 s->d_result_ptr);
                             CUERR;
                         }
-
+                        printf("[%lu] recv, i: \n", world_rank(), i);
                         s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
 
                         cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
@@ -268,6 +268,7 @@ namespace distrib_merge {
                         cudaFreeAsync(temp, stream);
                         i++;
                     }
+                    printf("[%lu] recv done\n", world_rank());
                 }
             }
             mcontext.sync_all_streams();
@@ -279,6 +280,7 @@ namespace distrib_merge {
             std::vector<int64_t> hResultsOut;
             hResultsOut.clear();
             comm_world().allgatherv(send_buf(hResultsIn), send_count(hResultsIn.size()), recv_buf<resize_to_fit>(hResultsOut));
+            printf("[%lu] allgatherv distributed_merge done\n", world_rank());
             int i = 0;
             for (uint node = 0; node < NUM_NODES; ++node) {
                 for (Search* s : searches_on_nodes[node]) {
