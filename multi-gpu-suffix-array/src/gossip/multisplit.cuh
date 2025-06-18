@@ -125,7 +125,7 @@ public:
         context.sync_default_streams();
         for (int i = 0; i < world_size(); i++) {
             for (int j = 0; j < num_gpus; j++) {
-                printf("[%lu]: before h_offsets[%d][%d]: %u\n", world_rank(), i, j, h_offsets[i][j]);
+                //printf("[%lu]: before h_offsets[%d][%d]: %u\n", world_rank(), i, j, h_offsets[i][j]);
             }
         }
         // world_rank() == num_gpus
@@ -136,7 +136,7 @@ public:
         comm_world().allgather(send_buf(sb), recv_buf(recv));
         for (int i = 0; i < world_size(); i++) {
             for (int j = 0; j < num_gpus; j++) {
-                printf("[%lu]: recv buffer[%d][%d]: %u\n", world_rank(), i, j, recv[(i * num_gpus) + j]);
+                //printf("[%lu]: recv buffer[%d][%d]: %u\n", world_rank(), i, j, recv[(i * num_gpus) + j]);
             }
         }
         for (int i = 0; i < world_size(); i++) {
@@ -149,7 +149,7 @@ public:
 
         for (int i = 0; i < world_size(); i++) {
             for (int j = 0; j < num_gpus; j++) {
-                printf("[%lu]: after h_offsets[%d][%d]: %u\n", world_rank(), i, j, h_offsets[i][j]);
+                // printf("[%lu]: after h_offsets[%d][%d]: %u\n", world_rank(), i, j, h_offsets[i][j]);
             }
         }
 

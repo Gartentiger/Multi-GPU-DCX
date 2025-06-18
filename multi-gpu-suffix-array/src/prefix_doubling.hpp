@@ -576,8 +576,8 @@ private:
                 //     recBuf.push_back(n);
                 // }
                 // comm_world().allgatherv(send_buf(sendBuf), recv_buf(recBuf), recv_counts(recCounts));
-                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
-                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
+                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
+                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
             }
 
 
@@ -625,8 +625,8 @@ private:
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
 
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
-        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
-        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values, merge_nodes_info[world_rank()].num_elements, world_rank());
+        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
+        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values, merge_nodes_info[world_rank()].num_elements, world_rank());
         mcontext.sync_default_streams();
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
@@ -1715,8 +1715,8 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
-    };
+};
 
 #endif // PREFIX_DOUBLING_HPP
