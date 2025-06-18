@@ -679,8 +679,7 @@ private:
             merge_async(inp_S12, inp_S0, result, MergeCompFunctor(), false, mcontext, qd_alloc_h_temp);
 
         mcontext.sync_default_streams();
-        printf("[%lu] merge async done\n", world_rank());
-        exit(0);
+
         //            dump_final_merge("after final merge");
 
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -707,9 +706,11 @@ private:
         CUERR;
         //}
         mcontext.sync_default_streams();
-        //std::span<sa_index_t> sb(h_result + gpu.offset, gpu.num_elements);
-        //std::span<sa_index_t> rb();
-        //comm_world().allgather(send_buf(sb),);
+        for (int gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
+            std::span<sa_index_t> buffer(h_result + gpu.offset, gpu.num_elements);
+            comm_world().bcast(send_recv_buf(buffer), root(gpu_index));
+        }
+        //std::span<sa_index_t> rb(h_result, );
 
     }
 
@@ -961,7 +962,7 @@ int main(int argc, char** argv)
 
     // t.stop();
 
-    //write_array(argv[2], sorter.get_result(), realLen);
+    write_array(argv[2], sorter.get_result(), realLen);
 
     sorter.done();
 
