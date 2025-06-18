@@ -451,24 +451,18 @@ private:
 
                 std::span<const unsigned char> sbInput(gpu.prepare_S12_ptr.Input, 1);
                 comm_world().isend(send_buf(sbInput), send_count(1), tag(1), destination((size_t)gpu_index - 1));
-                //MPI_Send(gpu.prepare_S12_ptr.Input, 4, MPI_CHAR, (int)gpu_index - 1, 1, MPI_COMM_WORLD);
             }
             if (gpu_index + 1 < NUM_GPUS) {
                 sa_index_t* tempIsa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(1);
                 std::span<sa_index_t> rbIsa(tempIsa, 1);
                 comm_world().recv(recv_buf(rbIsa), tag(0), recv_count(1));
                 next_Isa = tempIsa;
-                printf("[%lu]: received!\n", world_rank());
-                //
                 unsigned char* tempInput = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(1);
-                //
                 std::span<unsigned char> rbInput(tempInput, 1);
                 comm_world().recv(recv_buf(rbInput), tag(1), recv_count(1));
                 next_Input = tempInput;
             }
-            comm_world().barrier();
-            printf("[%lu]: received all!\n", world_rank());
-            // exit(0);
+
             kernels::prepare_S12_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                 gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
                 next_Isa, next_Input, gpu.offset, gpu.num_elements,
@@ -681,10 +675,12 @@ private:
         }
         auto h_temp_mem = mmemory_manager.get_host_temp_mem();
         QDAllocator qd_alloc_h_temp(h_temp_mem.first, h_temp_mem.second);
-        exit(0);
         distrib_merge::DistributedMerge<MergeStageSuffix, int, sa_index_t, NUM_GPUS, DistribMergeTopology>::
             merge_async(inp_S12, inp_S0, result, MergeCompFunctor(), false, mcontext, qd_alloc_h_temp);
 
+        mcontext.sync_default_streams();
+        printf("[%lu] merge async done\n", world_rank());
+        exit(0);
         //            dump_final_merge("after final merge");
 
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -701,15 +697,20 @@ private:
     void copy_result_to_host()
     {
         sa_index_t* h_result = mmemory_manager.get_h_result();
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
-            cudaMemcpyAsync(h_result + gpu.offset, gpu.merge_ptr.result, gpu.num_elements * sizeof(sa_index_t),
-                cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
-            CUERR;
-        }
+        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        //{
+        uint gpu_index = world_rank();
+        SaGPU& gpu = mgpus[gpu_index];
+        cudaSetDevice(mcontext.get_device_id(gpu_index));
+        cudaMemcpyAsync(h_result + gpu.offset, gpu.merge_ptr.result, gpu.num_elements * sizeof(sa_index_t),
+            cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
+        CUERR;
+        //}
         mcontext.sync_default_streams();
+        //std::span<sa_index_t> sb(h_result + gpu.offset, gpu.num_elements);
+        //std::span<sa_index_t> rb();
+        //comm_world().allgather(send_buf(sb),);
+
     }
 
 #ifdef ENABLE_DUMPING
@@ -960,12 +961,12 @@ int main(int argc, char** argv)
 
     // t.stop();
 
-    write_array(argv[2], sorter.get_result(), realLen);
+    //write_array(argv[2], sorter.get_result(), realLen);
 
     sorter.done();
 
-    sorter.print_pd_stats();
-    sorter.get_perf_measurements().print();
+    //sorter.print_pd_stats();
+    //sorter.get_perf_measurements().print();
 
     cudaFreeHost(input);
     CUERR;

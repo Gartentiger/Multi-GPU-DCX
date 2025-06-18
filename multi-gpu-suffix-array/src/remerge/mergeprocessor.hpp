@@ -232,6 +232,8 @@ namespace crossGPUReMerge
 
                     for (auto s : node.scheduled_work.searches)
                     {
+                        printf("[%lu] scheduled_work.searches.size() > 0\n", world_rank());
+                        exit(1);
                         uint other = (node_index == s->node_1) ? s->node_2 : s->node_1;
                         const cudaStream_t& stream = mcontext.get_streams(node_index).at(other);
                         key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;

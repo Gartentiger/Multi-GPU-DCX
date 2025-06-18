@@ -251,11 +251,10 @@ public:
                 cudaFree(malloc_base[gpu]);
             }
         }
-        if (world_rank() == NUM_GPUS - 1)
-        {
-            cudaFreeHost(mhost_temp_mem);
-            cudaFreeHost(mh_result);
-        }
+
+        cudaFreeHost(mhost_temp_mem);
+        cudaFreeHost(mh_result);
+
 #ifdef ENABLE_DUMPING
         cudaFreeHost(mhost_alloc_base);
 #endif
