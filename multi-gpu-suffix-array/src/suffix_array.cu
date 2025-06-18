@@ -223,7 +223,7 @@ public:
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(4);
-        printf("Sorted \n");
+        printf("[%lu] Sorted \n", world_rank());
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
@@ -233,6 +233,7 @@ public:
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Final_Merge);
         final_merge();
+        printf("[%lu] final merge done\n", world_rank());
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
         copy_result_to_host();
@@ -679,7 +680,7 @@ private:
             merge_async(inp_S12, inp_S0, result, MergeCompFunctor(), false, mcontext, qd_alloc_h_temp);
 
         mcontext.sync_default_streams();
-
+        printf("[%lu] merge async done\n", world_rank());
         //            dump_final_merge("after final merge");
 
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -706,10 +707,10 @@ private:
         CUERR;
         //}
         mcontext.sync_default_streams();
-        for (int gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
-            std::span<sa_index_t> buffer(h_result + gpu.offset, gpu.num_elements);
-            comm_world().bcast(send_recv_buf(buffer), root(gpu_index));
-        }
+        // for (int gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
+        //     std::span<sa_index_t> buffer(h_result + gpu.offset, gpu.num_elements);
+        //     comm_world().bcast(send_recv_buf(buffer), root(gpu_index));
+        // }
         //std::span<sa_index_t> rb(h_result, );
 
     }
@@ -961,9 +962,9 @@ int main(int argc, char** argv)
     sorter.do_sa();
 
     // t.stop();
-    for (int i = 0; i < realLen; i++) {
-        printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
-    }
+    //for (int i = 0; i < realLen; i++) {
+    //    printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
+    //}
     //write_array(argv[2], sorter.get_result(), realLen);
 
     sorter.done();
