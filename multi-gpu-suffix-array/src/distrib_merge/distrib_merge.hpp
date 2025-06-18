@@ -260,7 +260,7 @@ namespace distrib_merge {
                                 s->d_result_ptr);
                             CUERR;
                         }
-                        printf("[%lu] recv, i: \n", world_rank(), i);
+                        printf("[%lu] recv, i: %d \n", world_rank(), i);
                         s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
 
                         cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
