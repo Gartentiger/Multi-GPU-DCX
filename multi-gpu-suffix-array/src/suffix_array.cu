@@ -961,8 +961,10 @@ int main(int argc, char** argv)
     sorter.do_sa();
 
     // t.stop();
-
-    write_array(argv[2], sorter.get_result(), realLen);
+    for (int i = 0; i < realLen; i++) {
+        printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
+    }
+    //write_array(argv[2], sorter.get_result(), realLen);
 
     sorter.done();
 
