@@ -728,15 +728,18 @@ private:
         CUERR;
         //}
         mcontext.sync_default_streams();
-        std::vector<sa_index_t> res;
-        res.clear();
+        std::vector<sa_index_t> recv;
+        recv.clear();
         std::span<sa_index_t> sb(h_result + gpu.offset, gpu.num_elements);
-        comm_world().gatherv(send_buf(sb), recv_buf<resize_to_fit>(res));
-        for (sa_index_t sa : res)
-        {
-            printf("[%lu] sa: %u\n", world_rank(), sa);
+        auto [sendCounts] = comm_world().gatherv(send_buf(sb), recv_buf<resize_to_fit>(recv), send_counts_out());
+        int sumCounts = 0;
+        int i = 0;
+        for (auto count : sendCounts) {
+            ASSERT(count == mgpus[i].num_elements);
+            memcpy(h_result + mgpus[i].offset, recv.data() + sumCounts, sizeof(sa_index_t) * count);
+            sumCounts += count;
+            i++;
         }
-
         // for (int gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
         //     std::span<sa_index_t> buffer(h_result + gpu.offset, gpu.num_elements);
         //     comm_world().bcast(send_recv_buf(buffer), root(gpu_index));
@@ -992,9 +995,9 @@ int main(int argc, char** argv)
     sorter.do_sa();
 
     // t.stop();
-    //for (int i = 0; i < realLen; i++) {
-    //    printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
-    //}
+    for (int i = 0; i < realLen; i++) {
+        printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
+    }
     //write_array(argv[2], sorter.get_result(), realLen);
 
     sorter.done();
