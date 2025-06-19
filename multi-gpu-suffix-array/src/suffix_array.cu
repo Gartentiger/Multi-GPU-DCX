@@ -1005,6 +1005,7 @@ int main(int argc, char** argv)
     cudaFreeHost(input);
     CUERR;
 
+    return 0;
     // std::ofstream outFile(argv[1], std::ios::app);
     // t.aggregate_and_print(
     //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });

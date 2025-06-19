@@ -153,13 +153,15 @@ public:
     {
 
         // Synchronize and destroy streams
-        for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
+        // for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
         {
+            uint src_gpu = world_rank();
             cudaSetDevice(get_device_id(src_gpu));
             cudaDeviceSynchronize();
             CUERR;
             for (uint part = 0; part < num_gpus; ++part)
             {
+
                 cudaStreamSynchronize(get_streams(src_gpu)[part]);
                 CUERR;
                 delete mpgu_contexts[src_gpu][part];
