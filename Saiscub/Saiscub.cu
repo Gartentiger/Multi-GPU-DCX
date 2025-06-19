@@ -67,6 +67,9 @@ int main(int argc, char** argv)
                 std::cerr << "Error: " << err << std::endl;
                 return 1;
             }
+            for (int i = 0; i < size; i++) {
+                std::cout << sa[i] << std::endl;
+            }
 
             write(argv[2], sa, size);
 

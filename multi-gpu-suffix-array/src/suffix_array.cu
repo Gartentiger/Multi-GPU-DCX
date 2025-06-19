@@ -826,61 +826,6 @@ int main(int argc, char** argv)
     kamping::Environment e;
     Communicator comm;
 
-
-    // printf("* Rank: %d\n", comm.rank_signed());
-    // // std::vector<int> input2(2u * comm.size(), comm.rank_signed());
-    // // std::vector<int> output = comm.alltoall(send_buf(input2));
-    // // printf("Rank: %d, Size: %d, SRank: %d\n", comm.rank(), output[0], output[1]);
-    // printf("* Allocate memory [%d],GPU\n", world_rank());
-    // // int* d_a;
-    // // if (cudaMalloc((void**)&d_a, 1000 * sizeof(int)) != cudaSuccess)
-    // // {
-    // //     cudaMemset(d_a, 0, 1000 * sizeof(int));
-
-    // //     printf("Error malloc", world_rank());
-    // //     return 1;
-    // // }
-
-    // int err = 0;
-    // MPI_Status status;
-
-
-    // std::vector<int> recv;
-    // // From [1],GPU to [0],GPU
-    // if (world_rank() == 1)
-    // {
-    //     std::vector<int> vec{ 1,2,3,4 };
-    //     //printf("* Send from [%d],GPU Data %d\n", world_rank(), d_a[0]);
-    //     // cudaMemset(d_a, 1, 1000 * sizeof(int));
-
-    //     comm.allgatherv(send_buf(vec), recv_buf<resize_to_fit>(recv));
-    // }
-    // else if (world_rank() == 0)
-    // {
-    //     std::vector<int> vec{ 6,7,8,9,10 };
-    //     //comm.recv(d_a);
-    //     // comm.recv<int *>(recv_buf(d_a));
-    //     //printf("* Receive to [%d],GPU Data %d\n", world_rank(), d_a[0]);
-    //     comm.allgatherv(send_buf(vec), recv_buf<resize_to_fit>(recv));
-    // }
-    // else if (world_rank() == 2) {
-    //     std::vector<int> vec{ 11,12,13,14,15,16 };
-    //     comm.allgatherv(send_buf(vec), recv_buf<resize_to_fit>(recv));
-    // }
-    // else if (world_rank() == 3) {
-    //     std::vector<int> vec{ 17,18 };
-    //     comm.allgatherv(send_buf(vec), recv_buf<resize_to_fit>(recv));
-    // }
-    // for (int i : recv) {
-    //     std::cout << "* Data: " << i << ", Rank: " << world_rank() << std::endl;
-    // }
-    // auto received = comm.sendrecv<int>(send_buf(input), destination(dest));
-    //printf("* Free memory on [%d],GPU\n", world_rank());
-    //cudaFree(d_a);
-
-    //e.finalize();
-    //return 0;
-
     if (argc != 4)
     {
         error("Usage: sa-test <ifile> <ofile>!");
@@ -917,9 +862,9 @@ int main(int argc, char** argv)
     sorter.do_sa();
 
     t.stop();
-    for (int i = 0; i < realLen; i++) {
-        printf("%u: %s\n", sorter.get_result()[i], input + sorter.get_result()[i]);
-    }
+    // for (int i = 0; i < realLen; i++) {
+    //     printf("%u: %s\n", sorter.get_result()[i], input + sorter.get_result()[i]);
+    // }
     write_array(argv[2], sorter.get_result(), realLen);
 
     sorter.done();

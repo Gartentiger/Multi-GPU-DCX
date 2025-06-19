@@ -42,7 +42,9 @@ int write(char* OutPath, int32_t* sa, size_t size) {
         return 1;
     }
     for (size_t i = 0; i < size; i++) {
+        std::cout << sa[i] << std::endl;
         outFile << sa[i];
+        outFile << " \n";
     }
     outFile.close();
     return 0;
