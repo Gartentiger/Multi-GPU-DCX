@@ -995,15 +995,17 @@ int main(int argc, char** argv)
     sorter.do_sa();
 
     // t.stop();
-    for (int i = 0; i < realLen; i++) {
-        printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
+    if (world_rank() == 0) {
+        for (int i = 0; i < realLen; i++) {
+            printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
+        }
+        write_array(argv[2], sorter.get_result(), realLen);
+        // sorter.print_pd_stats();
+        // sorter.get_perf_measurements().print();
     }
-    //write_array(argv[2], sorter.get_result(), realLen);
 
     sorter.done();
 
-    //sorter.print_pd_stats();
-    //sorter.get_perf_measurements().print();
 
     cudaFreeHost(input);
     CUERR;
