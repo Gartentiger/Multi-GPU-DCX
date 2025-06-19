@@ -698,7 +698,6 @@ private:
         mcontext.sync_default_streams();
         printf("[%lu] merge async done\n", world_rank());
         comm_world().barrier();
-        exit(1);
         //            dump_final_merge("after final merge");
 
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -851,7 +850,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 };
 
