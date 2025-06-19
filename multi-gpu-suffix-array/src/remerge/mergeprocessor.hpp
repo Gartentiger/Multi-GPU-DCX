@@ -480,12 +480,8 @@ namespace crossGPUReMerge
             //     printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.value_buffer, mnode.info.values, mnode.info.num_elements, mnode.info.index);
             //     mcontext.sync_gpu_default_stream(mnode.info.index);
             // }
-            //
-            mcontext.sync_all_streams();
-            //
-            printf("[%lu] copy done\n", world_rank());
-            comm_world().barrier();
-            exit(1);
+
+
             if (!multi_mergers.empty())
             {
                 bool finished = false;

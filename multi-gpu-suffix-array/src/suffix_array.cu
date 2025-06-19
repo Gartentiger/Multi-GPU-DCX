@@ -223,6 +223,7 @@ public:
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(4);
+        exit(1);
         printf("[%lu] Sorted \n", world_rank());
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
@@ -835,7 +836,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 };
 
