@@ -13,8 +13,9 @@
 #include "../merge_copy_detour_guide.hpp"
 
 #include <span>
-#include <kamping/p2p/recv.hpp>
-#include <kamping/p2p/send.hpp>
+#include <kamping/p2p/irecv.hpp>
+#include <kamping/p2p/isend.hpp>
+#include <kamping/request_pool.hpp>
 
 namespace crossGPUReMerge {
 
@@ -202,8 +203,10 @@ namespace crossGPUReMerge {
             using value_t = typename mtypes::value_t;
             // make sure computations are done before copying
             mcontext.sync_all_streams();
+            RequestPool pool;
             printf("[%lu] do values: %s\n", world_rank(), do_values ? "true" : "false");
             (void)detour_buffer_sizes;
+            int i = 0;
             for (uint node = 0; node < NUM_GPUS; ++node) {
 
                 cudaSetDevice(mcontext.get_device_id(node));CUERR;
@@ -218,31 +221,33 @@ namespace crossGPUReMerge {
                         //const
                         key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
                         std::span<key_t> sb(src_k_buff, c.len);
-                        comm_world().isend(send_buf(sb), send_count(c.len), tag(0), destination((size_t)c.dest_node));
+                        comm_world().isend(send_buf(sb), send_count(c.len), tag(i), destination((size_t)c.dest_node), request(pool.get_request()));
                         if (do_values) {
                             //const
                             value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
                             std::span<value_t> sb(src_v_buff, c.len);
-                            comm_world().isend(send_buf(sb), send_count(c.len), tag(1), destination((size_t)c.dest_node));
+                            comm_world().isend(send_buf(sb), send_count(c.len), tag(i + 1), destination((size_t)c.dest_node), request(pool.get_request()));
                         }
                     }
 
                     if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
                         std::span<key_t> rb(dest_k_buff, c.len);
-                        comm_world().recv(recv_buf(rb), tag(0), recv_count(c.len));
+                        comm_world().irecv(recv_buf(rb), tag(i), recv_count(c.len), request(pool.get_request()));
                         if (do_values) {
                             value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer + c.dest_index;
                             std::span<value_t> rb(dest_v_buff, c.len);
-                            comm_world().recv(recv_buf(rb), tag(1), recv_count(c.len));
+                            comm_world().irecv(recv_buf(rb), tag(i + 1), recv_count(c.len), request(pool.get_request()));
                         }
                         // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
                         //     src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
                         //     c.len * sizeof(typename mtypes::value_t),
                         //     mcontext.get_streams(node)[c.dest_node]);CUERR;
                     }
+                    i += 2;
                 }
             }
+            pool.wait_all();
         }
     };
 }
