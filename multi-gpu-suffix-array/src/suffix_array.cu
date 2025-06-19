@@ -249,10 +249,15 @@ public:
         printf("[%lu] final merge done\n", world_rank());
         comm_world().barrier();
         //
-        exit(0);
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
         copy_result_to_host();
+        //
+        mcontext.sync_all_streams();
+        printf("[%lu] complete\n", world_rank());
+        comm_world().barrier();
+        //
+        exit(1);
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
         TIMERSTOP(Total);
 
@@ -724,6 +729,15 @@ private:
         CUERR;
         //}
         mcontext.sync_default_streams();
+        std::vector<sa_index_t> res;
+        res.clear();
+        std::span<sa_index_t> sb(h_result + gpu.offset, gpu.num_elements);
+        comm_world().gatherv(send_buf(sb), recv_buf<resize_to_fit>(res));
+        for (sa_index_t sa : res)
+        {
+            printf("[%lu] sa: %u", world_rank(), sa);
+        }
+
         // for (int gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
         //     std::span<sa_index_t> buffer(h_result + gpu.offset, gpu.num_elements);
         //     comm_world().bcast(send_recv_buf(buffer), root(gpu_index));
