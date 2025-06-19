@@ -257,7 +257,6 @@ public:
         printf("[%lu] complete\n", world_rank());
         comm_world().barrier();
         //
-        exit(1);
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
         TIMERSTOP(Total);
 
@@ -735,7 +734,7 @@ private:
         comm_world().gatherv(send_buf(sb), recv_buf<resize_to_fit>(res));
         for (sa_index_t sa : res)
         {
-            printf("[%lu] sa: %u", world_rank(), sa);
+            printf("[%lu] sa: %u\n", world_rank(), sa);
         }
 
         // for (int gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
