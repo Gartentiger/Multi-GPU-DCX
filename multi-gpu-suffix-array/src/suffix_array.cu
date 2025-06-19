@@ -731,7 +731,7 @@ private:
         std::vector<sa_index_t> recv;
         recv.clear();
         std::span<sa_index_t> sb(h_result + gpu.offset, gpu.num_elements);
-        auto [sendCounts] = comm_world().gatherv(send_buf(sb), recv_buf<resize_to_fit>(recv), send_counts_out());
+        auto [sendCounts] = comm_world().gatherv(send_buf(sb), recv_buf<resize_to_fit>(recv), recv_counts_out());
         int sumCounts = 0;
         int i = 0;
         for (auto count : sendCounts) {
