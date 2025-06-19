@@ -461,7 +461,6 @@ public:
         //            TIMER_STOP_MAIN_STAGE(MainStages::Final_Transpose);
         mcontext.sync_all_streams();
         //
-        mcontext.sync_all_streams();
         printf("[%lu] prefix doubling done\n", world_rank());
         comm_world().barrier();
         //

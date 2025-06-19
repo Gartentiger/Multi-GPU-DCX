@@ -223,18 +223,33 @@ public:
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(4);
-        exit(1);
-        printf("[%lu] Sorted \n", world_rank());
+
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
+        //
+        mcontext.sync_all_streams();
+        printf("[%lu] prepare s12 for merge done\n", world_rank());
+        comm_world().barrier();
+        //
+
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         prepare_S0_for_merge();
+        //
+        mcontext.sync_all_streams();
+        printf("[%lu] prepare s0 for merge done\n", world_rank());
+        comm_world().barrier();
+        //
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Final_Merge);
         final_merge();
+        //
+        mcontext.sync_all_streams();
         printf("[%lu] final merge done\n", world_rank());
+        comm_world().barrier();
+        //
+        exit(0);
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
         copy_result_to_host();
