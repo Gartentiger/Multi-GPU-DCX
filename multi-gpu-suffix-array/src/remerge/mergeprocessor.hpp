@@ -356,7 +356,7 @@ namespace crossGPUReMerge
                 {
                     for (auto s : mnodes[i].scheduled_work.searches)
                     {
-                        s->h_result_ptr = = mhost_search_temp_allocator.get<int64_t>(1);
+                        s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
                         *s->h_result_ptr = recv_search_result[enumer++];
                     }
                 }
