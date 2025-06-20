@@ -320,6 +320,9 @@ namespace crossGPUReMerge
                         }
 
                         printf("[%lu] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", world_rank(), size_1, size_2, s->cross_diagonal);
+                        printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, world_rank());
+                        printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, world_rank());
+
                         run_partitioning_search << <1, 1, 0, stream >> > (start_1, size_1, start_2, size_2, s->cross_diagonal,
                             comp, s->d_result_ptr);
                         CUERR;
