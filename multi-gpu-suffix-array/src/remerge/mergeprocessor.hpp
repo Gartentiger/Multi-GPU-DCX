@@ -304,7 +304,7 @@ namespace crossGPUReMerge
                                 cudaMalloc(&start_2, sizeof(key_t) * size_2);
                                 tempRef = start_2;
                                 std::span<key_t> rb(start_2, size_2);
-                                comm_world().recv(recv_buf(rb), tag(msgTag++) recv_count(size_2));
+                                comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_2));
                                 // printf("[%lu] received from node 2: %u\n", world_rank(), s->node_2);
                             }
                             else
@@ -318,6 +318,7 @@ namespace crossGPUReMerge
                                 // printf("[%lu] received from node 1: %u\n", world_rank(), s->node_1);
                             }
                         }
+
                         printf("[%lu] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", world_rank(), size_1, size_2, s->cross_diagonal);
                         run_partitioning_search << <1, 1, 0, stream >> > (start_1, size_1, start_2, size_2, s->cross_diagonal,
                             comp, s->d_result_ptr);
@@ -448,7 +449,7 @@ namespace crossGPUReMerge
 
                 for (auto s : node.scheduled_work.searches)
                 {
-                    printf("[%lu] results: %ld, ident: %d\n" s->result, ident);
+                    printf("[%lu] results: %ld, ident: %d\n", s->result, ident);
                     s->result = node.info.index == *s->h_result_ptr;
                     ident++;
                 }
