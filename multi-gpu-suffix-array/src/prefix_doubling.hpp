@@ -810,6 +810,7 @@ private:
         }
         mcontext.sync_default_streams();
 #endif
+        printf("[%lu] before send compact\n", world_rank());
 
         //printf("[%lu] compacting\n", world_rank());
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -836,7 +837,7 @@ private:
                 }
             }
 
-            //printf("[%lu] after isend\n", world_rank());
+            printf("[%lu] after isend compact\n", world_rank());
             if (gpu.working_len > 0)
             {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
@@ -862,7 +863,7 @@ private:
                 else {
                     Last_rank_prev = nullptr;
                 }
-
+                printf("[%lu] after recv compact\n", world_rank());
                 //First_rank_next = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].Sa_rank
                 //    : nullptr;
                 // pointer to const sa_index_t, last element from next gpu Sa_rank
