@@ -203,7 +203,8 @@ namespace crossGPUReMerge
                                 // sender != receiver
                                 // printf("[%lu] receiving, sender: %u, i: %d\n", world_rank(), r.start.node, i);
 
-                                key_t* temp = (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
+                                key_t* temp; //= (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
+                                cudaMalloc(&temp, sizeof(key_t) * len);
                                 tempPointers.push_back(temp);
                                 std::span<key_t> rb(temp, len);
                                 comm_world().recv(recv_buf(rb), recv_count(len));
@@ -330,17 +331,21 @@ namespace crossGPUReMerge
                         //     i++;
                         // }
 
-                        multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ads[adCount++], (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
+                        multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ads[adCount], (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
                             (uint*)(ms->d_result_ptr + result_buffer_length - 1));
 
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
+
                     }
                 }
             }
 
+            for (auto ptr : tempPointers) {
+                cudaFree(ptr);
+            }
             mcontext.sync_all_streams();
 
             MergeNode mergeNode = mnodes[world_rank()];
