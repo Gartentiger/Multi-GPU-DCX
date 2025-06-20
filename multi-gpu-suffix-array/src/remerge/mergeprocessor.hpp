@@ -19,7 +19,10 @@
 #include <kamping/named_parameters.hpp>
 #include <kamping/checking_casts.hpp>
 #include <kamping/p2p/send.hpp>
+#include <kamping/p2p/isend.hpp>
+
 #include <kamping/p2p/recv.hpp>
+
 #include <span>
 
 namespace crossGPUReMerge
@@ -228,7 +231,7 @@ namespace crossGPUReMerge
                             int64_t size_1 = s->node1_range.end - s->node1_range.start;
 
                             std::span<key_t> sb(start_1, size_1);
-                            comm_world().isend(send_buf(sb), send_count(size_1), destination(node.info.index));
+                            comm_world().isend(send_buf(sb), send_count(size_1), destination((size_t)node.info.index));
                         }
                         else if (s->node_2)
                         {
@@ -236,7 +239,7 @@ namespace crossGPUReMerge
                             int64_t size_2 = s->node2_range.end - s->node2_range.start;
                             std::span<key_t> sb(start_2, size_2);
 
-                            comm_world().isend(send_buf(sb), send_count(size_2), destination(node.info.index));
+                            comm_world().isend(send_buf(sb), send_count(size_2), destination((size_t)node.info.index));
                         }
                     }
                 }
@@ -279,8 +282,7 @@ namespace crossGPUReMerge
 
                                 cudaMalloc(&start_2, sizeof(key_t) * size_2);
                                 tempRef = start_2;
-                                std::span<key_t>
-                                    rb(start_2, size_2);
+                                std::span<key_t> rb(start_2, size_2);
                                 comm_world().recv(recv_buf(start_2), recv_count(size_2));
                             }
                             else
