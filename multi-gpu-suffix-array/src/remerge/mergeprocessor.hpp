@@ -268,10 +268,10 @@ namespace crossGPUReMerge
                 const uint node_index = node.info.index;
                 cudaSetDevice(mcontext.get_device_id(node_index));
                 CUERR;
-
                 // printf("Merge node index %d\n", node_index);
                 if (world_rank() == node_index)
                 {
+                    int msgTag = 0;
 
                     QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
                     printf("[%lu] searches.size() = %lu\n", world_rank(), node.scheduled_work.searches.size());
@@ -304,21 +304,21 @@ namespace crossGPUReMerge
                                 cudaMalloc(&start_2, sizeof(key_t) * size_2);
                                 tempRef = start_2;
                                 std::span<key_t> rb(start_2, size_2);
-                                comm_world().recv(recv_buf(rb), recv_count(size_2));
-                                printf("[%lu] received from node 2: %u\n", world_rank(), s->node_2);
+                                comm_world().recv(recv_buf(rb), tag(msgTag++) recv_count(size_2));
+                                // printf("[%lu] received from node 2: %u\n", world_rank(), s->node_2);
                             }
                             else
                             {
                                 cudaMalloc(&start_1, sizeof(key_t) * size_1);
                                 tempRef = start_1;
                                 std::span<key_t> rb(start_1, size_1);
-                                comm_world().recv(recv_buf(rb), recv_count(size_1));
+                                comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_1));
 
                                 start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
-                                printf("[%lu] received from node 1: %u\n", world_rank(), s->node_1);
+                                // printf("[%lu] received from node 1: %u\n", world_rank(), s->node_1);
                             }
                         }
-
+                        printf("[%lu] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", world_rank(), size_1, size_2, s->cross_diagonal);
                         run_partitioning_search << <1, 1, 0, stream >> > (start_1, size_1, start_2, size_2, s->cross_diagonal,
                             comp, s->d_result_ptr);
                         CUERR;
@@ -442,13 +442,15 @@ namespace crossGPUReMerge
             //     }
             // }
             printf("[%lu] searches done copying back\n", world_rank());
-
+            int ident = 0;
             for (MergeNode& node : mnodes)
             {
 
                 for (auto s : node.scheduled_work.searches)
                 {
+                    printf("[%lu] results: %ld, ident: %d\n" s->result, ident);
                     s->result = node.info.index == *s->h_result_ptr;
+                    ident++;
                 }
 
                 for (auto ms : node.scheduled_work.multi_searches)
