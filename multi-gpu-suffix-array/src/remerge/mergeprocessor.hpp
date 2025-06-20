@@ -283,14 +283,14 @@ namespace crossGPUReMerge
                                 cudaMalloc(&start_2, sizeof(key_t) * size_2);
                                 tempRef = start_2;
                                 std::span<key_t> rb(start_2, size_2);
-                                comm_world().recv(recv_buf(start_2), recv_count(size_2));
+                                comm_world().recv(recv_buf(rb), recv_count(size_2));
                             }
                             else
                             {
                                 cudaMalloc(&start_1, sizeof(key_t) * size_1);
                                 tempRef = start_1;
                                 std::span<key_t> rb(start_1, size_1);
-                                comm_world().recv(recv_buf(start_1), recv_count(size_1));
+                                comm_world().recv(recv_buf(rb), recv_count(size_1));
 
                                 start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                             }
