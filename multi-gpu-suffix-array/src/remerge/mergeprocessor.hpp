@@ -234,12 +234,13 @@ namespace crossGPUReMerge
                     ads.push_back(ad);
                 }
             }
-            printf("[%lu] Mulit search communication done\n", world_rank());
 
             for (MergeNode& node : mnodes) {
-                if (node.info.index != world_rank())
+                printf("[%lu] Mulit search communication done, searches.size(): %lu, mulit_searches.size(): %lu\n", world_rank(), node.scheduled_work.searches.size(), node.scheduled_work.multi_searches.size());
+                int msgTag = 0;
+                for (auto s : node.scheduled_work.searches)
                 {
-                    for (auto s : node.scheduled_work.searches)
+                    if (node.info.index != world_rank())
                     {
                         if (s->node_1 == world_rank())
                         {
@@ -247,17 +248,18 @@ namespace crossGPUReMerge
                             int64_t size_1 = s->node1_range.end - s->node1_range.start;
 
                             std::span<key_t> sb(start_1, size_1);
-                            comm_world().isend(send_buf(sb), send_count(size_1), destination((size_t)node.info.index));
+                            comm_world().isend(send_buf(sb), tag(msgTag), send_count(size_1), destination((size_t)node.info.index));
                         }
-                        else if (s->node_2)
+                        else if (s->node_2 == world_rank())
                         {
                             key_t* start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                             int64_t size_2 = s->node2_range.end - s->node2_range.start;
                             std::span<key_t> sb(start_2, size_2);
 
-                            comm_world().isend(send_buf(sb), send_count(size_2), destination((size_t)node.info.index));
+                            comm_world().isend(send_buf(sb), tag(msgTag), send_count(size_2), destination((size_t)node.info.index));
                         }
                     }
+                    msgTag++;
                 }
             }
 
@@ -439,7 +441,7 @@ namespace crossGPUReMerge
 
             //     }
             // }
-            // printf("Multi searches done %lu\n", world_rank());
+            printf("[%lu] searches done copying back\n", world_rank());
 
             for (MergeNode& node : mnodes)
             {
