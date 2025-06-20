@@ -167,15 +167,14 @@ namespace crossGPUReMerge
 
             for (MergeNode& node : mnodes)
             {
+                int msgTag = 0;
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
-                    ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
-                    int i = 0;
                     for (const auto& r : ms->ranges)
                     {
                         // printf("[%lu] Length: %lu, i: %d\n", world_rank(), ms->ranges.size(), i);
                         sa_index_t len = r.end.index - r.start.index;
-                        ad.lengths[i] = r.end.index - r.start.index;
+                        //ad.lengths[i] = r.end.index - r.start.index;
 
                         // identify sender id (r.start.node)
                         if (r.start.node == world_rank())
@@ -185,44 +184,58 @@ namespace crossGPUReMerge
                             {
                                 // sender == reveiver
                                 // printf("[%lu] receiving own, sender: %u, i: %d\n", world_rank(), r.start.node, i);
-                                ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
+                                // ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                             }
                             else
                             {
-                                // printf("[%lu] sending, receiver: %u, i: %d\n", world_rank(), node.info.index, i);
+                                printf("[%lu] sending to [%u], msgTag: %d\n", world_rank(), node.info.index, msgTag);
                                 //  sender != reveiver -> send data
                                 std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
-                                comm_world().isend(send_buf(sb), send_count(len), destination((size_t)node.info.index));
+                                comm_world().isend(send_buf(sb), send_count(len), tag(msgTag), destination((size_t)node.info.index));
                             }
                         }
-                        else
-                        {
-                            // identify receiver id (node.info.index)
-                            if (node.info.index == world_rank())
-                            {
-                                // sender != receiver
-                                // printf("[%lu] receiving, sender: %u, i: %d\n", world_rank(), r.start.node, i);
-
-                                key_t* temp; //= (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
-                                cudaMalloc(&temp, sizeof(key_t) * len);
-                                tempPointers.push_back(temp);
-                                std::span<key_t> rb(temp, len);
-                                comm_world().recv(recv_buf(rb), recv_count(len));
-                                ad.keys[i] = temp; // mnodes[r.start.node].info.keys + r.start.index;
-                            }
-                        }
-                        // comm_world().barrier();
-                        // printf("[%lu] sender: %u, receiver: %u, i: %d\n", world_rank(), r.start.node, node.info.index, i);
-                        i++;
-                    }
-                    // not needed otherwise
-                    if (node.info.index == world_rank())
-                    {
-                        ads.push_back(ad);
+                        msgTag++;
                     }
                 }
             }
+
+
+            {
+                MergeNode& node = mnodes[world_rank()];
+                int msgTag = 0;
+                for (auto ms : node.scheduled_work.multi_searches)
+                {
+                    ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
+                    int i = 0;
+
+                    for (const auto& r : ms->ranges)
+                    {
+                        sa_index_t len = r.end.index - r.start.index;
+                        ad.lengths[i] = r.end.index - r.start.index;
+
+                        if (r.start.node == world_rank())
+                        {
+                            printf("[%lu] receiving own, msgTag: %d\n", world_rank(), msgTag);
+                            ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
+                        }
+                        else {
+                            printf("[%lu] receiving, msgTag: %d\n", world_rank(), msgTag);
+
+                            key_t* temp; //= (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
+                            cudaMalloc(&temp, sizeof(key_t) * len);
+                            tempPointers.push_back(temp);
+                            std::span<key_t> rb(temp, len);
+                            comm_world().recv(recv_buf(rb), tag(msgTag), recv_count(len));
+                            ad.keys[i] = temp; // mnodes[r.start.node].info.keys + r.start.index;
+                        }
+                        i++;
+                        msgTag++;
+                    }
+                    ads.push_back(ad);
+                }
+            }
             printf("[%lu] Mulit search communication done\n", world_rank());
+
             for (MergeNode& node : mnodes) {
                 if (node.info.index != world_rank())
                 {
