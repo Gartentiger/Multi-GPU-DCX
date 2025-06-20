@@ -212,11 +212,11 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Input);
-        // printf("Copy Input\n");
+        printf("[%lu] Copy Input\n", world_rank());
 
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
         produce_kmers();
-        // printf("Produce kmers\n");
+        printf("[%lu] Produce kmers\n", world_rank());
 
         TIMER_STOP_MAIN_STAGE(MainStages::Produce_KMers);
 
@@ -943,13 +943,13 @@ int main(int argc, char** argv)
     sorter.alloc();
     // printf("Alloc\n");
 
-    auto stringPath = ((std::string)argv[3]);
-    int pos = stringPath.find_last_of("/\\");
-    auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
+    // auto stringPath = ((std::string)argv[3]);
+    // int pos = stringPath.find_last_of("/\\");
+    // auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
 
-    auto& t = kamping::measurements::timer();
-    if (world_rank() == 0)
-        t.synchronize_and_start(fileName);
+    // auto& t = kamping::measurements::timer();
+    // if (world_rank() == 0)
+    //     t.synchronize_and_start(fileName);
 
     sorter.do_sa();
 
@@ -961,12 +961,12 @@ int main(int argc, char** argv)
         // sorter.print_pd_stats();
         // sorter.get_perf_measurements().print();
 
-        std::ofstream outFile(argv[1], std::ios::app);
-        t.aggregate_and_print(
-            kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-        std::cout << std::endl;
-        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        std::cout << std::endl;
+        // std::ofstream outFile(argv[1], std::ios::app);
+        // t.aggregate_and_print(
+        //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+        // std::cout << std::endl;
+        // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        // std::cout << std::endl;
 
         write_array(argv[2], sorter.get_result(), realLen);
     }
