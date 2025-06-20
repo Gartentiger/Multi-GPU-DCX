@@ -1297,11 +1297,11 @@ private:
             if (world_rank() == gpu_index)
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.Sa_rank, mreserved_len * sizeof(sa_index_t));
         }
-
         //            PartioningFunctorFilteringZeroes<uint> f(misa_divisor, NUM_GPUS-1);
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
 
         mcontext.sync_default_streams(); // NOT NEEDED
+        printf("[%lu] write sa index adding h\n", world_rank());
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Prepare_Indices);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::Multisplit);
@@ -1321,6 +1321,7 @@ private:
         }
 
         mcontext.sync_default_streams();
+        printf("[%lu] execKVAsync isa fetching\n", world_rank());
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Multisplit);
 
         //            print_split_table(split_table);
@@ -1328,6 +1329,8 @@ private:
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
         mall2all.execAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
+        printf("[%lu] execKVAsync all2all isa writing\n", world_rank());
+
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
 
         //            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
@@ -1349,6 +1352,8 @@ private:
             }
         }
         mcontext.sync_default_streams();
+        printf("[%lu] fetch isa multi\n", world_rank());
+
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Fetch);
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -1368,6 +1373,8 @@ private:
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
         mall2all.execAsync(all2all_node_info, split_table_back);
         mcontext.sync_all_streams();
+        printf("[%lu] exec Async isa fetching\n", world_rank());
+
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::WriteRanks);
