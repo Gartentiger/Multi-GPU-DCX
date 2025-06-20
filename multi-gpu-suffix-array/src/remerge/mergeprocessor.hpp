@@ -293,32 +293,32 @@ namespace crossGPUReMerge
             mcontext.sync_all_streams();
             //printf("[%lu] done\n", world_rank());
             MergeNode mergeNode = mnodes[world_rank()];
-            size_t send_size = mergeNode.scheduled_work.searches.size();
-            if (send_size > 0) {
+            // size_t send_size = mergeNode.scheduled_work.searches.size();
+            // if (send_size > 0) {
 
-                std::vector<int64_t> send_search_result(send_size);
-                for (size_t i = 0; i < send_size; i++)
-                {
-                    send_search_result.push_back(*mergeNode.scheduled_work.searches[i]->h_result_ptr);
-                }
-                std::vector<int> search_output_counts(comm_world().size());
-                std::vector<int64_t> recv_search_result;
-                comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result), recv_counts_out());
+            //     std::vector<int64_t> send_search_result(send_size);
+            //     for (size_t i = 0; i < send_size; i++)
+            //     {
+            //         send_search_result.push_back(*mergeNode.scheduled_work.searches[i]->h_result_ptr);
+            //     }
+            //     std::vector<int> search_output_counts(comm_world().size());
+            //     std::vector<int64_t> recv_search_result;
+            //     comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result), recv_counts_out());
 
-                // printf("Allgather %lu\n", world_rank());
-                int enumer = 0;
-                for (int i = 0; i < comm_world().size(); i++)
-                {
-                    for (int j = 0; j < search_output_counts[i]; j++)
-                    {
-                        MergeNode node = mnodes[i];
-                        ASSERT(node.info.index == i);
-                        node.scheduled_work.searches[j]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-                        *node.scheduled_work.searches[j]->h_result_ptr = recv_search_result[enumer++];
-                    }
-                }
-            }
-            printf("Searches done %lu\n", world_rank());
+            //     // printf("Allgather %lu\n", world_rank());
+            //     int enumer = 0;
+            //     for (int i = 0; i < comm_world().size(); i++)
+            //     {
+            //         for (int j = 0; j < search_output_counts[i]; j++)
+            //         {
+            //             MergeNode node = mnodes[i];
+            //             ASSERT(node.info.index == i);
+            //             node.scheduled_work.searches[j]->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
+            //             *node.scheduled_work.searches[j]->h_result_ptr = recv_search_result[enumer++];
+            //         }
+            //     }
+            // }
+            // printf("Searches done %lu\n", world_rank());
 
 
             size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
@@ -337,7 +337,7 @@ namespace crossGPUReMerge
 
             std::vector<int64_t> recv_multi_search_result;
             auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
-            printf("Multi searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
+            // printf("Multi searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
             int totalIdx = 0;
             // for (int64_t ah : recv_multi_search_result)
             // {
@@ -365,7 +365,7 @@ namespace crossGPUReMerge
 
             //     }
             // }
-            printf("Multi searches done %lu\n", world_rank());
+            // printf("Multi searches done %lu\n", world_rank());
 
             for (MergeNode& node : mnodes)
             {

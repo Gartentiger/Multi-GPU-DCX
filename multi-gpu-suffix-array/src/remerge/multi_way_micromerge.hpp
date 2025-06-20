@@ -60,6 +60,7 @@ namespace crossGPUReMerge {
 
                 if (curr_range_index < NO_RANGES - 1) {
                     for (uint i = 0; i < NO_RANGES; ++i) {
+                        //---------------------------------------------------------------------------------
                         current_split_offs[i] = mmicro_source_ranges[i].start.index + current_search.results[i];
                     }
                     range_to_take_one_more = current_search.range_to_take_one_more;

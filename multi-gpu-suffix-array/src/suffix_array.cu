@@ -228,34 +228,34 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] prepare s12 for merge done\n", world_rank());
-        comm_world().barrier();
+        //mcontext.sync_all_streams();
+        //printf("[%lu] prepare s12 for merge done\n", world_rank());
+        //comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         prepare_S0_for_merge();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] prepare s0 for merge done\n", world_rank());
-        comm_world().barrier();
+        //mcontext.sync_all_streams();
+        //printf("[%lu] prepare s0 for merge done\n", world_rank());
+        //comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Final_Merge);
         final_merge();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] final merge done\n", world_rank());
-        comm_world().barrier();
+        //mcontext.sync_all_streams();
+        //printf("[%lu] final merge done\n", world_rank());
+        //comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
         copy_result_to_host();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] complete\n", world_rank());
-        comm_world().barrier();
+        //mcontext.sync_all_streams();
+        //printf("[%lu] complete\n", world_rank());
+        //comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
         TIMERSTOP(Total);
@@ -700,8 +700,8 @@ private:
             merge_async(inp_S12, inp_S0, result, MergeCompFunctor(), false, mcontext, qd_alloc_h_temp);
 
         mcontext.sync_default_streams();
-        printf("[%lu] merge async done\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] merge async done\n", world_rank());
+        // comm_world().barrier();
         //            dump_final_merge("after final merge");
 
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -912,44 +912,6 @@ int main(int argc, char** argv)
     using namespace kamping;
     kamping::Environment e;
     Communicator comm;
-    // int world_rank = comm.rank_signed();
-
-    // printf("* Rank: %d\n", comm.rank_signed());
-    // // std::vector<int> input2(2u * comm.size(), comm.rank_signed());
-    // // std::vector<int> output = comm.alltoall(send_buf(input2));
-    // // printf("Rank: %d, Size: %d, SRank: %d\n", comm.rank(), output[0], output[1]);
-    // printf("* Allocate memory [%d],GPU\n", world_rank);
-    // int* d_a;
-    // if (cudaMalloc((void**)&d_a, 1000 * sizeof(int)) != cudaSuccess)
-    // {
-    //     cudaMemset(d_a, 0, 1000 * sizeof(int));
-
-    //     printf("Error malloc", world_rank);
-    //     return 1;
-    // }
-
-    // int err = 0;
-    // MPI_Status status;
-    // // From [1],GPU to [0],GPU
-    // if (world_rank == 1)
-    // {
-    //     printf("* Send from [%d],GPU Data %d\n", world_rank, d_a[0]);
-    //     // cudaMemset(d_a, 1, 1000 * sizeof(int));
-
-    //     comm.send(d_a, destination(0));
-    // }
-    // else if (world_rank == 0)
-    // {
-    //     comm.recv(d_a);
-    //     // comm.recv<int *>(recv_buf(d_a));
-    //     printf("* Receive to [%d],GPU Data %d\n", world_rank, d_a[0]);
-    // }
-    // // auto received = comm.sendrecv<int>(send_buf(input), destination(dest));
-    // printf("* Free memory on [%d],GPU\n", world_rank);
-    // cudaFree(d_a);
-
-    // e.finalize();
-    // return 0;
 
     if (argc != 4)
     {
@@ -959,9 +921,6 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     cudaSetDevice(0);
-    //char* pci;
-    //cudaDeviceGetPCIBusId(pci, 100, 0);
-    //std::cout << pci << std::endl;
 
     size_t realLen;
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), 0);
@@ -977,31 +936,39 @@ int main(int argc, char** argv)
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0,0,0,0 };
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids2);
-    // printf("Multi GPU Context\n");
+
 #endif
     SuffixSorter sorter(context, realLen, input);
-    // printf("Suffix Sorter\n");
 
     sorter.alloc();
     // printf("Alloc\n");
 
-    // auto stringPath = ((std::string)argv[3]);
-    // int pos = stringPath.find_last_of("/\\");
-    // auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
+    auto stringPath = ((std::string)argv[3]);
+    int pos = stringPath.find_last_of("/\\");
+    auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
 
-    // auto& t = kamping::measurements::timer();
-    // t.synchronize_and_start(fileName);
+    auto& t = kamping::measurements::timer();
+    if (world_rank() == 0)
+        t.synchronize_and_start(fileName);
 
     sorter.do_sa();
 
     // t.stop();
     if (world_rank() == 0) {
         for (int i = 0; i < realLen; i++) {
-            printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
+            //printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
         }
-        write_array(argv[2], sorter.get_result(), realLen);
         // sorter.print_pd_stats();
         // sorter.get_perf_measurements().print();
+
+        std::ofstream outFile(argv[1], std::ios::app);
+        t.aggregate_and_print(
+            kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+        std::cout << std::endl;
+        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        std::cout << std::endl;
+
+        write_array(argv[2], sorter.get_result(), realLen);
     }
 
     sorter.done();
@@ -1011,10 +978,4 @@ int main(int argc, char** argv)
     CUERR;
 
     return 0;
-    // std::ofstream outFile(argv[1], std::ios::app);
-    // t.aggregate_and_print(
-    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    // std::cout << std::endl;
-    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    // std::cout << std::endl;
 }

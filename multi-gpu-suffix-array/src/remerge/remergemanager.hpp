@@ -209,7 +209,6 @@ namespace crossGPUReMerge
                 }
                 for (auto& mm : merge.active_micro_merges)
                 {
-                    printf("active mirco merges\n");
                     mm.create_partitions_from_search_results(merge.micro_ranges[mm.first_range()],
                         merge.micro_ranges[mm.second_range()]);
                     // Assign to dest nodes.

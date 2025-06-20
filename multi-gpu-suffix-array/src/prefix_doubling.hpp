@@ -319,9 +319,9 @@ public:
         dump("After initial sort");
 #endif
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Initial sort done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] Initial sort done\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
@@ -332,16 +332,16 @@ public:
         dump("Initial ranking");
 #endif
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Write initial ranks done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] Write initial ranks done\n", world_rank());
+        // comm_world().barrier();
         //
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Write to isa done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] Write to isa done\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
@@ -355,9 +355,9 @@ public:
         bool done = false;
         done = compact();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Compacting);
@@ -380,9 +380,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Fetch_Rank);
             fetch_rank_for_sorting(h);
             //
-            mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
-            comm_world().barrier();
+            // mcontext.sync_all_streams();
+            // printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
+            // comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Fetch_Rank);
@@ -393,9 +393,9 @@ public:
 
             do_segmented_sort();
             //
-            mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
-            comm_world().barrier();
+            // mcontext.sync_all_streams();
+            // printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
+            // comm_world().barrier();
             //
 #ifdef DUMP_EVERYTHING
             dump("After sort");
@@ -404,9 +404,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Rebucket);
             rebucket();
             //
-            mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
-            comm_world().barrier();
+            // mcontext.sync_all_streams();
+            // printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
+            // comm_world().barrier();
             //
 
 
@@ -419,9 +419,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Write_Isa);
             write_to_isa();
             //
-            mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
-            comm_world().barrier();
+            // mcontext.sync_all_streams();
+            // printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
+            // comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Write_Isa);
@@ -435,9 +435,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Compacting);
             done = compact();
             //
-            mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
-            comm_world().barrier();
+            // mcontext.sync_all_streams();
+            // printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
+            // comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Compacting);
@@ -461,8 +461,8 @@ public:
         //            TIMER_STOP_MAIN_STAGE(MainStages::Final_Transpose);
         mcontext.sync_all_streams();
         //
-        printf("[%lu] prefix doubling done\n", world_rank());
-        comm_world().barrier();
+        //printf("[%lu] prefix doubling done\n", world_rank());
+        //comm_world().barrier();
         //
 
         return iterations;
@@ -811,7 +811,7 @@ private:
         mcontext.sync_default_streams();
 #endif
 
-        printf("[%lu] compacting\n", world_rank());
+        //printf("[%lu] compacting\n", world_rank());
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             uint gpu_index = world_rank();
@@ -836,7 +836,7 @@ private:
                 }
             }
 
-            printf("[%lu] after isend\n", world_rank());
+            //printf("[%lu] after isend\n", world_rank());
             if (gpu.working_len > 0)
             {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
@@ -902,13 +902,13 @@ private:
         mcontext.sync_default_streams();
         //dont need Last_rank_prev, First_rank_next anymore
         mcontext.get_device_temp_allocator(world_rank()).reset();
-        printf("[%lu] after first kernel phase\n", world_rank());
+        //printf("[%lu] after first kernel phase\n", world_rank());
         {
             std::span<sa_index_t> sb(mhost_temp_mem + world_rank(), 1);
             std::span<sa_index_t> rb(mhost_temp_mem, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
         }
-        printf("[%lu] after first allgather\n", world_rank());
+        //printf("[%lu] after first allgather\n", world_rank());
 
 #ifdef DEBUG_SET_ZERO_TO_SEE_BETTER
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -940,7 +940,7 @@ private:
                     gpu.num_segments = 0;
                 }
             }
-            printf("[%lu] gpu[%u].working length: %lu\n", world_rank(), gpu_index, gpu.working_len);
+            //printf("[%lu] gpu[%u].working length: %lu\n", world_rank(), gpu_index, gpu.working_len);
         }
 
         // Ok, now we need to identify segments, these are local.
@@ -995,13 +995,13 @@ private:
             }
         }
 
-        printf("[%lu] finished: %s\n", world_rank(), finished ? "true" : "false");
+        //printf("[%lu] finished: %s\n", world_rank(), finished ? "true" : "false");
 
         if (finished)
             return true;
 
         mcontext.sync_default_streams();
-        printf("[%lu] after second kernel phase\n", world_rank());
+        //printf("[%lu] after second kernel phase\n", world_rank());
         {
             //could be prettier
             std::span<sa_index_t> sb(mhost_temp_mem + world_rank() + NUM_GPUS, 1);
@@ -1009,16 +1009,16 @@ private:
             comm_world().allgather(send_buf(sb), recv_buf(rb));
         }
         {
-            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() + 2 * NUM_GPUS, 1);
             std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
         }
         {
-            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() + 3 * NUM_GPUS, 1);
             std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
         }
-        printf("[%lu] after second allgather\n", world_rank());
+        //printf("[%lu] after second allgather\n", world_rank());
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -1062,24 +1062,24 @@ private:
                     CUERR;
                 }
             }
-            printf("[%lu] gpu[%u].working length: %lu, gpu[%u].num_segments: %lu\n", world_rank(), gpu_index, gpu.working_len, gpu_index, gpu.num_segments);
+            //printf("[%lu] gpu[%u].working length: %lu, gpu[%u].num_segments: %lu\n", world_rank(), gpu_index, gpu.working_len, gpu_index, gpu.num_segments);
 
 
         }
         mcontext.sync_all_streams();
-        printf("[%lu] after segment update\n", world_rank());
+        //printf("[%lu] after segment update\n", world_rank());
         {
             //could be more efficient if num_segments is checked before sending data
-            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 2 * NUM_GPUS, 1);
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() + 2 * NUM_GPUS, 1);
             std::span<sa_index_t> rb(mhost_temp_mem + 2 * NUM_GPUS, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
         }
         {
-            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() * 3 * NUM_GPUS, 1);
+            std::span<sa_index_t> sb(mhost_temp_mem + world_rank() + 3 * NUM_GPUS, 1);
             std::span<sa_index_t> rb(mhost_temp_mem + 3 * NUM_GPUS, world_size());
             comm_world().allgather(send_buf(sb), recv_buf(rb));
         }
-        printf("[%lu] after third allgather\n", world_rank());
+        //printf("[%lu] after third allgather\n", world_rank());
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
@@ -1123,7 +1123,7 @@ private:
             multi_split_node_info[gpu_index].dest_len = gpu.working_len;
 
             if (gpu_index == world_rank()) {
-                printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
+                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
             }
         }
@@ -1204,7 +1204,7 @@ private:
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Sort);
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
-        printf("after sorting sync, rank %lu\n", world_rank());
+        //printf("after sorting sync, rank %lu\n", world_rank());
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
