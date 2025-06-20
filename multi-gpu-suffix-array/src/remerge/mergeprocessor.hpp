@@ -221,7 +221,7 @@ namespace crossGPUReMerge
                     }
                 }
 
-                if (node != world_rank())
+                if (node.info.index != world_rank())
                 {
                     for (auto s : node.scheduled_work.searches)
                     {
