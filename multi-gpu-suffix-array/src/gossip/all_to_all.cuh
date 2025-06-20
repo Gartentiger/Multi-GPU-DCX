@@ -91,7 +91,7 @@ namespace gossip {
 
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
                         std::span<value_t> sbValue(from_v, len);
-                        comm_world().isend(isend_buf(sbValue), send_count(len), tag(1), destination((size_t)dest_gpu));
+                        comm_world().isend(send_buf(sbValue), send_count(len), tag(1), destination((size_t)dest_gpu));
                     }
                     if (dest_gpu == world_rank()) {
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
