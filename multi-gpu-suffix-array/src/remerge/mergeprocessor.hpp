@@ -192,7 +192,7 @@ namespace crossGPUReMerge
                                 // printf("[%lu] sending, receiver: %u, i: %d\n", world_rank(), node.info.index, i);
                                 //  sender != reveiver -> send data
                                 std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
-                                comm_world().send(send_buf(sb), send_count(len), destination((size_t)node.info.index));
+                                comm_world().isend(send_buf(sb), send_count(len), destination((size_t)node.info.index));
                             }
                         }
                         else
@@ -211,7 +211,7 @@ namespace crossGPUReMerge
                                 ad.keys[i] = temp; // mnodes[r.start.node].info.keys + r.start.index;
                             }
                         }
-                        comm_world().barrier();
+                        // comm_world().barrier();
                         // printf("[%lu] sender: %u, receiver: %u, i: %d\n", world_rank(), r.start.node, node.info.index, i);
                         i++;
                     }
@@ -221,7 +221,9 @@ namespace crossGPUReMerge
                         ads.push_back(ad);
                     }
                 }
-
+            }
+            printf("[%lu] Mulit search communication done\n", world_rank());
+            for (MergeNode& node : mnodes) {
                 if (node.info.index != world_rank())
                 {
                     for (auto s : node.scheduled_work.searches)
@@ -257,7 +259,7 @@ namespace crossGPUReMerge
                 {
 
                     QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
-
+                    printf("[%lu] searches.size() = %lu\n", world_rank(), node.scheduled_work.searches.size());
                     for (auto s : node.scheduled_work.searches)
                     {
                         printf("[%lu] searches.size() = %lu, node_1: %u, node_2: %u\n", world_rank(), node.scheduled_work.searches.size(), s->node_1, s->node_2);
