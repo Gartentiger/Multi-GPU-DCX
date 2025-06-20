@@ -1159,7 +1159,7 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-        printf("[%lu] after all2all execKVAsync\n", world_rank());
+        printf("[%lu] before all2all execKVAsync\n", world_rank());
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
         printf("[%lu] after all2all execKVAsync\n", world_rank());
@@ -1171,7 +1171,7 @@ private:
         std::array<std::pair<sa_index_t*, sa_index_t*>, NUM_GPUS> sorted_buff;
 
         bool sorting = false;
-        printf("[%lu] after all2all execKVAsync\n", world_rank());
+        // printf("[%lu] after all2all execKVAsync\n", world_rank());
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
