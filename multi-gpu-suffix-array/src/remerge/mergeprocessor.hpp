@@ -132,7 +132,7 @@ namespace crossGPUReMerge {
         template <class comp_func_t>
         void do_searches(comp_func_t comp) {
             mhost_search_temp_allocator.reset();
-            printf("sanity %lu\n", mnodes[0]scheduled_work.searches.size());
+            printf("sanity %lu\n", mnodes[0].scheduled_work.searches.size());
             {
                 MergeNode node = mnodes[0];
                 if (node.scheduled_work.searches.size() > 0) {
