@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <kamping/collectives/allgather.hpp>
 
-static const uint NUM_GPUS = 1;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -845,8 +845,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0 };
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
+    // const std::array<uint, NUM_GPUS> gpu_ids{ 0,1,2,3 };
+    MultiGPUContext<NUM_GPUS> context;
 #endif
     SuffixSorter sorter(context, realLen, input);
 
