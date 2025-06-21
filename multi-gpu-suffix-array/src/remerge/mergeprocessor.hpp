@@ -572,7 +572,7 @@ namespace crossGPUReMerge
                 for (auto s : node.scheduled_work.searches)
                 {
                     printf("[%lu] results: %ld, recv: %ld, ident: %d\n", world_rank(), *s->h_result_ptr, recv_search_result[ident], ident);
-                    s->result = node.info.index == *s->h_result_ptr;
+                    s->result = *s->h_result_ptr;
                     ident++;
                 }
 
