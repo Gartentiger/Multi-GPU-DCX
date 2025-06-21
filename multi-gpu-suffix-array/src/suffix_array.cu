@@ -26,22 +26,22 @@
 #include <thread>
 #include <vector>
 
-#include <mpi.h>
+// #include <mpi.h>
 
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-#include <kamping/checking_casts.hpp>
-#include <kamping/collectives/alltoall.hpp>
-#include <kamping/data_buffer.hpp>
-#include <kamping/environment.hpp>
-#include <kamping/measurements/printer.hpp>
-#include <kamping/measurements/timer.hpp>
-#include <kamping/named_parameters.hpp>
-#include <kamping/communicator.hpp>
-#include <kamping/p2p/recv.hpp>
-#include <kamping/p2p/send.hpp>
-#include <kamping/collectives/allgather.hpp>
+// #include <kamping/checking_casts.hpp>
+// #include <kamping/collectives/alltoall.hpp>
+// #include <kamping/data_buffer.hpp>
+// #include <kamping/environment.hpp>
+// #include <kamping/measurements/printer.hpp>
+// #include <kamping/measurements/timer.hpp>
+// #include <kamping/named_parameters.hpp>
+// #include <kamping/communicator.hpp>
+// #include <kamping/p2p/recv.hpp>
+// #include <kamping/p2p/send.hpp>
+// #include <kamping/collectives/allgather.hpp>
 
 static const uint NUM_GPUS = 4;
 
@@ -822,9 +822,9 @@ void print_device_info()
 }
 int main(int argc, char** argv)
 {
-    using namespace kamping;
-    kamping::Environment e;
-    Communicator comm;
+    //using namespace kamping;
+    //kamping::Environment e;
+    //Communicator comm;
 
     if (argc != 4)
     {
@@ -856,12 +856,12 @@ int main(int argc, char** argv)
     int pos = stringPath.find_last_of("/\\");
     auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
 
-    auto& t = kamping::measurements::timer();
-    t.synchronize_and_start(fileName);
+    //auto& t = kamping::measurements::timer();
+    //t.synchronize_and_start(fileName);
 
     sorter.do_sa();
 
-    t.stop();
+    //t.stop();
     // for (int i = 0; i < realLen; i++) {
     //     printf("%u: %s\n", sorter.get_result()[i], input + sorter.get_result()[i]);
     // }
@@ -875,10 +875,10 @@ int main(int argc, char** argv)
     cudaFreeHost(input);
     CUERR;
 
-    std::ofstream outFile(argv[1], std::ios::app);
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
+    // std::ofstream outFile(argv[1], std::ios::app);
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
 }
