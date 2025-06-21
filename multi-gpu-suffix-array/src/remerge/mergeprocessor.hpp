@@ -511,7 +511,7 @@ namespace crossGPUReMerge
                 {
                     if (world_rank() != i) {
                         s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-                        memcpy(s->h_result_ptr, recv_search_result.data() + enumer, sizeof(int64_t));
+                        *s->h_result_ptr = recv_search_result[enumer];
                     }
                     enumer++;
                 }
@@ -571,7 +571,7 @@ namespace crossGPUReMerge
 
                 for (auto s : node.scheduled_work.searches)
                 {
-                    printf("[%lu] results: %ld, recv: %ld, ident: %d\n", world_rank(), *s->h_result_ptr, recv_search_result[ident], ident);
+                    printf("[%lu] results: %ld, ident: %d\n", world_rank(), s->result, ident);
                     s->result = *s->h_result_ptr;
                     ident++;
                 }
