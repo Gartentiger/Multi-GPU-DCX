@@ -511,7 +511,7 @@ namespace crossGPUReMerge
                 {
                     if (world_rank() != i) {
                         s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-                        s->h_result_ptr = &recv_search_result[enumer];
+                        memcpy(s->h_result_ptr, recv_search_result.data() + enumer, sizeof(int64_t));
                     }
                     enumer++;
                 }
