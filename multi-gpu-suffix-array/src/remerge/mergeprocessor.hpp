@@ -133,10 +133,23 @@ namespace crossGPUReMerge {
         void do_searches(comp_func_t comp) {
             mhost_search_temp_allocator.reset();
 
-            for (MergeNode node : mnodes) {
+            {
+                MergeNode node = mnodes[0];
                 if (node.scheduled_work.searches.size() > 0) {
+                    FILE* fp = fopen("outputKey", "wb");
+                    if (!fp)
+                    {
+                        error("Couldn't open file for writing!");
+                    }
 
-                    printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(node.info.index) >> > (node.info.keys, node.info.num_elements, (size_t)node.info.index, 1);
+                    if (fwrite(sa, sizeof(key_t), len, fp) != len)
+                    {
+                        fclose(fp);
+                        error("Error writing file!");
+                    }
+
+                    fclose(fp);
+
                 }
                 mcontext.sync_all_streams();
             }
