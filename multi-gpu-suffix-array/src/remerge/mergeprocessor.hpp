@@ -13,6 +13,8 @@
 #include "multi_way_partitioning_search.hpp"
 #include "multi_way_micromerge_on_one_node.hpp"
 #include "qdallocator.hpp"
+#include <iostream>
+#include <fstream>
 template<typename ke>
 __global__ void printArrays(ke* key, size_t size, size_t rank, int spec)
 {
