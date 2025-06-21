@@ -24,6 +24,7 @@
 
 #include <span>
 #include <fstream>
+#include <cstdio>
 
 namespace crossGPUReMerge
 {
@@ -165,25 +166,31 @@ namespace crossGPUReMerge
             tempPointers.clear();
             ads.clear();
 
-            //for (MergeNode node : mnodes) {
-            if (0 == world_rank()) {
-                MergeNode node = mnodes[0];
-                if (node.scheduled_work.searches.size() > 0) {
-
-                    std::ofstream out("outputKeys1", std::ios::binary);
-                    if (!out) {
-                        std::cerr << "Could not open file\n";
-                        //return 1;
+            for (MergeNode node : mnodes) {
+                if (node.info.index == world_rank()) {
+                    if (node.scheduled_work.searches.size() > 0) {
+                        char fileName[14];
+                        const char* text = "outputKey_";
+                        sprintf(fileName, "%s%u", text, node.info.index);
+                        std::ofstream out(fileName, std::ios::binary);
+                        if (!out) {
+                            std::cerr << "Could not open file\n";
+                            //return 1;
+                        }
+                        key_t* k = (key_t*)malloc(sizeof(key_t) * node.info.num_elements);
+                        cudaMemcpy(k, node.info.keys, node.info.num_elements, cudaMemcpyDeviceToHost);
+                        out.write(reinterpret_cast<char*>(k), sizeof(key_t) * node.info.num_elements);
+                        out.close();
                     }
-                    key_t* k = (key_t*)malloc(sizeof(key_t) * node.info.num_elements);
-                    cudaMemcpy(k, node.info.keys, node.info.num_elements, cudaMemcpyDeviceToHost);
-                    out.write(reinterpret_cast<char*>(k), sizeof(key_t) * node.info.num_elements);
-                    out.close();
-                    exit(0);
                 }
             }
             mcontext.sync_all_streams();
             comm_world().barrier();
+            for (MergeNode node : mnodes) {
+                if (node.scheduled_work.searches.size() > 0) {
+                    exit(0);
+                }
+            }
 
 
             for (MergeNode& node : mnodes)
