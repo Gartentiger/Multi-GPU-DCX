@@ -356,7 +356,7 @@ namespace crossGPUReMerge
                         //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, world_rank());
 
                         char fileName1[14];
-                        const char* text = "outputKeyNode_";
+                        const char* text = "fakeOutputKeyNode_";
                         {
                             sprintf(fileName1, "%u%s%u", node_index, text, s->node_1);
                             std::ofstream out(fileName1, std::ios::binary);
