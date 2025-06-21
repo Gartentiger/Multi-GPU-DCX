@@ -415,33 +415,33 @@ namespace crossGPUReMerge
                         //printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, world_rank());
                         //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, world_rank());
 
-                        char fileName1[14];
-                        const char* text = "outputKeyNodeF_";
-                        {
-                            sprintf(fileName1, "%u%s%u", node_index, text, s->node_1);
-                            std::ofstream out(fileName1, std::ios::binary);
-                            if (!out) {
-                                std::cerr << "Could not open file\n";
-                                //return 1;
-                            }
-                            key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
-                            cudaMemcpy(k, start_1, size_1 * sizeof(key_t), cudaMemcpyDeviceToHost);
-                            out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
-                            out.close();
-                            free(k);
-                        }
-                        char fileName2[14];
-                        sprintf(fileName2, "%u%s%u", node_index, text, s->node_2);
-                        std::ofstream out(fileName2, std::ios::binary);
-                        if (!out) {
-                            std::cerr << "Could not open file\n";
-                            //return 1;
-                        }
-                        key_t* k = (key_t*)malloc(sizeof(key_t) * size_2);
-                        cudaMemcpy(k, start_2, size_2 * sizeof(key_t), cudaMemcpyDeviceToHost);
-                        out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_2);
-                        out.close();
-                        free(k);
+                        // char fileName1[14];
+                        // const char* text = "outputKeyNodeF_";
+                        // {
+                        //     sprintf(fileName1, "%u%s%u", node_index, text, s->node_1);
+                        //     std::ofstream out(fileName1, std::ios::binary);
+                        //     if (!out) {
+                        //         std::cerr << "Could not open file\n";
+                        //         //return 1;
+                        //     }
+                        //     key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
+                        //     cudaMemcpy(k, start_1, size_1 * sizeof(key_t), cudaMemcpyDeviceToHost);
+                        //     out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
+                        //     out.close();
+                        //     free(k);
+                        // }
+                        // char fileName2[14];
+                        // sprintf(fileName2, "%u%s%u", node_index, text, s->node_2);
+                        // std::ofstream out(fileName2, std::ios::binary);
+                        // if (!out) {
+                        //     std::cerr << "Could not open file\n";
+                        //     //return 1;
+                        // }
+                        // key_t* k = (key_t*)malloc(sizeof(key_t) * size_2);
+                        // cudaMemcpy(k, start_2, size_2 * sizeof(key_t), cudaMemcpyDeviceToHost);
+                        // out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_2);
+                        // out.close();
+                        // free(k);
                         run_partitioning_search << <1, 1, 0, stream >> > (start_1, size_1, start_2, size_2, s->cross_diagonal,
                             comp, s->d_result_ptr);
                         CUERR;
@@ -491,10 +491,7 @@ namespace crossGPUReMerge
             MergeNode mergeNode = mnodes[world_rank()];
             printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
             size_t send_size = mergeNode.scheduled_work.searches.size();
-            if (send_size > 0)
-            {
-                exit(0);
-            }
+
             std::vector<int64_t> send_search_result(send_size);
             send_search_result.clear();
             for (auto s : mergeNode.scheduled_work.searches)
