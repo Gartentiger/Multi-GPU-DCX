@@ -27,7 +27,8 @@
 
 namespace crossGPUReMerge
 {
-    __global__ void printArrays(uint32_t* key, size_t size, size_t rank, int spec)
+    template<typename ke>
+    __global__ void printArrays(ke* key, size_t size, size_t rank, int spec)
     {
         for (size_t i = 0; i < size; i++)
         {
