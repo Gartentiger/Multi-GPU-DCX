@@ -216,7 +216,7 @@ namespace crossGPUReMerge
                             }
                             else
                             {
-                                printf("[%lu] sending to [%u], msgTag: %d\n", world_rank(), node.info.index, msgTag);
+                                // printf("[%lu] sending to [%u], msgTag: %d\n", world_rank(), node.info.index, msgTag);
                                 //  sender != reveiver -> send data
                                 std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
                                 comm_world().isend(send_buf(sb), send_count(len), tag(msgTag), destination((size_t)node.info.index));
@@ -243,11 +243,11 @@ namespace crossGPUReMerge
 
                         if (r.start.node == world_rank())
                         {
-                            printf("[%lu] receiving own, msgTag: %d\n", world_rank(), msgTag);
+                            // printf("[%lu] receiving own, msgTag: %d\n", world_rank(), msgTag);
                             ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                         }
                         else {
-                            printf("[%lu] receiving, msgTag: %d\n", world_rank(), msgTag);
+                            // printf("[%lu] receiving, msgTag: %d\n", world_rank(), msgTag);
 
                             key_t* temp; //= (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
                             cudaMalloc(&temp, sizeof(key_t) * len);
@@ -382,7 +382,7 @@ namespace crossGPUReMerge
 
                         if (other == node.info.index)
                         {
-                            printf("[%lu] other == node\n", world_rank());
+                            // printf("[%lu] other == node\n", world_rank());
 
                             start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
                             start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
@@ -411,7 +411,7 @@ namespace crossGPUReMerge
                             }
                         }
 
-                        printf("[%lu] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", world_rank(), size_1, size_2, s->cross_diagonal);
+                        // printf("[%lu] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", world_rank(), size_1, size_2, s->cross_diagonal);
                         //printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, world_rank());
                         //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, world_rank());
 
@@ -489,14 +489,14 @@ namespace crossGPUReMerge
             mcontext.sync_all_streams();
 
             MergeNode mergeNode = mnodes[world_rank()];
-            printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
+            // printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
             size_t send_size = mergeNode.scheduled_work.searches.size();
 
             std::vector<int64_t> send_search_result(send_size);
             send_search_result.clear();
             for (auto s : mergeNode.scheduled_work.searches)
             {
-                printf("[%lu] result before communication %u\n", world_rank(), *s->h_result_ptr);
+                // printf("[%lu] result before communication %u\n", world_rank(), *s->h_result_ptr);
                 send_search_result.push_back(*s->h_result_ptr);
             }
 
@@ -564,14 +564,14 @@ namespace crossGPUReMerge
 
             //     }
             // }
-            printf("[%lu] searches done copying back\n", world_rank());
+            // printf("[%lu] searches done copying back\n", world_rank());
             int ident = 0;
             for (MergeNode& node : mnodes)
             {
 
                 for (auto s : node.scheduled_work.searches)
                 {
-                    printf("[%lu] results: %ld, ident: %d\n", world_rank(), s->result, ident);
+                    // printf("[%lu] results: %ld, ident: %d\n", world_rank(), s->result, ident);
                     s->result = *s->h_result_ptr;
                     ident++;
                 }

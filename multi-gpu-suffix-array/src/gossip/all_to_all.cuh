@@ -77,13 +77,13 @@ namespace gossip {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
                     v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
 
-                    printf("[%lu]: table[%u][%u]: %u, v_table: %u, next v_table: %u\n", world_rank(), src_gpu, dest_gpu, table[src_gpu][dest_gpu], v_table[src_gpu][dest_gpu], v_table[src_gpu + 1][dest_gpu]);
+                    // printf("[%lu]: table[%u][%u]: %u, v_table: %u, next v_table: %u\n", world_rank(), src_gpu, dest_gpu, table[src_gpu][dest_gpu], v_table[src_gpu][dest_gpu], v_table[src_gpu + 1][dest_gpu]);
 
                     const table_t src_index = h_table[src_gpu][dest_gpu];
                     const table_t dest_index = v_table[src_gpu][dest_gpu];
                     const table_t len = table[src_gpu][dest_gpu];
 
-                    printf("src[%u] to dst[%u], rank %lu\n", src_gpu, dest_gpu, world_rank());
+                    // printf("src[%u] to dst[%u], rank %lu\n", src_gpu, dest_gpu, world_rank());
                     if (src_gpu == world_rank()) {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         std::span<key_t> sb(from_k, len);
