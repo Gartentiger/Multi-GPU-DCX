@@ -269,9 +269,9 @@ namespace crossGPUReMerge
 
                 for (auto s : node.scheduled_work.searches)
                 {
-                    printf("[%lu][%u] start_range: %u, end_range: %u, node_1: %u\n", world_rank(), node.info.index, s->node1_range.start, s->node1_range.end, s->node_1);
-                    printf("[%lu][%u] start_range2: %u, end_range2: %u\n, node_2: %u\n", world_rank(), node.info.index, s->node2_range.start, s->node2_range.end, s->node_2);
-                    printf("[%lu][%u] cross diagonal: %u\n", world_rank(), node.info.index, s->cross_diagonal);
+                    //printf("[%lu][%u] start_range: %u, end_range: %u, node_1: %u\n", world_rank(), node.info.index, s->node1_range.start, s->node1_range.end, s->node_1);
+                    //printf("[%lu][%u] start_range2: %u, end_range2: %u\n, node_2: %u\n", world_rank(), node.info.index, s->node2_range.start, s->node2_range.end, s->node_2);
+                    //printf("[%lu][%u] cross diagonal: %u\n", world_rank(), node.info.index, s->cross_diagonal);
                     if (node.info.index != world_rank())
                     {
                         if (s->node_1 == world_rank())
@@ -325,22 +325,22 @@ namespace crossGPUReMerge
                         }
                     }
                     else {
-                        char fileName1[14];
-                        const char* text = "ownKey_";
-                        ASSERT((size_t)s->node_1 == world_rank());
-                        key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
-                        int64_t size_1 = s->node1_range.end - s->node1_range.start;
-                        sprintf(fileName1, "%s%u", text, node.info.index);
-                        std::ofstream out(fileName1, std::ios::binary);
-                        if (!out) {
-                            std::cerr << "Could not open file\n";
-                            //return 1;
-                        }
-                        key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
-                        cudaMemcpy(k, start_1, size_1, cudaMemcpyDeviceToHost);
-                        out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
-                        out.close();
-                        free(k);
+                        // char fileName1[14];
+                        // const char* text = "ownKey_";
+                        // ASSERT((size_t)s->node_1 == world_rank());
+                        // key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
+                        // int64_t size_1 = s->node1_range.end - s->node1_range.start;
+                        // sprintf(fileName1, "%s%u", text, node.info.index);
+                        // std::ofstream out(fileName1, std::ios::binary);
+                        // if (!out) {
+                        //     std::cerr << "Could not open file\n";
+                        //     //return 1;
+                        // }
+                        // key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
+                        // cudaMemcpy(k, start_1, size_1, cudaMemcpyDeviceToHost);
+                        // out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
+                        // out.close();
+                        // free(k);
 
                     }
                     msgTag++;
@@ -361,10 +361,10 @@ namespace crossGPUReMerge
                     int msgTag = 0;
 
                     QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
-                    printf("[%lu] searches.size() = %lu\n", world_rank(), node.scheduled_work.searches.size());
+                    // printf("[%lu] searches.size() = %lu\n", world_rank(), node.scheduled_work.searches.size());
                     for (auto s : node.scheduled_work.searches)
                     {
-                        printf("[%lu] searches.size() = %lu, node_1: %u, node_2: %u\n", world_rank(), node.scheduled_work.searches.size(), s->node_1, s->node_2);
+                        // printf("[%lu] searches.size() = %lu, node_1: %u, node_2: %u\n", world_rank(), node.scheduled_work.searches.size(), s->node_1, s->node_2);
                         uint other = (node_index == s->node_1) ? s->node_2 : s->node_1;
                         const cudaStream_t& stream = mcontext.get_streams(node_index).at(other);
 
@@ -410,7 +410,7 @@ namespace crossGPUReMerge
                             }
                         }
 
-                        printf("[%lu] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", world_rank(), size_1, size_2, s->cross_diagonal);
+                        // printf("[%lu] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", world_rank(), size_1, size_2, s->cross_diagonal);
                         //printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, world_rank());
                         //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, world_rank());
 
