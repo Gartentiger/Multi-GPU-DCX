@@ -142,7 +142,7 @@ namespace crossGPUReMerge {
                         error("Couldn't open file for writing!");
                     }
 
-                    if (fwrite(sa, sizeof(key_t), len, fp) != len)
+                    if (fwrite(node.info.keys, sizeof(key_t), node.info.num_elements, fp) != node.info.num_elements)
                     {
                         fclose(fp);
                         error("Error writing file!");
