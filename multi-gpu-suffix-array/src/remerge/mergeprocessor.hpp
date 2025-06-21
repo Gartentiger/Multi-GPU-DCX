@@ -274,6 +274,21 @@ namespace crossGPUReMerge
                         {
                             key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
                             int64_t size_1 = s->node1_range.end - s->node1_range.start;
+                            char fileName1[14];
+                            const char* text = "fakeSendOutputKeyNode_";
+
+                            sprintf(fileName1, "%lu%s%u", world_rank(), text, s->node_1);
+                            std::ofstream out(fileName1, std::ios::binary);
+                            if (!out) {
+                                std::cerr << "Could not open file\n";
+                                //return 1;
+                            }
+                            key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
+                            cudaMemcpy(k, start_1, size_1, cudaMemcpyDeviceToHost);
+                            out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
+                            out.close();
+                            free(k);
+
 
                             std::span<key_t> sb(start_1, size_1);
                             comm_world().isend(send_buf(sb), tag(msgTag), send_count(size_1), destination((size_t)node.info.index));
@@ -282,8 +297,25 @@ namespace crossGPUReMerge
                         {
                             key_t* start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                             int64_t size_2 = s->node2_range.end - s->node2_range.start;
-                            std::span<key_t> sb(start_2, size_2);
 
+                            char fileName1[14];
+                            const char* text = "fakeSendOutputKeyNode_";
+
+                            char fileName2[14];
+                            sprintf(fileName2, "%lu%s%u", world_rank(), text, s->node_2);
+                            std::ofstream out(fileName2, std::ios::binary);
+                            if (!out) {
+                                std::cerr << "Could not open file\n";
+                                //return 1;
+                            }
+                            key_t* k = (key_t*)malloc(sizeof(key_t) * size_2);
+                            cudaMemcpy(k, start_2, size_2, cudaMemcpyDeviceToHost);
+                            out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_2);
+                            out.close();
+                            free(k);
+
+
+                            std::span<key_t> sb(start_2, size_2);
                             comm_world().isend(send_buf(sb), tag(msgTag), send_count(size_2), destination((size_t)node.info.index));
                         }
                     }
@@ -355,33 +387,7 @@ namespace crossGPUReMerge
                         //printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, world_rank());
                         //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, world_rank());
 
-                        char fileName1[14];
-                        const char* text = "fakeOutputKeyNode_";
-                        {
-                            sprintf(fileName1, "%u%s%u", node_index, text, s->node_1);
-                            std::ofstream out(fileName1, std::ios::binary);
-                            if (!out) {
-                                std::cerr << "Could not open file\n";
-                                //return 1;
-                            }
-                            key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
-                            cudaMemcpy(k, start_1, size_1, cudaMemcpyDeviceToHost);
-                            out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
-                            out.close();
-                            free(k);
-                        }
-                        char fileName2[14];
-                        sprintf(fileName2, "%u%s%u", node_index, text, s->node_2);
-                        std::ofstream out(fileName2, std::ios::binary);
-                        if (!out) {
-                            std::cerr << "Could not open file\n";
-                            //return 1;
-                        }
-                        key_t* k = (key_t*)malloc(sizeof(key_t) * size_2);
-                        cudaMemcpy(k, start_2, size_2, cudaMemcpyDeviceToHost);
-                        out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_2);
-                        out.close();
-                        free(k);
+
                         run_partitioning_search << <1, 1, 0, stream >> > (start_1, size_1, start_2, size_2, s->cross_diagonal,
                             comp, s->d_result_ptr);
                         CUERR;
