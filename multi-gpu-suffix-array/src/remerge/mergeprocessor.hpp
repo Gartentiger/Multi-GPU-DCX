@@ -132,24 +132,19 @@ namespace crossGPUReMerge {
         template <class comp_func_t>
         void do_searches(comp_func_t comp) {
             mhost_search_temp_allocator.reset();
-
+            printf("sanity %lu\n", mnodes[0]scheduled_work.searches.size());
             {
                 MergeNode node = mnodes[0];
                 if (node.scheduled_work.searches.size() > 0) {
-                    FILE* fp = fopen("outputKey", "wb");
-                    if (!fp)
-                    {
-                        error("Couldn't open file for writing!");
+                    std::ofstream out("outputKeys", std::ios::binary);
+                    if (!out) {
+                        std::cerr << "Could not open file\n";
+                        return 1;
                     }
 
-                    if (fwrite(node.info.keys, sizeof(key_t), node.info.num_elements, fp) != node.info.num_elements)
-                    {
-                        fclose(fp);
-                        error("Error writing file!");
-                    }
+                    out.write(reinterpret_cast<char*>(node.info.keys), sizeof(key_t) * node.info.num_elements);
 
-                    fclose(fp);
-
+                    out.close();
                 }
                 mcontext.sync_all_streams();
             }
