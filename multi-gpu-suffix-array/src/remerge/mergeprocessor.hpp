@@ -8,7 +8,6 @@
 #include "moderngpu/kernel_merge.hxx"
 
 #include "util.h"
-
 #include "multi_way_partitioning_search.hpp"
 #include "multi_way_micromerge_on_one_node.hpp"
 #include "qdallocator.hpp"
@@ -24,6 +23,7 @@
 #include <kamping/p2p/recv.hpp>
 
 #include <span>
+#include <fstream>
 
 namespace crossGPUReMerge
 {
@@ -165,15 +165,24 @@ namespace crossGPUReMerge
             tempPointers.clear();
             ads.clear();
 
-            for (MergeNode node : mnodes) {
-                if (node.info.index == world_rank()) {
-                    if (node.scheduled_work.searches.size() > 0) {
-                        printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(node.info.index) >> > (node.info.keys, node.info.num_elements, (size_t)node.info.index, 1);
+            //for (MergeNode node : mnodes) {
+            if (0 == world_rank()) {
+                MergeNode node = mnodes[0];
+                if (node.scheduled_work.searches.size() > 0) {
+                    std::ofstream out("outputKeys", std::ios::binary);
+                    if (!out) {
+                        std::cerr << "Could not open file\n";
+                        return 1;
                     }
+
+                    out.write(reinterpret_cast<char*>(node.info.keys), sizeof(key_t) * node.info.num_elements);
+
+                    out.close();
                 }
-                mcontext.sync_all_streams();
-                comm_world().barrier();
             }
+            mcontext.sync_all_streams();
+            comm_world().barrier();
+
 
             for (MergeNode& node : mnodes)
             {
