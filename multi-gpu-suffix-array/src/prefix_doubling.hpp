@@ -1571,7 +1571,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 // should be mreserved_len * 2 * sizeof(sa_index_t) but 1 extra for Rank_prev_gpu
                 mcontext.get_device_temp_allocator(gpu_index).init(temp, mreserved_len * 3 * sizeof(sa_index_t));
 
-                if (gpu_index < NUM_GPUS - 1 && gpu.old_rank_start == mgpus[gpu_index + 1].old_rank_end) {
+                if (gpu_index < NUM_GPUS - 1 && gpu.old_rank_start == mgpus[gpu_index + 1].old_rank_end && mgpus[gpu_index + 1].working_len > 0) {
                     std::span<sa_index_t> sb(gpu.Sa_rank + gpu.working_len - 1, 1);
                     comm_world().isend(send_buf(sb), send_count(1), destination((size_t)gpu_index + 1));
                 }
