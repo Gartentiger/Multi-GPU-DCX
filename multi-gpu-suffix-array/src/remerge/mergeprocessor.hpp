@@ -163,7 +163,7 @@ namespace crossGPUReMerge {
                     //printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, (size_t)node_index);
                     //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, (size_t)node_index + 10);
                     char fileName1[14];
-                    const char* text = "RealOutputKeyNode_";
+                    const char* text = "outputKeyNode_";
                     {
                         sprintf(fileName1, "%u%s%u", node_index, text, s->node_1);
                         std::ofstream out(fileName1, std::ios::binary);
@@ -172,7 +172,7 @@ namespace crossGPUReMerge {
                             //return 1;
                         }
                         key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
-                        cudaMemcpy(k, start_1, size_1, cudaMemcpyDeviceToHost);
+                        cudaMemcpy(k, start_1, size_1 * sizeof(key_t), cudaMemcpyDeviceToHost);
                         out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
                         out.close();
                         free(k);
@@ -185,7 +185,7 @@ namespace crossGPUReMerge {
                         //return 1;
                     }
                     key_t* k = (key_t*)malloc(sizeof(key_t) * size_2);
-                    cudaMemcpy(k, start_2, size_2, cudaMemcpyDeviceToHost);
+                    cudaMemcpy(k, start_2, size_2 * sizeof(key_t), cudaMemcpyDeviceToHost);
                     out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_2);
                     out.close();
                     free(k);
