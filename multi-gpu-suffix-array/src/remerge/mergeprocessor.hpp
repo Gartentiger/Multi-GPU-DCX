@@ -411,7 +411,7 @@ namespace crossGPUReMerge
                             }
                         }
 
-                        // printf("[%lu] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", world_rank(), size_1, size_2, s->cross_diagonal);
+                        printf("[%lu] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", world_rank(), size_1, size_2, s->cross_diagonal);
                         //printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, world_rank());
                         //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, world_rank());
 
@@ -496,6 +496,7 @@ namespace crossGPUReMerge
             send_search_result.clear();
             for (auto s : mergeNode.scheduled_work.searches)
             {
+                printf("[%lu] result before communication %u\n", world_rank(), *s->h_result_ptr);
                 send_search_result.push_back(*s->h_result_ptr);
             }
 
