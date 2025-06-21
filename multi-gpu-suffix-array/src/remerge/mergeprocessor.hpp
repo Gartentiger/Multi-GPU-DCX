@@ -166,9 +166,10 @@ namespace crossGPUReMerge
             ads.clear();
 
             for (MergeNode node : mnodes) {
-                if (node.scheduled_work.searches.size() > 0) {
-
-                    printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(node.info.index) >> > (node.info.keys, node.info.num_elements, (size_t)node.info.index, 1);
+                for (node.info.index == world_rank()) {
+                    if (node.scheduled_work.searches.size() > 0) {
+                        printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(node.info.index) >> > (node.info.keys, node.info.num_elements, (size_t)node.info.index, 1);
+                    }
                 }
                 mcontext.sync_all_streams();
                 comm_world().barrier();
