@@ -134,6 +134,15 @@ namespace crossGPUReMerge {
         void do_searches(comp_func_t comp) {
             mhost_search_temp_allocator.reset();
 
+            for (MergeNode node : mnodes) {
+                if (node.scheduled_work.searches.size() > 0) {
+
+                    printArrays << <1, 1, 0, mcontext.get_gpu_default_stream() >> > (node.info.keys, node.info.num_elements, (size_t)node.info.index, 1);
+                }
+                mcontext.sync_all_streams();
+                comm_world().barrier();
+            }
+
             for (MergeNode& node : mnodes) {
 
                 const uint node_index = node.info.index;
