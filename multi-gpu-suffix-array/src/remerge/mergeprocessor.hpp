@@ -194,8 +194,10 @@ namespace crossGPUReMerge {
             mcontext.sync_all_streams();
 
             for (MergeNode& node : mnodes) {
+                int id = 0;
                 for (auto s : node.scheduled_work.searches) {
                     s->result = *s->h_result_ptr;
+                    printf("[%lu] result: %ld, id: %d\n", node.info.index, s->result, id);
                 }
                 for (auto ms : node.scheduled_work.multi_searches) {
                     ms->results.resize(ms->ranges.size());
