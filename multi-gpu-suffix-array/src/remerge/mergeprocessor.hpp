@@ -13,13 +13,11 @@
 #include "multi_way_partitioning_search.hpp"
 #include "multi_way_micromerge_on_one_node.hpp"
 #include "qdallocator.hpp"
-__global__ void printArrays(uint32_t* key, uint32_t* value, size_t size, size_t rank)
+__global__ void printArrays(uint32_t* key, size_t size, size_t rank, int spec)
 {
-    for (size_t i = 0; i < size; i++) {
-
-        printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
-
-
+    for (size_t i = 0; i < size; i++)
+    {
+        printf("[%lu] Key %d: %u\n", rank, spec, key[i]);
     }
     printf("---------------------------------------------------------------------------\n");
 }
