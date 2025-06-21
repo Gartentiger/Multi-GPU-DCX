@@ -742,11 +742,11 @@ private:
                     sizeof(sa_index_t), cudaMemcpyDeviceToHost,
                     mcontext.get_gpu_default_stream(gpu_index));
                 CUERR;
-                printf("671,PrefixDoubling %d", 0);
+                //printf("671,PrefixDoubling %d\n", 0);
                 cudaMemcpyAsync(gpu.Sa_index, gpu.Temp2, lens_after_compacting[gpu_index] * sizeof(sa_index_t),
                     cudaMemcpyDeviceToDevice, mcontext.get_streams(gpu_index)[1]);
                 CUERR;
-                printf("671,PrefixDoubling %d", 1);
+                //printf("671,PrefixDoubling %d\n", 1);
                 if (lens_after_compacting[gpu_index] > 0)
                 {
                     cudaMemcpyAsync(mhost_temp_mem + 3 * NUM_GPUS + gpu_index, gpu.Old_ranks + lens_after_compacting[gpu_index] - 1,
@@ -1258,6 +1258,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 sa_index_t* temp = gpu.Temp3;
                 sa_index_t* Rank_prev_gpu = nullptr;
                 sa_index_t rank_of_first_entry_within_segment = gpu.rank_of_first_entry_within_segment;
+                printf("[%u] working length %lu\n", gpu_index, gpu.working_len);
                 if (gpu_index > 0) {
                     printf("[%lu] working length[-1] %lu, old rank start %u, rank end[-1] %u, working length %u\n", gpu_index, mgpus[gpu_index - 1].working_len, gpu.old_rank_start, mgpus[gpu_index - 1].old_rank_end, gpu.working_len);
                 }
@@ -1265,7 +1266,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 {
                     Rank_prev_gpu = mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
                 }
-                exit(0);
+                // exit(0);
                 mcontext.get_device_temp_allocator(gpu_index).init(temp, mreserved_len * 2 * sizeof(sa_index_t));
 
                 auto my_lambda = [=] __device__(int index, int seg, int index_within_seg)
@@ -1323,7 +1324,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
             }
         }
         mcontext.sync_default_streams();
-
+        exit(0);
         do_max_scan_on_ranks();
     }
 
