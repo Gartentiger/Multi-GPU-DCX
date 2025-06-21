@@ -15,6 +15,7 @@
 #include "qdallocator.hpp"
 #include <iostream>
 #include <fstream>
+#include <cstdio>
 template<typename ke>
 __global__ void printArrays(ke* key, size_t size, size_t rank, int spec)
 {
@@ -135,10 +136,13 @@ namespace crossGPUReMerge {
         void do_searches(comp_func_t comp) {
             mhost_search_temp_allocator.reset();
             printf("sanity %lu\n", mnodes[0].scheduled_work.searches.size());
-            {
-                MergeNode node = mnodes[0];
+
+            for (MergeNode node : mnodes) {
                 if (node.scheduled_work.searches.size() > 0) {
-                    std::ofstream out("outputKeys", std::ios::binary);
+                    char fileName[14];
+                    const char* text = "RealOutputKey_";
+                    sprintf(fileName, "%s%u", text, node.info.index);
+                    std::ofstream out(fileName, std::ios::binary);
                     if (!out) {
                         std::cerr << "Could not open file\n";
                         //return 1;
@@ -147,10 +151,15 @@ namespace crossGPUReMerge {
                     cudaMemcpy(k, node.info.keys, node.info.num_elements, cudaMemcpyDeviceToHost);
                     out.write(reinterpret_cast<char*>(k), sizeof(key_t) * node.info.num_elements);
                     out.close();
+
+                }
+                mcontext.sync_all_streams();
+            }
+
+            for (MergeNode node : mnodes) {
+                if (node.scheduled_work.searches.size() > 0) {
                     exit(0);
                 }
-
-                mcontext.sync_all_streams();
             }
 
             for (MergeNode& node : mnodes) {
