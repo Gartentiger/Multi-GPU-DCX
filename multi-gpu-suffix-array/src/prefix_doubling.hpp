@@ -397,7 +397,7 @@ public:
             printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
             comm_world().barrier();
             //
-            exit(0);
+            // exit(0);
 #ifdef DUMP_EVERYTHING
             dump("After sort");
 #endif
