@@ -1584,7 +1584,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                     comm_world().recv(recv_buf(rb), recv_count(1));
                     Rank_prev_gpu = tempRank;//mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
                 }
-
+                printf("[%lu] rebucket communication done\n", world_rank());
 
                 auto my_lambda = [=] __device__(int index, int seg, int index_within_seg)
                 {
