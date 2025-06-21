@@ -266,28 +266,33 @@ namespace crossGPUReMerge
             for (MergeNode& node : mnodes) {
                 //printf("[%lu] Mulit search communication done, searches.size(): %lu, mulit_searches.size(): %lu\n", world_rank(), node.scheduled_work.searches.size(), node.scheduled_work.multi_searches.size());
                 int msgTag = 0;
+
                 for (auto s : node.scheduled_work.searches)
                 {
+                    printf("[%lu][%u] start_range: %u, end_range: %u, node_1: %u\n", world_rank(), node.info.index, s->node1_range.start, s->node1_range.end, s->node_1);
+                    printf("[%lu][%u] start_range2: %u, end_range2: %u\n, node_2: %u\n", world_rank(), node.info.index, s->node2_range.start, s->node2_range.end, s->node_2);
+                    printf("[%lu][%u] cross diagonal: %u\n", world_rank(), node.info.index, s->cross_diagonal);
                     if (node.info.index != world_rank())
                     {
                         if (s->node_1 == world_rank())
                         {
                             key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
                             int64_t size_1 = s->node1_range.end - s->node1_range.start;
-                            char fileName1[14];
-                            const char* text = "fakeSendOutputKeyNode_";
 
-                            sprintf(fileName1, "%lu%s%u", world_rank(), text, s->node_1);
-                            std::ofstream out(fileName1, std::ios::binary);
-                            if (!out) {
-                                std::cerr << "Could not open file\n";
-                                //return 1;
-                            }
-                            key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
-                            cudaMemcpy(k, start_1, size_1, cudaMemcpyDeviceToHost);
-                            out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
-                            out.close();
-                            free(k);
+                            // char fileName1[14];
+                            // const char* text = "fakeSendOutputKeyNode_";
+
+                            // sprintf(fileName1, "%lu%s%u", world_rank(), text, node.info.index);
+                            // std::ofstream out(fileName1, std::ios::binary);
+                            // if (!out) {
+                            //     std::cerr << "Could not open file\n";
+                            //     //return 1;
+                            // }
+                            // key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
+                            // cudaMemcpy(k, start_1, size_1, cudaMemcpyDeviceToHost);
+                            // out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
+                            // out.close();
+                            // free(k);
 
 
                             std::span<key_t> sb(start_1, size_1);
@@ -298,30 +303,52 @@ namespace crossGPUReMerge
                             key_t* start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                             int64_t size_2 = s->node2_range.end - s->node2_range.start;
 
-                            char fileName1[14];
-                            const char* text = "fakeSendOutputKeyNode_";
+                            // char fileName1[14];
+                            // const char* text = "fakeSendOutputKeyNode_";
 
-                            char fileName2[14];
-                            sprintf(fileName2, "%lu%s%u", world_rank(), text, s->node_2);
-                            std::ofstream out(fileName2, std::ios::binary);
-                            if (!out) {
-                                std::cerr << "Could not open file\n";
-                                //return 1;
-                            }
-                            key_t* k = (key_t*)malloc(sizeof(key_t) * size_2);
-                            cudaMemcpy(k, start_2, size_2, cudaMemcpyDeviceToHost);
-                            out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_2);
-                            out.close();
-                            free(k);
+                            // char fileName2[14];
+                            // sprintf(fileName2, "%lu%s%u", world_rank(), text, node.info.index);
+                            // std::ofstream out(fileName2, std::ios::binary);
+                            // if (!out) {
+                            //     std::cerr << "Could not open file\n";
+                            //     //return 1;
+                            // }
+                            // key_t* k = (key_t*)malloc(sizeof(key_t) * size_2);
+                            // cudaMemcpy(k, start_2, size_2, cudaMemcpyDeviceToHost);
+                            // out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_2);
+                            // out.close();
+                            // free(k);
 
 
                             std::span<key_t> sb(start_2, size_2);
                             comm_world().isend(send_buf(sb), tag(msgTag), send_count(size_2), destination((size_t)node.info.index));
                         }
                     }
+                    else {
+                        char fileName1[14];
+                        const char* text = "ownKey_";
+                        ASSERT((size_t)s->node_1 == world_rank());
+                        key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
+                        int64_t size_1 = s->node1_range.end - s->node1_range.start;
+                        sprintf(fileName1, "%s%u", text, node.info.index);
+                        std::ofstream out(fileName1, std::ios::binary);
+                        if (!out) {
+                            std::cerr << "Could not open file\n";
+                            //return 1;
+                        }
+                        key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
+                        cudaMemcpy(k, start_1, size_1, cudaMemcpyDeviceToHost);
+                        out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
+                        out.close();
+                        free(k);
+
+                    }
                     msgTag++;
                 }
             }
+
+
+
 
             for (MergeNode& node : mnodes)
             {
