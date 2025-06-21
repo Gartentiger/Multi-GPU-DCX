@@ -169,15 +169,17 @@ namespace crossGPUReMerge
             if (0 == world_rank()) {
                 MergeNode node = mnodes[0];
                 if (node.scheduled_work.searches.size() > 0) {
-                    std::ofstream out("outputKeys", std::ios::binary);
+
+                    std::ofstream out("outputKeys1", std::ios::binary);
                     if (!out) {
                         std::cerr << "Could not open file\n";
-                        return 1;
+                        //return 1;
                     }
-
-                    out.write(reinterpret_cast<char*>(node.info.keys), sizeof(key_t) * node.info.num_elements);
-
+                    key_t* k = (key_t*)malloc(sizeof(key_t) * node.info.num_elements);
+                    cudaMemcpy(k, node.info.keys, node.info.num_elements, cudaMemcpyDeviceToHost);
+                    out.write(reinterpret_cast<char*>(k), sizeof(key_t) * node.info.num_elements);
                     out.close();
+                    exit(0);
                 }
             }
             mcontext.sync_all_streams();
