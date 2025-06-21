@@ -135,7 +135,7 @@ namespace crossGPUReMerge {
         template <class comp_func_t>
         void do_searches(comp_func_t comp) {
             mhost_search_temp_allocator.reset();
-            printf("sanity %lu\n", mnodes[0].scheduled_work.searches.size());
+            //printf("sanity %lu\n", mnodes[0].scheduled_work.searches.size());
 
 
             for (MergeNode& node : mnodes) {
@@ -158,37 +158,11 @@ namespace crossGPUReMerge {
 
                     s->d_result_ptr = d_alloc.get<int64_t>(1);
                     s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-                    printf("[%u] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", node_index, size_1, size_2, s->cross_diagonal);
+                    //printf("[%u] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", node_index, size_1, size_2, s->cross_diagonal);
 
                     //printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, (size_t)node_index);
                     //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, (size_t)node_index + 10);
-                    char fileName1[14];
-                    const char* text = "outputKeyNode_";
-                    {
-                        sprintf(fileName1, "%u%s%u", node_index, text, s->node_1);
-                        std::ofstream out(fileName1, std::ios::binary);
-                        if (!out) {
-                            std::cerr << "Could not open file\n";
-                            //return 1;
-                        }
-                        key_t* k = (key_t*)malloc(sizeof(key_t) * size_1);
-                        cudaMemcpy(k, start_1, size_1 * sizeof(key_t), cudaMemcpyDeviceToHost);
-                        out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_1);
-                        out.close();
-                        free(k);
-                    }
-                    char fileName2[14];
-                    sprintf(fileName2, "%u%s%u", node_index, text, s->node_2);
-                    std::ofstream out(fileName2, std::ios::binary);
-                    if (!out) {
-                        std::cerr << "Could not open file\n";
-                        //return 1;
-                    }
-                    key_t* k = (key_t*)malloc(sizeof(key_t) * size_2);
-                    cudaMemcpy(k, start_2, size_2 * sizeof(key_t), cudaMemcpyDeviceToHost);
-                    out.write(reinterpret_cast<char*>(k), sizeof(key_t) * size_2);
-                    out.close();
-                    free(k);
+
 
                     run_partitioning_search << <1, 1, 0, stream >> > (start_1, size_1, start_2, size_2, s->cross_diagonal,
                         comp, s->d_result_ptr);
@@ -223,11 +197,11 @@ namespace crossGPUReMerge {
                 }
 
             }
-            for (MergeNode node : mnodes) {
-                if (node.scheduled_work.searches.size() > 0) {
-                    exit(0);
-                }
-            }
+            // for (MergeNode node : mnodes) {
+            //     if (node.scheduled_work.searches.size() > 0) {
+            //         exit(0);
+            //     }
+            // }
             mcontext.sync_all_streams();
 
             for (MergeNode& node : mnodes) {
