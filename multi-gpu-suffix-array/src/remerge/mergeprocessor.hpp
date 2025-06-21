@@ -141,7 +141,7 @@ namespace crossGPUReMerge {
                     std::ofstream out("outputKeys", std::ios::binary);
                     if (!out) {
                         std::cerr << "Could not open file\n";
-                        return 1;
+                        //return 1;
                     }
 
                     out.write(reinterpret_cast<char*>(node.info.keys), sizeof(key_t) * node.info.num_elements);
