@@ -162,10 +162,10 @@ namespace crossGPUReMerge {
 
                     s->d_result_ptr = d_alloc.get<int64_t>(1);
                     s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-                    printf("[%u] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", node_index, size_1, size_2, s->cross_diagonal);
+                    //printf("[%u] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", node_index, size_1, size_2, s->cross_diagonal);
 
-                    printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, (size_t)node_index);
-                    printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, (size_t)node_index + 10);
+                    //printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, (size_t)node_index);
+                    //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, (size_t)node_index + 10);
 
                     run_partitioning_search << <1, 1, 0, stream >> > (start_1, size_1, start_2, size_2, s->cross_diagonal,
                         comp, s->d_result_ptr);
@@ -207,7 +207,7 @@ namespace crossGPUReMerge {
                 int id = 0;
                 for (auto s : node.scheduled_work.searches) {
                     s->result = *s->h_result_ptr;
-                    printf("[%lu] result: %ld, id: %d\n", node.info.index, s->result, id);
+                    //printf("[%lu] result: %ld, id: %d\n", node.info.index, s->result, id);
                 }
                 for (auto ms : node.scheduled_work.multi_searches) {
                     ms->results.resize(ms->ranges.size());
