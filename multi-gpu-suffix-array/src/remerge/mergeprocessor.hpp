@@ -509,10 +509,9 @@ namespace crossGPUReMerge
             {
                 for (auto s : mnodes[i].scheduled_work.searches)
                 {
-                    printf("[%lu] result after communication %ld, id: %d\n", world_rank(), recv_search_result[enumer], enumer);
                     if (world_rank() != i) {
                         s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-                        *s->h_result_ptr = recv_search_result[enumer];
+                        s->h_result_ptr = &recv_search_result[enumer];
                     }
                     enumer++;
                 }
