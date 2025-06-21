@@ -767,6 +767,7 @@ private:
             // Recover lens from above
             gpu.old_rank_start = *(mhost_temp_mem + 2 * NUM_GPUS + gpu_index);
             gpu.old_rank_end = *(mhost_temp_mem + 3 * NUM_GPUS + gpu_index);
+            printf("[%lu] old rank start %u, old rank end: %u\n", gpu_index, gpu.old_rank_start, gpu.old_rank_end);
             if (gpu.working_len > 0)
             {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
