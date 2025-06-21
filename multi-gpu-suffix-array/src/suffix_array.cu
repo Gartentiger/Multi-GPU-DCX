@@ -56,7 +56,7 @@ template <typename key_t, typename value_t, typename index_t, size_t NUM_GPUS>
 using DistribMergeTopology = distrib_merge::DGX1TopologyHelper<key_t, value_t, index_t, NUM_GPUS>;
 #else
 #include "gossip/all_to_all.cuh"
-// static_assert(NUM_GPUS <= 4, "At the moment, there is no node with more than 4 all-connected nodes. This is likely a configuration error.");
+static_assert(NUM_GPUS <= 4, "At the moment, there is no node with more than 4 all-connected nodes. This is likely a configuration error.");
 
 template <size_t NUM_GPUS>
 using All2All = gossip::All2All<NUM_GPUS>;
@@ -845,8 +845,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
+    // const std::array<uint, NUM_GPUS> gpu_ids;
+    MultiGPUContext<NUM_GPUS> context;
 #endif
     SuffixSorter sorter(context, realLen, input);
 

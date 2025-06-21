@@ -1263,7 +1263,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 {
                     Rank_prev_gpu = mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
                 }
-                exit(0);
+                // exit(0);
                 mcontext.get_device_temp_allocator(gpu_index).init(temp, mreserved_len * 2 * sizeof(sa_index_t));
 
                 auto my_lambda = [=] __device__(int index, int seg, int index_within_seg)
