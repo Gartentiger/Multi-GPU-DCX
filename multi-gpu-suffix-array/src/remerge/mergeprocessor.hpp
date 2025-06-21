@@ -27,12 +27,11 @@
 
 namespace crossGPUReMerge
 {
-    __global__ void printArrays(uint32_t* key, uint32_t* value, size_t size, size_t rank)
+    __global__ void printArrays(uint32_t* key, size_t size, size_t rank, int spec)
     {
         for (size_t i = 0; i < size; i++)
         {
-
-            printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
+            printf("[%lu] Key %d: %u\n", rank, spec, key[i]);
         }
         printf("---------------------------------------------------------------------------\n");
     }
@@ -165,6 +164,14 @@ namespace crossGPUReMerge
             tempPointers.clear();
             ads.clear();
 
+            for (MergeNode node : mnodes) {
+                if (node.scheduled_work.searches.size() > 0) {
+                    printArrays << <1, 1, 0, stream >> > (node.info.keys, node.info.num_elements, world_rank(), 1);
+                }
+                mcontext.sync_all_streams();
+                comm_world().barrier();
+            }
+
             for (MergeNode& node : mnodes)
             {
                 int msgTag = 0;
@@ -236,7 +243,7 @@ namespace crossGPUReMerge
             }
 
             for (MergeNode& node : mnodes) {
-                printf("[%lu] Mulit search communication done, searches.size(): %lu, mulit_searches.size(): %lu\n", world_rank(), node.scheduled_work.searches.size(), node.scheduled_work.multi_searches.size());
+                //printf("[%lu] Mulit search communication done, searches.size(): %lu, mulit_searches.size(): %lu\n", world_rank(), node.scheduled_work.searches.size(), node.scheduled_work.multi_searches.size());
                 int msgTag = 0;
                 for (auto s : node.scheduled_work.searches)
                 {
