@@ -1507,6 +1507,7 @@ private:
         TIMER_STOP_LOOP_STAGE(LoopStages::Segmented_Sort);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu_index == world_rank()) {
 
@@ -1807,7 +1808,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
