@@ -1258,12 +1258,12 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 sa_index_t* temp = gpu.Temp3;
                 sa_index_t* Rank_prev_gpu = nullptr;
                 sa_index_t rank_of_first_entry_within_segment = gpu.rank_of_first_entry_within_segment;
-
+                printf("[%lu] working length[-1] %lu, old rank start %u, rank end[-1] %u, working length %u\n", gpu_index, mgpus[gpu_index - 1].working_len, gpu.old_rank_start, mgpus[gpu_index - 1].old_rank_end, gpu.working_len);
                 if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
                 {
                     Rank_prev_gpu = mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
                 }
-
+                exit(0);
                 mcontext.get_device_temp_allocator(gpu_index).init(temp, mreserved_len * 2 * sizeof(sa_index_t));
 
                 auto my_lambda = [=] __device__(int index, int seg, int index_within_seg)
