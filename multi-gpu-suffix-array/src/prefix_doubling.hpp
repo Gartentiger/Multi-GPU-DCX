@@ -1364,13 +1364,12 @@ private:
 
 
         //            print_split_table(split_table);
-        printf("[%lu] dest_lens: %u, isa_len %lu, offset: %lu\n", world_rank(), dest_lens[world_rank()], mgpus[world_rank()].isa_len, mgpus[world_rank()].offset);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
         mall2all.execAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        printf("[%lu] after execAsync fetch Isa\n", world_rank());
         comm_world().barrier();
+        printf("[%lu] dest_lens: %u, isa_len %lu, offset: %lu\n", world_rank(), dest_lens[world_rank()], mgpus[world_rank()].isa_len, mgpus[world_rank()].offset);
 
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
 

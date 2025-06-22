@@ -36,12 +36,14 @@ namespace gossip {
 
             // necessary sync because we cant use the stream for communication 
             context.sync_all_streams();
+            RequestPool pool;
+            int msgTag = 0;
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
                     v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
 
-                    // printf("[%lu][%u][%u]: h_table: %u, v_table: %u, table: %u, next h_table: %u, next v_table: %u\n", world_rank(), src_gpu, dest_gpu, h_table[src_gpu][dest_gpu], v_table[src_gpu][dest_gpu], table[src_gpu][dest_gpu], h_table[src_gpu][dest_gpu + 1], v_table[src_gpu][dest_gpu + 1]);
+                    printf("[%lu][%u][%u]: h_table: %u, v_table: %u, table: %u, next h_table: %u, next v_table: %u\n", world_rank(), src_gpu, dest_gpu, h_table[src_gpu][dest_gpu], v_table[src_gpu][dest_gpu], table[src_gpu][dest_gpu], h_table[src_gpu][dest_gpu + 1], v_table[src_gpu][dest_gpu + 1]);
 
                     const table_t src_index = h_table[src_gpu][dest_gpu];
                     const table_t dest_index = v_table[src_gpu][dest_gpu];
@@ -50,19 +52,21 @@ namespace gossip {
                     if (src_gpu == world_rank()) {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         std::span<key_t> sb(from_k, len);
-                        comm_world().isend(send_buf(sb), send_count(len), destination((size_t)dest_gpu));
+                        comm_world().isend(send_buf(sb), send_count(len), tag(msgTag), destination((size_t)dest_gpu), request(pool.get_request()));
                     }
                     if (dest_gpu == world_rank()) {
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         std::span<key_t> rb(to_k, len);
-                        comm_world().recv(recv_buf(rb), recv_count(len));
+                        comm_world().irecv(recv_buf(rb), recv_count(len), tag(msgTag), request(pool.get_request()));
                     }
                     // cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
                     // from_k, context.get_device_id(src_gpu),
                     // len * sizeof(key_t),
                     //     context.get_streams(src_gpu)[dest_gpu]);
+                    msgTag++;
                 } CUERR;
             }
+            pool.wait_all();
             return check_tables(node_info, h_table, v_table);
         }
 
@@ -81,7 +85,7 @@ namespace gossip {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
                     v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
 
-                    printf("[%lu]: table[%u][%u]: %u, v_table: %u, next v_table: %u\n", world_rank(), src_gpu, dest_gpu, table[src_gpu][dest_gpu], v_table[src_gpu][dest_gpu], v_table[src_gpu + 1][dest_gpu]);
+                    // printf("[%lu]: table[%u][%u]: %u, v_table: %u, next v_table: %u\n", world_rank(), src_gpu, dest_gpu, table[src_gpu][dest_gpu], v_table[src_gpu][dest_gpu], v_table[src_gpu + 1][dest_gpu]);
 
                     const table_t src_index = h_table[src_gpu][dest_gpu];
                     const table_t dest_index = v_table[src_gpu][dest_gpu];
