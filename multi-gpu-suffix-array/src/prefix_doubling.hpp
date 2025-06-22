@@ -257,7 +257,7 @@ public:
         gpu.Temp2 = pd_ptr.Temp2;
         gpu.Temp3 = pd_ptr.Temp3;
         gpu.Temp4 = pd_ptr.Temp4;
-    }
+}
 
     void print_stats(size_t iterations) const
     {
@@ -813,7 +813,7 @@ private:
                 gpu.last_segment_start = *(mhost_temp_mem + 3 * NUM_GPUS + gpu_index);
                 //                    printf("\nGPU %u, first segment end: %u, last segment start: %u", gpu_index,
                 //                           gpu.first_segment_end, gpu.last_segment_start);
-            }
+    }
         }
         return false;
     }
@@ -956,7 +956,7 @@ private:
         }
         mcontext.sync_default_streams();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
-    }
+            }
 
     static void transpose_split_table(const split_table_tt<sa_index_t, NUM_GPUS>& split_table_in,
         split_table_tt<sa_index_t, NUM_GPUS>& split_table_out)
@@ -1325,7 +1325,6 @@ public: // Needs to be public because lamda wouldn't work otherwise...
             }
         }
         mcontext.sync_default_streams();
-        exit(0);
         do_max_scan_on_ranks();
     }
 
@@ -1495,6 +1494,6 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         return std::string(kmer);
     }
 #endif
-};
+        };
 
 #endif // PREFIX_DOUBLING_HPP
