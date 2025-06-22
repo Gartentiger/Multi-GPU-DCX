@@ -458,7 +458,7 @@ public:
             //     if (gpu_index == world_rank()) {
 
             //         char fileName[14];
-            //         const char* text = "SaRankIter";
+            //         const char* text = "IsaIter";
             //         sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
             //         std::ofstream out(fileName, std::ios::binary);
             //         if (!out) {
@@ -1133,7 +1133,7 @@ private:
         }
 
         return false;
-        }
+    }
 
     // Sa_rank, Sa_index --> Isa
     void write_to_isa(bool initial = false)
@@ -1362,12 +1362,16 @@ private:
         // printf("[%lu] execKVAsync isa fetching\n", world_rank());
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Multisplit);
 
+
+
         //            print_split_table(split_table);
+        printf("[%lu] dest_lens: %u, isa_len %lu, offset: %lu\n", world_rank(), dest_lens[world_rank()], gpu.isa_len, gpu.offset);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
         mall2all.execAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        // printf("[%lu] execKVAsync all2all isa writing\n", world_rank());
+        printf("[%lu] after execAsync fetch Isa\n", world_rank());
+        comm_world().barrier();
 
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
 
