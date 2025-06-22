@@ -451,7 +451,43 @@ public:
 #ifdef DUMP_EVERYTHING
             dump("After compact");
 #endif
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            {
 
+                SaGPU& gpu = mgpus[gpu_index];
+                if (gpu_index == world_rank()) {
+
+                    char fileName[14];
+                    const char* text = "SaRankIter";
+                    sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                    std::ofstream out(fileName, std::ios::binary);
+                    if (!out) {
+                        std::cerr << "Could not open file\n";
+                        //return 1;
+                    }
+                    sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                    cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                    out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                    out.close();
+                    free(k);
+                    {
+                        char fileName[14];
+                        const char* text = "SaIndexIter";
+                        sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                        std::ofstream out(fileName, std::ios::binary);
+                        if (!out) {
+                            std::cerr << "Could not open file\n";
+                            //return 1;
+                        }
+                        sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                        cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                        out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                        out.close();
+                        free(k);
+                    }
+                }
+            }
+            comm_world().barrier();
             mperf_measure.next_iteration();
             ++iterations;
             register_numbers(iterations + 1);
@@ -1507,44 +1543,7 @@ private:
 
         mcontext.sync_default_streams(); // Wait for sorting to finish.
         TIMER_STOP_LOOP_STAGE(LoopStages::Segmented_Sort);
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        // {
 
-        //     SaGPU& gpu = mgpus[gpu_index];
-        //     if (gpu_index == world_rank()) {
-
-        //         char fileName[14];
-        //         const char* text = "SaRanksBeforeMerge_";
-        //         sprintf(fileName, "%s%u", text, gpu_index);
-        //         std::ofstream out(fileName, std::ios::binary);
-        //         if (!out) {
-        //             std::cerr << "Could not open file\n";
-        //             //return 1;
-        //         }
-        //         sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-        //         cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-        //         out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-        //         out.close();
-        //         free(k);
-        //         {
-        //             char fileName[14];
-        //             const char* text = "SaIndexBeforeMerge_";
-        //             sprintf(fileName, "%s%u", text, gpu_index);
-        //             std::ofstream out(fileName, std::ios::binary);
-        //             if (!out) {
-        //                 std::cerr << "Could not open file\n";
-        //                 //return 1;
-        //             }
-        //             sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-        //             cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-        //             out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-        //             out.close();
-        //             free(k);
-        //         }
-        //     }
-        // }
-        // comm_world().barrier();
-        // exit(0);
         //            dump("Before merge");
         TIMER_START_LOOP_STAGE(LoopStages::Merge);
         mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>());
@@ -1572,12 +1571,12 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 // should be mreserved_len * 2 * sizeof(sa_index_t) but 1 extra for Rank_prev_gpu
                 mcontext.get_device_temp_allocator(gpu_index).init(temp, (mreserved_len * 2 + 1) * sizeof(sa_index_t));
 
-                printf("[%lu] old_rank_start %u, old_rank_end %u, working length+1 %lu, working length %lu\n", world_rank(), gpu.old_rank_start, mgpus[gpu_index + 1].old_rank_end, mgpus[gpu_index + 1].working_len, gpu.working_len);
                 if (gpu_index < NUM_GPUS - 1 && mgpus[gpu_index + 1].working_len > 0 && mgpus[gpu_index + 1].old_rank_start == gpu.old_rank_end) {
                     std::span<sa_index_t> sb(gpu.Sa_rank + gpu.working_len - 1, 1);
                     comm_world().isend(send_buf(sb), send_count(1), destination((size_t)gpu_index + 1));
                 }
 
+                printf("[%lu] old_rank_start %u, old_rank_end %u, working length+1 %lu, working length %lu\n", world_rank(), gpu.old_rank_start, mgpus[gpu_index + 1].old_rank_end, mgpus[gpu_index + 1].working_len, gpu.working_len);
                 if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
                 {
                     // maybe we need cudaMalloc here
