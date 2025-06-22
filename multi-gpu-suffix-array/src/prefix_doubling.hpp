@@ -1554,6 +1554,7 @@ private:
 public: // Needs to be public because lamda wouldn't work otherwise...
     void rebucket()
     {
+        sa_index_t* Rank_prev_gpu = nullptr;
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             uint gpu_index = world_rank();
@@ -1565,28 +1566,30 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 sa_index_t* inner_segment_ranks = gpu.Sa_rank;
                 sa_index_t* output_ranks = gpu.Temp1;
                 sa_index_t* temp = gpu.Temp3;
-                sa_index_t* Rank_prev_gpu = nullptr;
                 sa_index_t rank_of_first_entry_within_segment = gpu.rank_of_first_entry_within_segment;
 
                 // should be mreserved_len * 2 * sizeof(sa_index_t) but 1 extra for Rank_prev_gpu
-                mcontext.get_device_temp_allocator(gpu_index).init(temp, (mreserved_len * 2 + 1) * sizeof(sa_index_t));
+                mcontext.get_device_temp_allocator(gpu_index).init(temp, (mreserved_len * 2) * sizeof(sa_index_t));
 
                 if (gpu_index < NUM_GPUS - 1 && mgpus[gpu_index + 1].working_len > 0 && mgpus[gpu_index + 1].old_rank_start == gpu.old_rank_end) {
                     std::span<sa_index_t> sb(gpu.Sa_rank + gpu.working_len - 1, 1);
                     comm_world().isend(send_buf(sb), send_count(1), destination((size_t)gpu_index + 1));
                 }
 
-                printf("[%lu] old_rank_start %u, old_rank_end %u, working length+1 %lu, working length %lu\n", world_rank(), gpu.old_rank_start, mgpus[gpu_index + 1].old_rank_end, mgpus[gpu_index + 1].working_len, gpu.working_len);
                 if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
                 {
+                    printf("[%lu] old_rank_start %u, old_rank_end %u, working length-1 %lu, working length %lu\n", world_rank(), gpu.old_rank_start, mgpus[gpu_index - 1].old_rank_end, mgpus[gpu_index - 1].working_len, gpu.working_len);
                     // maybe we need cudaMalloc here
-                    sa_index_t* tempRank = mcontext.get_device_temp_allocator(world_rank()).get<sa_index_t>(1);
+                    sa_index_t* tempRank; //= mcontext.get_device_temp_allocator(world_rank()).get<sa_index_t>(1);
+                    cudaMalloc(&tempRank, sizeof(sa_index_t));
                     std::span<sa_index_t> rb(tempRank, 1);
                     comm_world().recv(recv_buf(rb), recv_count(1));
                     Rank_prev_gpu = tempRank;//mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
+                    sa_index_t* debugPtr = (sa_index_t*)malloc(sizeof(sa_index_t));
+                    cudaMemcpy(debugPtr, Rank_prev_gpu, sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+                    printf("[%lu] Rank_prev_gpu: %u\n", world_rank(), *debugPtr);
+                    free(debugPtr);
                 }
-                printf("[%lu] rebucket communication done\n", world_rank());
-
                 auto my_lambda = [=] __device__(int index, int seg, int index_within_seg)
                 {
                     sa_index_t r = inner_segment_ranks[index];
@@ -1639,10 +1642,11 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 mgpu::transform_lbs(my_lambda, gpu.working_len, (int*)gpu.Segment_heads,
                     gpu.num_segments, mcontext.get_mgpu_default_context_for_device(gpu_index));
                 CUERR
+
             }
         }
         mcontext.sync_default_streams();
-
+        cudaFree(Rank_prev_gpu);
         do_max_scan_on_ranks();
     }
 
