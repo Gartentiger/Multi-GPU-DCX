@@ -981,11 +981,11 @@ private:
                         sizeof(sa_index_t), cudaMemcpyDeviceToHost,
                         mcontext.get_gpu_default_stream(gpu_index));
                     CUERR;
-                    printf("671,PrefixDoubling %d", 0);
+                    // printf("671,PrefixDoubling %d", 0);
                     cudaMemcpyAsync(gpu.Sa_index, gpu.Temp2, lens_after_compacting * sizeof(sa_index_t),
                         cudaMemcpyDeviceToDevice, mcontext.get_streams(gpu_index)[1]);
                     CUERR;
-                    printf("671,PrefixDoubling %d", 1);
+                    // printf("671,PrefixDoubling %d", 1);
                     if (lens_after_compacting > 0)
                     {
                         cudaMemcpyAsync(mhost_temp_mem + 3 * NUM_GPUS + gpu_index, gpu.Old_ranks + lens_after_compacting - 1,
@@ -1571,6 +1571,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
 
                 // should be mreserved_len * 2 * sizeof(sa_index_t) but 1 extra for Rank_prev_gpu
                 mcontext.get_device_temp_allocator(gpu_index).init(temp, (mreserved_len * 2 + 1) * sizeof(sa_index_t));
+
                 printf("[%lu] old_rank_start %u, old_rank_end %u, working length+1 %lu, working length %lu\n", world_rank(), gpu.old_rank_start, mgpus[gpu_index + 1].old_rank_end, mgpus[gpu_index + 1].working_len, gpu.working_len);
                 if (gpu_index < NUM_GPUS - 1 && mgpus[gpu_index + 1].working_len > 0 && mgpus[gpu_index + 1].old_rank_start == gpu.old_rank_end) {
                     std::span<sa_index_t> sb(gpu.Sa_rank + gpu.working_len - 1, 1);
