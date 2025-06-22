@@ -453,7 +453,6 @@ public:
 #endif
             // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             // {
-
             //     SaGPU& gpu = mgpus[gpu_index];
             //     if (gpu_index == world_rank()) {
 
@@ -472,7 +471,7 @@ public:
             //         free(k);
             //         {
             //             char fileName[14];
-            //             const char* text = "SaIndexIter";
+            //             const char* text = "Temp1Iter";
             //             sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
             //             std::ofstream out(fileName, std::ios::binary);
             //             if (!out) {
@@ -501,7 +500,6 @@ public:
         printf("[%lu] prefix doubling done\n", world_rank());
         comm_world().barrier();
         //
-
         return iterations;
     }
 
@@ -1166,12 +1164,12 @@ private:
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
             }
         }
-        // printf("[%lu] before multi execKVAsync\n", world_rank());
+        printf("[%lu] write isa multi execKVAsync\n", world_rank());
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-        // printf("[%lu] after multi execKVAsync\n", world_rank());
+        printf("[%lu] write isa after multi execKVAsync\n", world_rank());
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
 
@@ -1197,10 +1195,10 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-        // printf("[%lu] before all2all execKVAsync\n", world_rank());
+        printf("[%lu] write isa before all2all execKVAsync\n", world_rank());
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        // printf("[%lu] after all2all execKVAsync\n", world_rank());
+        printf("[%lu] write isa  all2all execKVAsync\n", world_rank());
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
 
@@ -1209,7 +1207,7 @@ private:
         std::array<std::pair<sa_index_t*, sa_index_t*>, NUM_GPUS> sorted_buff;
 
         bool sorting = false;
-        // printf("[%lu] after all2all execKVAsync\n", world_rank());
+        printf("[%lu] write isa after all2all execKVAsync\n", world_rank());
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -1244,6 +1242,7 @@ private:
         {
             mcontext.sync_default_streams();
         }
+        printf("[%lu] write isa after sortpairs\n", world_rank());
         // printf("[%lu] isa stage\n", world_rank());
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Sort);
 
