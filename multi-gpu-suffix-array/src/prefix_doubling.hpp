@@ -397,7 +397,7 @@ public:
             printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
             comm_world().barrier();
             //
-            // exit(0);
+
 #ifdef DUMP_EVERYTHING
             dump("After sort");
 #endif
@@ -1570,7 +1570,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 sa_index_t rank_of_first_entry_within_segment = gpu.rank_of_first_entry_within_segment;
 
                 // should be mreserved_len * 2 * sizeof(sa_index_t) but 1 extra for Rank_prev_gpu
-                mcontext.get_device_temp_allocator(gpu_index).init(temp, mreserved_len * 2 * sizeof(sa_index_t));
+                mcontext.get_device_temp_allocator(gpu_index).init(temp, (mreserved_len * 2 + 1) * sizeof(sa_index_t));
                 printf("[%lu] old_rank_start %u, old_rank_end %u, working length+1 %lu, working length %lu\n", world_rank(), gpu.old_rank_start, mgpus[gpu_index + 1].old_rank_end, mgpus[gpu_index + 1].working_len, gpu.working_len);
                 if (gpu_index < NUM_GPUS - 1 && mgpus[gpu_index + 1].working_len > 0 && mgpus[gpu_index + 1].old_rank_start == gpu.old_rank_end) {
                     std::span<sa_index_t> sb(gpu.Sa_rank + gpu.working_len - 1, 1);
