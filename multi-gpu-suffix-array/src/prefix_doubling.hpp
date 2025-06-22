@@ -257,7 +257,7 @@ public:
         gpu.Temp2 = pd_ptr.Temp2;
         gpu.Temp3 = pd_ptr.Temp3;
         gpu.Temp4 = pd_ptr.Temp4;
-}
+    }
 
     void print_stats(size_t iterations) const
     {
@@ -393,11 +393,44 @@ public:
             //                    warning("\nAborting!\n");
             //                    break;
             //                }
-
+            if (iterations == 6) {
+                exit(0);
+            }
 #ifdef DUMP_EVERYTHING
             dump("After compact");
 #endif
-
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                char fileName[14];
+                const char* text = "SaRankIter";
+                sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                std::ofstream out(fileName, std::ios::binary);
+                if (!out) {
+                    std::cerr << "Could not open file\n";
+                    //return 1;
+                }
+                sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                out.close();
+                free(k);
+                {
+                    char fileName[14];
+                    const char* text = "SaIndexIter";
+                    sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                    std::ofstream out(fileName, std::ios::binary);
+                    if (!out) {
+                        std::cerr << "Could not open file\n";
+                        //return 1;
+                    }
+                    sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                    cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                    out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                    out.close();
+                    free(k);
+                }
+            }
             mperf_measure.next_iteration();
             ++iterations;
             register_numbers(iterations + 1);
@@ -813,7 +846,7 @@ private:
                 gpu.last_segment_start = *(mhost_temp_mem + 3 * NUM_GPUS + gpu_index);
                 //                    printf("\nGPU %u, first segment end: %u, last segment start: %u", gpu_index,
                 //                           gpu.first_segment_end, gpu.last_segment_start);
-    }
+            }
         }
         return false;
     }
@@ -956,7 +989,7 @@ private:
         }
         mcontext.sync_default_streams();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
-            }
+    }
 
     static void transpose_split_table(const split_table_tt<sa_index_t, NUM_GPUS>& split_table_in,
         split_table_tt<sa_index_t, NUM_GPUS>& split_table_out)
@@ -1262,6 +1295,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 printf("[%u] working length %lu\n", gpu_index, gpu.working_len);
                 if (gpu_index > 0) {
                     printf("[%lu] working length[-1] %lu, old rank start %u, rank end[-1] %u, working length %u\n", gpu_index, mgpus[gpu_index - 1].working_len, gpu.old_rank_start, mgpus[gpu_index - 1].old_rank_end, gpu.working_len);
+
                 }
                 if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
                 {
@@ -1492,8 +1526,8 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
-        };
+};
 
 #endif // PREFIX_DOUBLING_HPP
