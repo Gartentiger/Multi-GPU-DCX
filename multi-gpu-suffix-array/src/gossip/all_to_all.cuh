@@ -91,20 +91,20 @@ namespace gossip {
                     if (src_gpu == world_rank()) {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         std::span<key_t> sb(from_k, len);
-                        comm_world().isend(send_buf(sb), send_count(len), tag(i), destination((size_t)dest_gpu));
+                        comm_world().isend(send_buf(sb), send_count(len), tag(i), destination((size_t)dest_gpu), request(pool.get_request()));
 
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
                         std::span<value_t> sbValue(from_v, len);
-                        comm_world().isend(send_buf(sbValue), send_count(len), tag(i + 1), destination((size_t)dest_gpu));
+                        comm_world().isend(send_buf(sbValue), send_count(len), tag(i + 1), destination((size_t)dest_gpu), request(pool.get_request()));
                     }
                     if (dest_gpu == world_rank()) {
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         std::span<key_t> rb(to_k, len);
-                        comm_world().irecv(recv_buf(rb), tag(i), recv_count(len));
+                        comm_world().irecv(recv_buf(rb), tag(i), recv_count(len), request(pool.get_request()));
 
                         value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
                         std::span<value_t> rbValue(to_v, len);
-                        comm_world().irecv(recv_buf(rbValue), tag(i + 1), recv_count(len));
+                        comm_world().irecv(recv_buf(rbValue), tag(i + 1), recv_count(len), request(pool.get_request()));
                     }
                     i += 2;
                     // cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
@@ -120,7 +120,7 @@ namespace gossip {
                     //     context.get_streams(src_gpu)[dest_gpu]);
                 } CUERR;
             }
-
+            pool.wait_all();
 
             return check_tables(node_info, h_table, v_table);
         }
