@@ -7,6 +7,10 @@
 
 #include "distrib_merge_array.hpp"
 
+#include <kamping/request_pool.hpp>
+#include <kamping/p2p/irecv.hpp>
+#include <kamping/p2p/isend.hpp>
+
 namespace distrib_merge {
 
     template<typename key_t, typename value_t, typename index_t, size_t NUM_GPUS>
@@ -36,54 +40,60 @@ namespace distrib_merge {
             const DistributedArray& a, const DistributedArray& b,
             DistributedArray& out,
             bool do_values) const {
+            RequestPool pool;
+            int msgTag = 0;
             for (uint node = 0; node < NUM_GPUS; ++node) {
                 cudaSetDevice(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
                     ASSERT(c.src_node == node);
+
                     if (c.src_node == world_rank()) {
                         //const
                         key_t* src_k_buff = c.extra ? b[c.src_node].keys : a[c.src_node].keys;
                         //key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
                         std::span<key_t> sb(src_k_buff + c.src_index, c.len);
-                        comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
+                        comm_world().isend(send_buf(sb), send_count(c.len), tag(msgTag), destination((size_t)c.dest_node), request(pool.get_request()));
+                        if (do_values) {
+                            value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
+                            //value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
+                            std::span<value_t> sb(src_v_buff + c.src_index, c.len);
+                            comm_world().isend(send_buf(sb), send_count(c.len), tag(msgTag + 1), destination((size_t)c.dest_node), request(pool.get_request()));
+
+                        }
                     }
                     if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = out[c.dest_node].keys_buffer + c.dest_index;
                         //key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
                         std::span<key_t> rb(dest_k_buff, c.len);
-                        comm_world().recv(recv_buf(rb), recv_count(c.len));
-                    }
-                    if (do_values) {
-                        if (c.src_node == world_rank()) {
-                            //const
-                            value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
-                            //value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
-                            std::span<value_t> sb(src_v_buff + c.src_index, c.len);
-                            comm_world().send(send_buf(sb), send_count(c.len), destination((size_t)c.dest_node));
-                        }
-                        if (c.dest_node == world_rank()) {
+                        comm_world().irecv(recv_buf(rb), tag(msgTag), recv_count(c.len), request(pool.get_request()));
+                        if (do_values) {
                             value_t* dest_v_buff = out[c.dest_node].values_buffer + c.dest_index;
                             //value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer + c.dest_index;
                             std::span<value_t> rb(dest_v_buff, c.len);
-                            comm_world().recv(recv_buf(rb), recv_count(c.len));
+                            comm_world().irecv(recv_buf(rb), tag(msgTag + 1), recv_count(c.len), request(pool.get_request()));
                         }
-                        // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                        //     src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                        //     c.len * sizeof(typename mtypes::value_t),
-                        //     mcontext.get_streams(node)[c.dest_node]);CUERR;
                     }
-                    // cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                    //     src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                    //     c.len * sizeof(key_t),
+                    msgTag += 2;
+
+
+                    // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                    //     src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                    //     c.len * sizeof(typename mtypes::value_t),
                     //     mcontext.get_streams(node)[c.dest_node]);CUERR;
-                    // if (do_values) {
-                        // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                        //     src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                        //     c.len * sizeof(value_t),
-                        //     mcontext.get_streams(node)[c.dest_node]);CUERR;
-                    // }
+
+                // cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                //     src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                //     c.len * sizeof(key_t),
+                //     mcontext.get_streams(node)[c.dest_node]);CUERR;
+                // if (do_values) {
+                    // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                    //     src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                    //     c.len * sizeof(value_t),
+                    //     mcontext.get_streams(node)[c.dest_node]);CUERR;
+                // }
                 }
             }
+            pool.wait_all();
         }
     };
 

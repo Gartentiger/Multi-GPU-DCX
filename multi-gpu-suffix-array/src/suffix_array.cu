@@ -694,12 +694,15 @@ private:
                     gpu.merge_ptr.remaining_storage_size);
             }
         }
+
         auto h_temp_mem = mmemory_manager.get_host_temp_mem();
         QDAllocator qd_alloc_h_temp(h_temp_mem.first, h_temp_mem.second);
         distrib_merge::DistributedMerge<MergeStageSuffix, int, sa_index_t, NUM_GPUS, DistribMergeTopology>::
             merge_async(inp_S12, inp_S0, result, MergeCompFunctor(), false, mcontext, qd_alloc_h_temp);
 
         mcontext.sync_default_streams();
+        printf("[%lu] after merge_async\n", world_rank());
+
         // printf("[%lu] merge async done\n", world_rank());
         // comm_world().barrier();
         //            dump_final_merge("after final merge");

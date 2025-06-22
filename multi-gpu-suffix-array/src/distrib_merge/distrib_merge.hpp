@@ -143,7 +143,7 @@ namespace distrib_merge {
         template <class comp_f>
         void merge(comp_f comp, bool do_values) {
             std::array<std::vector<Search>, NUM_NODES - 1> searches = plan_searches();
-
+            printf("[%lu] before execute_searches\n", world_rank());
             execute_searches(searches, comp);
 
             std::array<std::pair<MergePosition, MergePosition>, NUM_NODES - 1> partition_points =
@@ -168,10 +168,12 @@ namespace distrib_merge {
                                                        s.count, 1 });
                 }
             }
+            printf("[%lu] before do_copies_async\n", world_rank());
 
             mtopology_helper.do_copies_async(copies, minp_a, minp_b, mout, do_values);
 
             mcontext.sync_all_streams();
+            printf("[%lu] before execute_merges_async\n", world_rank());
 
             execute_merges_async(partitions, comp, do_values);
         }
@@ -190,7 +192,6 @@ namespace distrib_merge {
             for (uint node = 0; node < NUM_NODES; ++node)
             {
                 //uint node = world_rank();
-                QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node);
 
                 if (node != world_rank()) {
                     int i = 0;
@@ -210,67 +211,72 @@ namespace distrib_merge {
                     }
                     // printf("[%lu] sends done\n", world_rank());
                 }
-                else {
-
-                    // cudaSetDevice(mcontext.get_device_id(node));
-                    int i = 0;
-                    for (Search* s : searches_on_nodes[node])
-                    {
-                        ASSERT(s->node_a == world_rank() || s->node_b == world_rank());
-
-                        uint other = (node == s->node_a) ? s->node_b : s->node_a;
-                        const cudaStream_t& stream = mcontext.get_streams(node).at(other);
-
-                        const auto& node_a = minp_a[s->node_a];
-                        const auto& node_b = minp_b[s->node_b];
-
-                        s->d_result_ptr = d_alloc.get<int64_t>(1);
-
-
-                        key_t* temp;
-                        if (node == s->node_a) {
-                            // cudaMalloc could be needed here
-                            // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_b.count));
-                            cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
-
-                            std::span<key_t> rb(temp, size_t(node_b.count));
-                            comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_b.count)));
-                            run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
-                                int64_t(node_a.count),
-                                temp,
-                                int64_t(node_b.count),
-                                s->cross_diagonal,
-                                comp,
-                                s->d_result_ptr);
-                            CUERR;
-                        }
-                        else {
-                            // cudaMalloc could be needed here
-                            // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_a.count));
-                            cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
-
-                            std::span<key_t> rb(temp, size_t(node_a.count));
-                            comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_a.count)));
-                            run_partitioning_search << <1, 1, 0, stream >> > (temp,
-                                int64_t(node_a.count),
-                                node_b.keys,
-                                int64_t(node_b.count),
-                                s->cross_diagonal,
-                                comp,
-                                s->d_result_ptr);
-                            CUERR;
-                        }
-                        // printf("[%lu] recv, i: %d \n", world_rank(), i);
-                        s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-
-                        cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
-                            sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
-                        cudaFreeAsync(temp, stream);
-                        i++;
-                    }
-                    // printf("[%lu] recv done\n", world_rank());
-                }
             }
+            //for (uint node = 0; node < NUM_NODES; ++node)
+            {
+                uint node = world_rank();
+                QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node);
+
+
+                // cudaSetDevice(mcontext.get_device_id(node));
+                int i = 0;
+                for (Search* s : searches_on_nodes[node])
+                {
+                    ASSERT(s->node_a == world_rank() || s->node_b == world_rank());
+
+                    uint other = (node == s->node_a) ? s->node_b : s->node_a;
+                    const cudaStream_t& stream = mcontext.get_streams(node).at(other);
+
+                    const auto& node_a = minp_a[s->node_a];
+                    const auto& node_b = minp_b[s->node_b];
+
+                    s->d_result_ptr = d_alloc.get<int64_t>(1);
+
+
+                    key_t* temp;
+                    if (node == s->node_a) {
+                        // cudaMalloc could be needed here
+                        // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_b.count));
+                        cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
+
+                        std::span<key_t> rb(temp, size_t(node_b.count));
+                        comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_b.count)));
+                        run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
+                            int64_t(node_a.count),
+                            temp,
+                            int64_t(node_b.count),
+                            s->cross_diagonal,
+                            comp,
+                            s->d_result_ptr);
+                        CUERR;
+                    }
+                    else {
+                        // cudaMalloc could be needed here
+                        // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_a.count));
+                        cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
+
+                        std::span<key_t> rb(temp, size_t(node_a.count));
+                        comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_a.count)));
+                        run_partitioning_search << <1, 1, 0, stream >> > (temp,
+                            int64_t(node_a.count),
+                            node_b.keys,
+                            int64_t(node_b.count),
+                            s->cross_diagonal,
+                            comp,
+                            s->d_result_ptr);
+                        CUERR;
+                    }
+                    // printf("[%lu] recv, i: %d \n", world_rank(), i);
+                    s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
+
+                    cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
+                        sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
+                    cudaFreeAsync(temp, stream);
+                    i++;
+                }
+                // printf("[%lu] recv done\n", world_rank());
+            }
+
             mcontext.sync_all_streams();
             std::vector<int64_t> hResultsIn;
             hResultsIn.clear();
