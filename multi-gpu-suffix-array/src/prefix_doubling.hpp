@@ -440,9 +440,7 @@ public:
             printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
             comm_world().barrier();
             //
-            if (iterations == 6) {
-                exit(0);
-            }
+
             TIMER_STOP_LOOP_STAGE(LoopStages::Compacting);
 
             //                if (h > 1024*1024*1024) {
@@ -453,43 +451,43 @@ public:
 #ifdef DUMP_EVERYTHING
             dump("After compact");
 #endif
-            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-            {
+            // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            // {
 
-                SaGPU& gpu = mgpus[gpu_index];
-                if (gpu_index == world_rank()) {
+            //     SaGPU& gpu = mgpus[gpu_index];
+            //     if (gpu_index == world_rank()) {
 
-                    char fileName[14];
-                    const char* text = "SaRankIter";
-                    sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
-                    std::ofstream out(fileName, std::ios::binary);
-                    if (!out) {
-                        std::cerr << "Could not open file\n";
-                        //return 1;
-                    }
-                    sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-                    cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-                    out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-                    out.close();
-                    free(k);
-                    {
-                        char fileName[14];
-                        const char* text = "SaIndexIter";
-                        sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
-                        std::ofstream out(fileName, std::ios::binary);
-                        if (!out) {
-                            std::cerr << "Could not open file\n";
-                            //return 1;
-                        }
-                        sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-                        cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-                        out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-                        out.close();
-                        free(k);
-                    }
-                }
-            }
-            comm_world().barrier();
+            //         char fileName[14];
+            //         const char* text = "SaRankIter";
+            //         sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+            //         std::ofstream out(fileName, std::ios::binary);
+            //         if (!out) {
+            //             std::cerr << "Could not open file\n";
+            //             //return 1;
+            //         }
+            //         sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+            //         cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+            //         out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+            //         out.close();
+            //         free(k);
+            //         {
+            //             char fileName[14];
+            //             const char* text = "SaIndexIter";
+            //             sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+            //             std::ofstream out(fileName, std::ios::binary);
+            //             if (!out) {
+            //                 std::cerr << "Could not open file\n";
+            //                 //return 1;
+            //             }
+            //             sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+            //             cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+            //             out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+            //             out.close();
+            //             free(k);
+            //         }
+            //     }
+            // }
+            // comm_world().barrier();
             mperf_measure.next_iteration();
             ++iterations;
             register_numbers(iterations + 1);
@@ -846,10 +844,10 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-}
+        }
         mcontext.sync_default_streams();
 #endif
-        printf("[%lu] before send compact\n", world_rank());
+        // printf("[%lu] before send compact\n", world_rank());
 
         //printf("[%lu] compacting\n", world_rank());
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -876,7 +874,7 @@ private:
                 }
             }
 
-            printf("[%lu] after isend compact\n", world_rank());
+            // printf("[%lu] after isend compact\n", world_rank());
             if (gpu.working_len > 0)
             {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
@@ -902,7 +900,7 @@ private:
                 else {
                     Last_rank_prev = nullptr;
                 }
-                printf("[%lu] after recv compact\n", world_rank());
+                // printf("[%lu] after recv compact\n", world_rank());
                 //First_rank_next = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].Sa_rank
                 //    : nullptr;
                 // pointer to const sa_index_t, last element from next gpu Sa_rank
@@ -1066,7 +1064,7 @@ private:
             // Recover lens from above
             gpu.old_rank_start = *(mhost_temp_mem + 2 * NUM_GPUS + gpu_index);
             gpu.old_rank_end = *(mhost_temp_mem + 3 * NUM_GPUS + gpu_index);
-            printf("[%lu][%u] old rank start %u, old rank end: %u\n", world_rank(), gpu_index, gpu.old_rank_start, gpu.old_rank_end);
+            // printf("[%lu][%u] old rank start %u, old rank end: %u\n", world_rank(), gpu_index, gpu.old_rank_start, gpu.old_rank_end);
             if (gpu.working_len > 0)
             {
                 // cudaSetDevice(mcontext.get_device_id(gpu_index));
@@ -1135,7 +1133,7 @@ private:
         }
 
         return false;
-    }
+        }
 
     // Sa_rank, Sa_index --> Isa
     void write_to_isa(bool initial = false)
@@ -1168,12 +1166,12 @@ private:
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
             }
         }
-        printf("[%lu] before multi execKVAsync\n", world_rank());
+        // printf("[%lu] before multi execKVAsync\n", world_rank());
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-        printf("[%lu] after multi execKVAsync\n", world_rank());
+        // printf("[%lu] after multi execKVAsync\n", world_rank());
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
 
@@ -1199,10 +1197,10 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-        printf("[%lu] before all2all execKVAsync\n", world_rank());
+        // printf("[%lu] before all2all execKVAsync\n", world_rank());
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        printf("[%lu] after all2all execKVAsync\n", world_rank());
+        // printf("[%lu] after all2all execKVAsync\n", world_rank());
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
 
@@ -1246,7 +1244,7 @@ private:
         {
             mcontext.sync_default_streams();
         }
-        printf("[%lu] isa stage\n", world_rank());
+        // printf("[%lu] isa stage\n", world_rank());
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Sort);
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
@@ -1341,7 +1339,7 @@ private:
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
 
         mcontext.sync_default_streams(); // NOT NEEDED
-        printf("[%lu] write sa index adding h\n", world_rank());
+        // printf("[%lu] write sa index adding h\n", world_rank());
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Prepare_Indices);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::Multisplit);
@@ -1361,7 +1359,7 @@ private:
         }
 
         mcontext.sync_default_streams();
-        printf("[%lu] execKVAsync isa fetching\n", world_rank());
+        // printf("[%lu] execKVAsync isa fetching\n", world_rank());
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Multisplit);
 
         //            print_split_table(split_table);
@@ -1369,7 +1367,7 @@ private:
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
         mall2all.execAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        printf("[%lu] execKVAsync all2all isa writing\n", world_rank());
+        // printf("[%lu] execKVAsync all2all isa writing\n", world_rank());
 
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
 
@@ -1392,7 +1390,7 @@ private:
             }
         }
         mcontext.sync_default_streams();
-        printf("[%lu] fetch isa multi\n", world_rank());
+        // printf("[%lu] fetch isa multi\n", world_rank());
 
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Fetch);
 
@@ -1414,7 +1412,7 @@ private:
         mall2all.execAsync(all2all_node_info, split_table_back);
         mcontext.sync_all_streams();
         printf("[%lu] exec Async isa fetching\n", world_rank());
-
+        comm_world().barrier();
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::WriteRanks);
@@ -1577,10 +1575,11 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                     std::span<sa_index_t> sb(gpu.Sa_rank + gpu.working_len - 1, 1);
                     comm_world().isend(send_buf(sb), send_count(1), destination((size_t)gpu_index + 1));
                 }
-
+                if (gpu_index > 0) {
+                    printf("[%lu] old_rank_start %u, old_rank_end %u, working length-1 %lu, working length %lu\n", world_rank(), gpu.old_rank_start, mgpus[gpu_index - 1].old_rank_end, mgpus[gpu_index - 1].working_len, gpu.working_len);
+                }
                 if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
                 {
-                    printf("[%lu] old_rank_start %u, old_rank_end %u, working length-1 %lu, working length %lu\n", world_rank(), gpu.old_rank_start, mgpus[gpu_index - 1].old_rank_end, mgpus[gpu_index - 1].working_len, gpu.working_len);
                     // maybe we need cudaMalloc here
                     sa_index_t* tempRank; //= mcontext.get_device_temp_allocator(world_rank()).get<sa_index_t>(1);
                     cudaMalloc(&tempRank, sizeof(sa_index_t));
