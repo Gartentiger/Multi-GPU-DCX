@@ -440,7 +440,9 @@ public:
             printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
             comm_world().barrier();
             //
-
+            if (iterations == 6) {
+                exit(0);
+            }
             TIMER_STOP_LOOP_STAGE(LoopStages::Compacting);
 
             //                if (h > 1024*1024*1024) {
@@ -844,7 +846,7 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-        }
+}
         mcontext.sync_default_streams();
 #endif
         printf("[%lu] before send compact\n", world_rank());
