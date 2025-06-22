@@ -1078,6 +1078,7 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
+            printf("[%lu] dest_lens: %u, isa_len %lu, offset: %lu\n", gpu_index, dest_lens[gpu_index], mgpus[gpu_index].isa_len, mgpus[gpu_index].offset);
             if (dest_lens[gpu_index] > 0)
             {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
