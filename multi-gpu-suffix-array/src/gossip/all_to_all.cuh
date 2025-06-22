@@ -74,6 +74,7 @@ namespace gossip {
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
             // necessary sync because we cant use the stream for communication 
             context.sync_gpu_default_stream(world_rank());
+            RequestPool pool;
             int i = 0;
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
