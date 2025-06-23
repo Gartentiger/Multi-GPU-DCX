@@ -26,22 +26,9 @@
 #include <thread>
 #include <vector>
 
-// #include <mpi.h>
-
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-// #include <kamping/checking_casts.hpp>
-// #include <kamping/collectives/alltoall.hpp>
-// #include <kamping/data_buffer.hpp>
-// #include <kamping/environment.hpp>
-// #include <kamping/measurements/printer.hpp>
-// #include <kamping/measurements/timer.hpp>
-// #include <kamping/named_parameters.hpp>
-// #include <kamping/communicator.hpp>
-// #include <kamping/p2p/recv.hpp>
-// #include <kamping/p2p/send.hpp>
-// #include <kamping/collectives/allgather.hpp>
 
 static const uint NUM_GPUS = 4;
 
@@ -822,20 +809,16 @@ void print_device_info()
 }
 int main(int argc, char** argv)
 {
-    //using namespace kamping;
-    //kamping::Environment e;
-    //Communicator comm;
-
-    if (argc != 4)
+    if (argc != 3)
     {
-        error("Usage: sa-test <ifile> <ofile>!");
+        error("Usage: sa-test <ofile> <ifile>!");
     }
 
     char* input = nullptr;
 
     cudaSetDevice(0);
     size_t realLen;
-    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), 0);
+    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), 0);
 
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
@@ -845,27 +828,16 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
+    const std::array<uint, NUM_GPUS> gpu_ids;
+    MultiGPUContext<NUM_GPUS> context;
 #endif
     SuffixSorter sorter(context, realLen, input);
 
     sorter.alloc();
 
-    auto stringPath = ((std::string)argv[3]);
-    int pos = stringPath.find_last_of("/\\");
-    auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
-
-    //auto& t = kamping::measurements::timer();
-    //t.synchronize_and_start(fileName);
-
     sorter.do_sa();
 
-    //t.stop();
-    // for (int i = 0; i < realLen; i++) {
-    //     printf("%u: %s\n", sorter.get_result()[i], input + sorter.get_result()[i]);
-    // }
-    write_array(argv[2], sorter.get_result(), realLen);
+    write_array(argv[1], sorter.get_result(), realLen);
 
     sorter.done();
 
@@ -874,11 +846,4 @@ int main(int argc, char** argv)
 
     cudaFreeHost(input);
     CUERR;
-
-    // std::ofstream outFile(argv[1], std::ios::app);
-    // t.aggregate_and_print(
-    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    // std::cout << std::endl;
-    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    // std::cout << std::endl;
 }

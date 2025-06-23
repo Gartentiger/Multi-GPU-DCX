@@ -16,36 +16,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdio>
-template<typename ke>
-__global__ void printArrays(ke* key, size_t size, size_t rank, int spec)
-{
-    for (size_t i = 0; i < size; i++)
-    {
-        printf("[%lu] Key %d: %u\n", rank, spec, key[i]);
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
-__global__ void printArrays(uint64_t* key, uint64_t* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
-
-
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
-template<typename ke>
-__global__ void printArrays(ke* key, ke* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
-
-        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
-
-
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
 namespace crossGPUReMerge {
 
 
@@ -158,11 +129,6 @@ namespace crossGPUReMerge {
 
                     s->d_result_ptr = d_alloc.get<int64_t>(1);
                     s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-                    //printf("[%u] size_1: %ld, size_2: %ld, cross_diagonal: %u\n", node_index, size_1, size_2, s->cross_diagonal);
-
-                    //printArrays << <1, 1, 0, stream >> > (start_1, start_1, size_1, (size_t)node_index);
-                    //printArrays << <1, 1, 0, stream >> > (start_2, start_2, size_2, (size_t)node_index + 10);
-
 
                     run_partitioning_search << <1, 1, 0, stream >> > (start_1, size_1, start_2, size_2, s->cross_diagonal,
                         comp, s->d_result_ptr);
@@ -197,11 +163,6 @@ namespace crossGPUReMerge {
                 }
 
             }
-            // for (MergeNode node : mnodes) {
-            //     if (node.scheduled_work.searches.size() > 0) {
-            //         exit(0);
-            //     }
-            // }
             mcontext.sync_all_streams();
 
             for (MergeNode& node : mnodes) {
@@ -225,7 +186,7 @@ namespace crossGPUReMerge {
         }
 
         template <class comp_fun_t>
-        void do_copy_and_merge(comp_fun_t comp, std::function <void()> dbg_func) {
+        void do_copy_and_merge(comp_fun_t comp) {
             (void)dbg_func;
             std::array<std::vector<InterNodeCopy>, NUM_GPUS> copies = partitions_to_copies<NUM_GPUS, mtypes>(mnodes);
             std::array<size_t, NUM_GPUS> detour_sizes;

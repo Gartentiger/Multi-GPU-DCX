@@ -17,37 +17,6 @@
 // #define DEBUG_SET_ZERO_TO_SEE_BETTER
 // #define DUMP_EVERYTHING
 
-__global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
-
-        printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
-
-
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
-__global__ void printArray(uint64_t* key, uint64_t* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
-
-        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
-
-
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
-template<typename ke>
-__global__ void printArray(ke* key, ke* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
-
-        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
-
-
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
 struct MaxFunctor
 {
     template <typename T>
@@ -550,8 +519,6 @@ private:
             // Now Sa_rank is sorted to Old_ranks,
             // Isa is sorted to Sa_Index
             // Temp2, 3, 4 used as temp space
-            //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
-            //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
             //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
                                            reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
@@ -800,7 +767,7 @@ private:
             // Recover lens from above
             gpu.old_rank_start = *(mhost_temp_mem + 2 * NUM_GPUS + gpu_index);
             gpu.old_rank_end = *(mhost_temp_mem + 3 * NUM_GPUS + gpu_index);
-            printf("[%lu] old rank start %u, old rank end: %u\n", gpu_index, gpu.old_rank_start, gpu.old_rank_end);
+
             if (gpu.working_len > 0)
             {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
@@ -1078,7 +1045,6 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
-            printf("[%lu] dest_lens: %u, isa_len %lu, offset: %lu\n", gpu_index, dest_lens[gpu_index], mgpus[gpu_index].isa_len, mgpus[gpu_index].offset);
             if (dest_lens[gpu_index] > 0)
             {
                 cudaSetDevice(mcontext.get_device_id(gpu_index));
@@ -1293,19 +1259,11 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                 sa_index_t* temp = gpu.Temp3;
                 sa_index_t* Rank_prev_gpu = nullptr;
                 sa_index_t rank_of_first_entry_within_segment = gpu.rank_of_first_entry_within_segment;
-                // printf("[%u] working length %lu\n", gpu_index, gpu.working_len);
-                if (gpu_index > 0) {
-                    // printf("[%u] working length[-1] %lu, old rank start %u, rank end[-1] %u, working length %lu\n", gpu_index, mgpus[gpu_index - 1].working_len, gpu.old_rank_start, mgpus[gpu_index - 1].old_rank_end, gpu.working_len);
-                }
+
                 if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
                 {
                     Rank_prev_gpu = mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
-                    sa_index_t* debugPtr = (sa_index_t*)malloc(sizeof(sa_index_t));
-                    cudaMemcpy(debugPtr, Rank_prev_gpu, sizeof(sa_index_t), cudaMemcpyDeviceToHost);
-                    // printf("[%u] Rank_prev_gpu: %u\n", gpu_index, *debugPtr);
-                    free(debugPtr);
                 }
-                // exit(0);
                 mcontext.get_device_temp_allocator(gpu_index).init(temp, mreserved_len * 2 * sizeof(sa_index_t));
 
                 auto my_lambda = [=] __device__(int index, int seg, int index_within_seg)
