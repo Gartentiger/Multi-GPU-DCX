@@ -319,9 +319,9 @@ public:
         dump("After initial sort");
 #endif
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Initial sort done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] Initial sort done\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
@@ -332,16 +332,16 @@ public:
         dump("Initial ranking");
 #endif
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Write initial ranks done\n", world_rank());
-        comm_world().barrier();
+        //mcontext.sync_all_streams();
+        //printf("[%lu] Write initial ranks done\n", world_rank());
+        //comm_world().barrier();
         //
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Write to isa done\n", world_rank());
-        comm_world().barrier();
+        //mcontext.sync_all_streams();
+        //printf("[%lu] Write to isa done\n", world_rank());
+        //comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
@@ -1164,12 +1164,10 @@ private:
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
             }
         }
-        printf("[%lu] write isa multi execKVAsync\n", world_rank());
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-        printf("[%lu] write isa after multi execKVAsync\n", world_rank());
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
 
@@ -1195,10 +1193,9 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-        printf("[%lu] write isa before all2all execKVAsync\n", world_rank());
+
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        printf("[%lu] write isa  all2all execKVAsync\n", world_rank());
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
 
@@ -1207,8 +1204,6 @@ private:
         std::array<std::pair<sa_index_t*, sa_index_t*>, NUM_GPUS> sorted_buff;
 
         bool sorting = false;
-        printf("[%lu] write isa after all2all execKVAsync\n", world_rank());
-
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
@@ -1242,7 +1237,6 @@ private:
         {
             mcontext.sync_default_streams();
         }
-        printf("[%lu] write isa after sortpairs\n", world_rank());
         // printf("[%lu] isa stage\n", world_rank());
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Sort);
 
@@ -1368,8 +1362,7 @@ private:
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
         mall2all.execAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        comm_world().barrier();
-        printf("[%lu] dest_lens: %u, isa_len %lu, offset: %lu\n", world_rank(), dest_lens[world_rank()], mgpus[world_rank()].isa_len, mgpus[world_rank()].offset);
+
 
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
 
@@ -1414,8 +1407,6 @@ private:
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
         mall2all.execAsync(all2all_node_info, split_table_back);
         mcontext.sync_all_streams();
-        printf("[%lu] exec Async isa fetching\n", world_rank());
-        comm_world().barrier();
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::WriteRanks);
@@ -1578,9 +1569,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                     std::span<sa_index_t> sb(gpu.Sa_rank + gpu.working_len - 1, 1);
                     comm_world().isend(send_buf(sb), send_count(1), destination((size_t)gpu_index + 1));
                 }
-                if (gpu_index > 0) {
-                    printf("[%lu] old_rank_start %u, old_rank_end %u, working length-1 %lu, working length %lu\n", world_rank(), gpu.old_rank_start, mgpus[gpu_index - 1].old_rank_end, mgpus[gpu_index - 1].working_len, gpu.working_len);
-                }
+
                 if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
                 {
                     // maybe we need cudaMalloc here
@@ -1589,10 +1578,6 @@ public: // Needs to be public because lamda wouldn't work otherwise...
                     std::span<sa_index_t> rb(tempRank, 1);
                     comm_world().recv(recv_buf(rb), recv_count(1));
                     Rank_prev_gpu = tempRank;//mgpus[gpu_index - 1].Sa_rank + mgpus[gpu_index - 1].working_len - 1;
-                    sa_index_t* debugPtr = (sa_index_t*)malloc(sizeof(sa_index_t));
-                    cudaMemcpy(debugPtr, Rank_prev_gpu, sizeof(sa_index_t), cudaMemcpyDeviceToHost);
-                    printf("[%lu] Rank_prev_gpu: %u\n", world_rank(), *debugPtr);
-                    free(debugPtr);
                 }
                 auto my_lambda = [=] __device__(int index, int seg, int index_within_seg)
                 {

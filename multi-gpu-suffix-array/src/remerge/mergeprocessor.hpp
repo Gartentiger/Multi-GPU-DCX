@@ -205,28 +205,16 @@ namespace crossGPUReMerge
                         //ad.lengths[i] = r.end.index - r.start.index;
 
                         // identify sender id (r.start.node)
-                        if (r.start.node == world_rank())
+                        if (r.start.node == world_rank() && node.info.index != world_rank())
                         {
-                            // identify receiver id (node.info.index)
-                            if (node.info.index == world_rank())
-                            {
-                                // sender == reveiver
-                                // printf("[%lu] receiving own, sender: %u, i: %d\n", world_rank(), r.start.node, i);
-                                // ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
-                            }
-                            else
-                            {
-                                // printf("[%lu] sending to [%u], msgTag: %d\n", world_rank(), node.info.index, msgTag);
-                                //  sender != reveiver -> send data
-                                std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
-                                comm_world().isend(send_buf(sb), send_count(len), tag(msgTag), destination((size_t)node.info.index));
-                            }
+                            //  sender != reveiver -> send data
+                            std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
+                            comm_world().isend(send_buf(sb), send_count(len), tag(msgTag), destination((size_t)node.info.index));
                         }
                         msgTag++;
                     }
                 }
             }
-
 
             {
                 MergeNode& node = mnodes[world_rank()];
@@ -243,11 +231,9 @@ namespace crossGPUReMerge
 
                         if (r.start.node == world_rank())
                         {
-                            // printf("[%lu] receiving own, msgTag: %d\n", world_rank(), msgTag);
                             ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                         }
                         else {
-                            // printf("[%lu] receiving, msgTag: %d\n", world_rank(), msgTag);
 
                             key_t* temp; //= (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
                             cudaMalloc(&temp, sizeof(key_t) * len);
@@ -265,14 +251,9 @@ namespace crossGPUReMerge
             comm_world().barrier();
 
             for (MergeNode& node : mnodes) {
-                //printf("[%lu] Mulit search communication done, searches.size(): %lu, mulit_searches.size(): %lu\n", world_rank(), node.scheduled_work.searches.size(), node.scheduled_work.multi_searches.size());
                 int msgTag = 0;
-
                 for (auto s : node.scheduled_work.searches)
                 {
-                    //printf("[%lu][%u] start_range: %u, end_range: %u, node_1: %u\n", world_rank(), node.info.index, s->node1_range.start, s->node1_range.end, s->node_1);
-                    //printf("[%lu][%u] start_range2: %u, end_range2: %u\n, node_2: %u\n", world_rank(), node.info.index, s->node2_range.start, s->node2_range.end, s->node_2);
-                    //printf("[%lu][%u] cross diagonal: %u\n", world_rank(), node.info.index, s->cross_diagonal);
                     if (node.info.index != world_rank())
                     {
                         if (s->node_1 == world_rank())
@@ -356,16 +337,14 @@ namespace crossGPUReMerge
                 const uint node_index = node.info.index;
                 cudaSetDevice(mcontext.get_device_id(node_index));
                 CUERR;
-                // printf("Merge node index %d\n", node_index);
                 if (world_rank() == node_index)
                 {
                     int msgTag = 0;
 
                     QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
-                    // printf("[%lu] searches.size() = %lu\n", world_rank(), node.scheduled_work.searches.size());
+
                     for (auto s : node.scheduled_work.searches)
                     {
-                        // printf("[%lu] searches.size() = %lu, node_1: %u, node_2: %u\n", world_rank(), node.scheduled_work.searches.size(), s->node_1, s->node_2);
                         uint other = (node_index == s->node_1) ? s->node_2 : s->node_1;
                         const cudaStream_t& stream = mcontext.get_streams(node_index).at(other);
 
@@ -378,12 +357,8 @@ namespace crossGPUReMerge
                         key_t* tempRef;
 
 
-
-
                         if (other == node.info.index)
                         {
-                            // printf("[%lu] other == node\n", world_rank());
-
                             start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
                             start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                         }
@@ -397,7 +372,6 @@ namespace crossGPUReMerge
                                 tempRef = start_2;
                                 std::span<key_t> rb(start_2, size_2);
                                 comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_2));
-                                // printf("[%lu] received from node 2: %u\n", world_rank(), s->node_2);
                             }
                             else
                             {
@@ -407,7 +381,6 @@ namespace crossGPUReMerge
                                 comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_1));
 
                                 start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
-                                // printf("[%lu] received from node 1: %u\n", world_rank(), s->node_1);
                             }
                         }
 
@@ -450,8 +423,7 @@ namespace crossGPUReMerge
                         CUERR;
                         cudaFreeAsync(tempRef, stream);
                     }
-                    // mcontext.sync_all_streams();
-                    //  printf("sync complete %lu\n", world_rank());
+
                     int adCount = 0;
                     for (auto ms : node.scheduled_work.multi_searches)
                     {

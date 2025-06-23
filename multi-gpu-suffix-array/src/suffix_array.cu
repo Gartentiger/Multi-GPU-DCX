@@ -212,11 +212,11 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Input);
-        printf("[%lu] Copy Input\n", world_rank());
+        // printf("[%lu] Copy Input\n", world_rank());
 
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
         produce_kmers();
-        printf("[%lu] Produce kmers\n", world_rank());
+        // printf("[%lu] Produce kmers\n", world_rank());
 
         TIMER_STOP_MAIN_STAGE(MainStages::Produce_KMers);
 
@@ -228,34 +228,34 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] prepare s12 for merge done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] prepare s12 for merge done\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         prepare_S0_for_merge();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] prepare s0 for merge done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] prepare s0 for merge done\n", world_rank());
+        // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Final_Merge);
         final_merge();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] final merge done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] final merge done\n", world_rank());
+        // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
         copy_result_to_host();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] complete\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] complete\n", world_rank());
+        // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
         TIMERSTOP(Total);
@@ -701,7 +701,7 @@ private:
             merge_async(inp_S12, inp_S0, result, MergeCompFunctor(), false, mcontext, qd_alloc_h_temp);
 
         mcontext.sync_default_streams();
-        printf("[%lu] after merge_async\n", world_rank());
+        // printf("[%lu] after merge_async\n", world_rank());
 
         // printf("[%lu] merge async done\n", world_rank());
         // comm_world().barrier();
@@ -959,10 +959,10 @@ int main(int argc, char** argv)
     // t.stop();
     if (world_rank() == 0) {
         for (int i = 0; i < realLen; i++) {
-            //printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
+            printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
         }
-        // sorter.print_pd_stats();
-        // sorter.get_perf_measurements().print();
+        sorter.print_pd_stats();
+        sorter.get_perf_measurements().print();
 
         // std::ofstream outFile(argv[1], std::ios::app);
         // t.aggregate_and_print(
