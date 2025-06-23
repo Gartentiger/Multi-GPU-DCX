@@ -957,22 +957,22 @@ int main(int argc, char** argv)
     sorter.do_sa();
 
     // t.stop();
-    if (world_rank() == 0) {
-        for (int i = 0; i < realLen; i++) {
-            printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
-        }
-        sorter.print_pd_stats();
-        sorter.get_perf_measurements().print();
+    // if (world_rank() == 0) {
+        //for (int i = 0; i < realLen; i++) {
+            //printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
+        //}
+    sorter.print_pd_stats();
+    sorter.get_perf_measurements().print();
 
-        // std::ofstream outFile(argv[1], std::ios::app);
-        // t.aggregate_and_print(
-        //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-        // std::cout << std::endl;
-        // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        // std::cout << std::endl;
+    // std::ofstream outFile(argv[1], std::ios::app);
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
 
-        write_array(argv[2], sorter.get_result(), realLen);
-    }
+    write_array(argv[2], sorter.get_result(), realLen);
+    // }
 
     sorter.done();
 
