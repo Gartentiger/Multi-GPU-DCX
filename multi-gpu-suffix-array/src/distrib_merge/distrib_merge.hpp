@@ -143,7 +143,7 @@ namespace distrib_merge {
         template <class comp_f>
         void merge(comp_f comp, bool do_values) {
             std::array<std::vector<Search>, NUM_NODES - 1> searches = plan_searches();
-            printf("[%lu] before execute_searches\n", world_rank());
+            // printf("[%lu] before execute_searches\n", world_rank());
             execute_searches(searches, comp);
 
             std::array<std::pair<MergePosition, MergePosition>, NUM_NODES - 1> partition_points =
@@ -168,12 +168,12 @@ namespace distrib_merge {
                                                        s.count, 1 });
                 }
             }
-            printf("[%lu] before do_copies_async\n", world_rank());
+            // printf("[%lu] before do_copies_async\n", world_rank());
 
             mtopology_helper.do_copies_async(copies, minp_a, minp_b, mout, do_values);
 
             mcontext.sync_all_streams();
-            printf("[%lu] before execute_merges_async\n", world_rank());
+            // printf("[%lu] before execute_merges_async\n", world_rank());
 
             execute_merges_async(partitions, comp, do_values);
         }
