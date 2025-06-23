@@ -574,7 +574,7 @@ private:
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Write_Out_And_Sort);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
-        merge_manager.merge(ranges, S0Comparator(), nullptr);
+        merge_manager.merge(ranges, S0Comparator());
 
         mcontext.sync_all_streams();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
@@ -828,7 +828,6 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids;
     MultiGPUContext<NUM_GPUS> context;
 #endif
     SuffixSorter sorter(context, realLen, input);

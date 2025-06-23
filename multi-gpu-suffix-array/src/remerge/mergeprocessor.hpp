@@ -187,7 +187,6 @@ namespace crossGPUReMerge {
 
         template <class comp_fun_t>
         void do_copy_and_merge(comp_fun_t comp) {
-            (void)dbg_func;
             std::array<std::vector<InterNodeCopy>, NUM_GPUS> copies = partitions_to_copies<NUM_GPUS, mtypes>(mnodes);
             std::array<size_t, NUM_GPUS> detour_sizes;
             for (uint i = 0; i < NUM_GPUS; ++i)
