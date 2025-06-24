@@ -956,8 +956,8 @@ int main(int argc, char** argv)
 
     sorter.do_sa();
 
-    write_array(argv[2], sorter.get_result(), realLen);
-
+    if (world_rank() == 0)
+        write_array(argv[2], sorter.get_result(), realLen);
 
     sorter.done();
 
