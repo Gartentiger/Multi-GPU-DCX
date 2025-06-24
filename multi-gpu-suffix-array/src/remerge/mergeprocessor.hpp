@@ -13,9 +13,6 @@
 #include "multi_way_partitioning_search.hpp"
 #include "multi_way_micromerge_on_one_node.hpp"
 #include "qdallocator.hpp"
-#include <iostream>
-#include <fstream>
-#include <cstdio>
 
 namespace crossGPUReMerge {
 
@@ -166,7 +163,6 @@ namespace crossGPUReMerge {
             mcontext.sync_all_streams();
 
             for (MergeNode& node : mnodes) {
-                int id = 0;
                 for (auto s : node.scheduled_work.searches) {
                     s->result = *s->h_result_ptr;
                     //printf("[%lu] result: %ld, id: %d\n", node.info.index, s->result, id);
