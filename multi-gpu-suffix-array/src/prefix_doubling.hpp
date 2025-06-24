@@ -319,9 +319,9 @@ public:
         dump("After initial sort");
 #endif
         //
-        // mcontext.sync_all_streams();
-        // printf("[%lu] Initial sort done\n", world_rank());
-        // comm_world().barrier();
+        mcontext.sync_all_streams();
+        printf("[%lu] Initial sort done\n", world_rank());
+        comm_world().barrier();
         //
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);

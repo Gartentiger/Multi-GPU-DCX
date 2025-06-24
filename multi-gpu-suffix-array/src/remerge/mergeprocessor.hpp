@@ -527,7 +527,6 @@ namespace crossGPUReMerge
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
                 }
             }
-
             // free temp buffers
             // for (key_t* deviceP : tempPointers)
             //     mcontext.get_device_temp_allocator(world_rank()).
@@ -627,7 +626,8 @@ namespace crossGPUReMerge
             //     printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.value_buffer, mnode.info.values, mnode.info.num_elements, mnode.info.index);
             //     mcontext.sync_gpu_default_stream(mnode.info.index);
             // }
-
+            mcontext.sync_all_streams();
+            printf("[%lu] before multi merge\n", world_rank());
             if (!multi_mergers.empty())
             {
                 bool finished = false;
