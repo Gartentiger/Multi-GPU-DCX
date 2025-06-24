@@ -88,8 +88,7 @@ public:
                 if (src_gpu != dst_gpu) {
                     if (THROW_EXCEPTIONS) {
                         if (src == dst) {
-                            //throw std::invalid_argument("Device identifiers are not unique.");
-                            continue;
+                            throw std::invalid_argument("Device identifiers are not unique.");
                         }
                     }
                 }

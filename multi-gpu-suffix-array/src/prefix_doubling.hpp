@@ -331,7 +331,6 @@ public:
 #endif
 
             do_segmented_sort();
-
 #ifdef DUMP_EVERYTHING
             dump("After sort");
 #endif
@@ -362,9 +361,7 @@ public:
             //                    warning("\nAborting!\n");
             //                    break;
             //                }
-            if (iterations == 6) {
-                exit(0);
-            }
+
 #ifdef DUMP_EVERYTHING
             dump("After compact");
 #endif

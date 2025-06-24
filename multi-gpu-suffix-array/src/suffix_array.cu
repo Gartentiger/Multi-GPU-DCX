@@ -20,14 +20,6 @@
 #include "gossip/multisplit.cuh"
 #include "distrib_merge/distrib_merge.hpp"
 
-#include <chrono>
-#include <numeric>
-#include <random>
-#include <thread>
-#include <vector>
-
-#include <stdio.h>
-
 static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
@@ -202,7 +194,6 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
         produce_kmers();
         TIMER_STOP_MAIN_STAGE(MainStages::Produce_KMers);
-
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(4);
@@ -210,15 +201,19 @@ public:
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
+
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         prepare_S0_for_merge();
+
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Final_Merge);
+
         final_merge();
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
         copy_result_to_host();
+
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
         TIMERSTOP(Total);
 
@@ -304,6 +299,7 @@ public:
 
     void print_pd_stats() const
     {
+        std::cout << "a " << std::endl;
         mpd_sorter.print_stats(mtook_pd_iterations);
     }
 
@@ -813,11 +809,9 @@ int main(int argc, char** argv)
     }
 
     char* input = nullptr;
-
     cudaSetDevice(0);
     size_t realLen;
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), 0);
-
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
     //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
@@ -826,11 +820,9 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
+    MultiGPUContext<NUM_GPUS> context;
 #endif
     SuffixSorter sorter(context, realLen, input);
-
     sorter.alloc();
 
     sorter.do_sa();
