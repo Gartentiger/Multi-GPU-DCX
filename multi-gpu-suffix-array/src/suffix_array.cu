@@ -944,38 +944,18 @@ int main(int argc, char** argv)
     SuffixSorter sorter(context, realLen, input);
 
     sorter.alloc();
-    // printf("Alloc\n");
-
-    // auto stringPath = ((std::string)argv[3]);
-    // int pos = stringPath.find_last_of("/\\");
-    // auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
-
-    // auto& t = kamping::measurements::timer();
-    // if (world_rank() == 0)
-    //     t.synchronize_and_start(fileName);
 
     sorter.do_sa();
 
-    // t.stop();
-    // if (world_rank() == 0) {
-        //for (int i = 0; i < realLen; i++) {
-            //printf("[%lu]: %u: %s\n", world_rank(), sorter.get_result()[i], input + sorter.get_result()[i]);
-        //}
-    sorter.print_pd_stats();
-    sorter.get_perf_measurements().print();
-
-    // std::ofstream outFile(argv[1], std::ios::app);
-    // t.aggregate_and_print(
-    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    // std::cout << std::endl;
-    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    // std::cout << std::endl;
-
     write_array(argv[2], sorter.get_result(), realLen);
-    // }
+
 
     sorter.done();
 
+    if (world_rank() == 0) {
+        sorter.print_pd_stats();
+        sorter.get_perf_measurements().print();
+    }
 
     cudaFreeHost(input);
     CUERR;

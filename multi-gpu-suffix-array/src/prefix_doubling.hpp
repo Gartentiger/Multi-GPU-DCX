@@ -1402,7 +1402,7 @@ private:
         }
 
         transpose_split_table(split_table, split_table_back);
-        printf("[%lu] before exec Async isa fetching\n", world_rank());
+        // printf("[%lu] before exec Async isa fetching\n", world_rank());
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
         mall2all.execAsync(all2all_node_info, split_table_back);
