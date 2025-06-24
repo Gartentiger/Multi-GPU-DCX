@@ -299,7 +299,6 @@ public:
 
     void print_pd_stats() const
     {
-        std::cout << "a " << std::endl;
         mpd_sorter.print_stats(mtook_pd_iterations);
     }
 
