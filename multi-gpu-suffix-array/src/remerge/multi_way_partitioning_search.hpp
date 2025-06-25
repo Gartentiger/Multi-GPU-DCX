@@ -15,15 +15,21 @@ struct ArrayDescriptor {
 mid_index[index] = (starts[index] + ends[index]) / 2; \
 mid_values[index] = arr_descr.keys[index][mid_index[index]];
 
+// 3.2.2 in the paper
 template<typename key_t, typename int_t, class comp_fun_t, size_t MAX_GPUS>
 HOST_DEVICE std::tuple<uint, int_t, key_t>
 multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, int_t k, comp_fun_t comp) {
 
+    // m_i = current median index of array arr_descr.keys[i]
     int_t mid_index[MAX_GPUS];
+    // v_i = current median value of array arr_descr.keys[i]
     key_t mid_values[MAX_GPUS];
+    // s_i 
     int_t starts[MAX_GPUS];
+    // e_i
     int_t ends[MAX_GPUS];
 
+    // b in the paper
     int before_mid_count = 0;
     size_t total_size = 0;
     // Initialize
@@ -35,7 +41,7 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
         total_size += arr_descr.lengths[i];
     }
 
-//    std::cout << "k: " << k << ", total_size: " << total_size << "\n";
+    //    std::cout << "k: " << k << ", total_size: " << total_size << "\n";
 
     assert(k < total_size);
 
@@ -45,12 +51,13 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
     int_t result_list_index;
 
     while (!done) {
+        // v_min, v_max
         key_t min_value, max_value;
-//        memset(&min_value , 0xff, sizeof(key_t));
-//        memset(&max_value , 0x00, sizeof(key_t));
+        //        memset(&min_value , 0xff, sizeof(key_t));
+        //        memset(&max_value , 0x00, sizeof(key_t));
 
-//        key_t min_value = std::numeric_limits<key_t>::max();  // Does silently fail for unknown types... :/
-//        key_t max_value = std::numeric_limits<key_t>::min();
+        //        key_t min_value = std::numeric_limits<key_t>::max();  // Does silently fail for unknown types... :/
+        //        key_t max_value = std::numeric_limits<key_t>::min();
         int_t max_index = -1, min_index = -2;
 
 
@@ -67,16 +74,17 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
                     max_index = i;
                 }
             }
-//            printf("Multi-way partioning search: %u from %u to %u.\n", i, starts[i], ends[i]);
-//            std::cout << i << ". From " << starts[i] << " to " << ends[i] << ", mid: " << mid_index[i]
-//                      << ", value: " << mid_values[i] << std::endl;
+            //            printf("Multi-way partioning search: %u from %u to %u.\n", i, starts[i], ends[i]);
+            //            std::cout << i << ". From " << starts[i] << " to " << ends[i] << ", mid: " << mid_index[i]
+            //                      << ", value: " << mid_values[i] << std::endl;
         }
 
-//        std::cout << "min index: " << min_index << ", value: " << min_value << std::endl;
-//        std::cout << "max index: " << max_index << ", value: " << max_value;
+        //        std::cout << "min index: " << min_index << ", value: " << min_value << std::endl;
+        //        std::cout << "max index: " << max_index << ", value: " << max_value;
 
-//        std::cout << "\nbefore mid count: " << before_mid_count << ", k: " << k << std::endl;
+        //        std::cout << "\nbefore mid count: " << before_mid_count << ", k: " << k << std::endl;
 
+        // case 1
         if (min_index == max_index && before_mid_count == k) {
             result_value = mid_values[min_index];
             result_index = mid_index[min_index];
@@ -84,11 +92,12 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
             break;
         }
 
+        // case 2
         if (before_mid_count < k) {
-//            std::cout << "Adjusting min..." << min_index << std::endl;
+            //            std::cout << "Adjusting min..." << min_index << std::endl;
             int_t old_mid = mid_index[min_index];
             if (starts[min_index] == mid_index[min_index]) {
-                starts[min_index] = mid_index[min_index]+1;
+                starts[min_index] = mid_index[min_index] + 1;
             }
             else {
                 starts[min_index] = mid_index[min_index];
@@ -96,27 +105,28 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
             UPDATE_MID_INDEX_AND_VALUE(min_index);
             before_mid_count += mid_index[min_index] - old_mid;
         }
+        //case 3/4
         else {
-//            std::cout << "Adjusting max... " << max_index << std::endl;
+            //            std::cout << "Adjusting max... " << max_index << std::endl;
             ends[max_index] = mid_index[max_index];
             int_t old_mid = mid_index[max_index];
             UPDATE_MID_INDEX_AND_VALUE(max_index);
             before_mid_count -= old_mid - mid_index[max_index];
         }
 
-//        std::cout << std::endl;
+        //        std::cout << std::endl;
     }
 
-//    std::cout << "Needed " << count << " iterations with total size " << total_size << ".\n";
+    //    std::cout << "Needed " << count << " iterations with total size " << total_size << ".\n";
 
-//    printf("Multi-way partioning search exited: result list index %u, result index %u.\n", result_list_index, result_index);
+    //    printf("Multi-way partioning search exited: result list index %u, result index %u.\n", result_list_index, result_index);
 
     return std::make_tuple(result_list_index, result_index, result_value);
 }
 
 template<size_t MAX_GPUS, typename key_t, typename int_t, class comp_fun_t>
 __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr,
-                                             int_t M, int_t k, comp_fun_t comp, int_t* Results, uint* Safe_list) {
+    int_t M, int_t k, comp_fun_t comp, int_t* Results, uint* Safe_list) {
 
     const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -128,8 +138,8 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
     if (thidx == 0) {
         std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_select(arr_descr, M, k, comp);
         k_list_index = std::get<0>(ksmallest);
-        k_index =      std::get<1>(ksmallest);
-        k_value =      std::get<2>(ksmallest);
+        k_index = std::get<1>(ksmallest);
+        k_value = std::get<2>(ksmallest);
         *Safe_list = k_list_index;
     }
 
@@ -137,7 +147,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
     if (thidx == 0) {
         offsets[0] = 0;
         for (uint i = 1; i < M; ++i) {
-            offsets[i] = offsets[i-1] + arr_descr.lengths[i-1];
+            offsets[i] = offsets[i - 1] + arr_descr.lengths[i - 1];
         }
     }
 
@@ -157,27 +167,30 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
             end = arr_descr.lengths[list];
             offset = offsets[list];
             k_offset = offsets[k_list_index] + k_index;
-            while(start < end) {
+            // binary search
+            while (start < end) {
                 mid = (start + end) / 2;
                 mid_value = arr[mid];
                 if (comp(mid_value, _k_value)) {
-                    start = mid+1;
+                    start = mid + 1;
                 }
+                // for in place sorting
                 else if (!comp(mid_value, _k_value) && !comp(_k_value, mid_value)) { // ==
                     if (offset + mid < k_offset)
-                        start = mid+1;
+                        start = mid + 1;
                     else
                         end = mid;
                 }
                 else {
                     end = mid;
                 }
-    //            std::cout << "From " << start << " to " << end << ", mid: " << mid << ", mid-value: " << mid_value << std::endl;
+                //            std::cout << "From " << start << " to " << end << ", mid: " << mid << ", mid-value: " << mid_value << std::endl;
 
             }
-//            std::cout << "List " << list << ", k: " << k << " looking for: " << value <<", s: " << start << ", e: " << end << "\n";
+            //            std::cout << "List " << list << ", k: " << k << " looking for: " << value <<", s: " << start << ", e: " << end << "\n";
             result = start;
-        } else {
+        }
+        else {
             result = k_index;
         }
         Results[list] = result;
