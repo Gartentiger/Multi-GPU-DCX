@@ -235,7 +235,6 @@ namespace distrib_merge {
 
                     key_t* temp;
                     if (node == s->node_a) {
-                        // cudaMalloc could be needed here
                         // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_b.count));
                         cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
 
@@ -251,7 +250,6 @@ namespace distrib_merge {
                         CUERR;
                     }
                     else {
-                        // cudaMalloc could be needed here
                         // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_a.count));
                         cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
 

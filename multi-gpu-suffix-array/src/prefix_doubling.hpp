@@ -1572,7 +1572,6 @@ public: // Needs to be public because lamda wouldn't work otherwise...
 
                 if (gpu_index > 0 && mgpus[gpu_index - 1].working_len > 0 && gpu.old_rank_start == mgpus[gpu_index - 1].old_rank_end)
                 {
-                    // maybe we need cudaMalloc here
                     sa_index_t* tempRank; //= mcontext.get_device_temp_allocator(world_rank()).get<sa_index_t>(1);
                     cudaMalloc(&tempRank, sizeof(sa_index_t));
                     std::span<sa_index_t> rb(tempRank, 1);
