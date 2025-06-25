@@ -42,7 +42,7 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 8;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -945,7 +945,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,0,0,0 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,0,0,0,0,0,0,0 };
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids2);
 
@@ -953,9 +953,14 @@ int main(int argc, char** argv)
     SuffixSorter sorter(context, realLen, input);
 
     sorter.alloc();
+    // auto stringPath = ((std::string)argv[3]);
+    // int pos = stringPath.find_last_of("/\\");
+    // auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
 
+    // auto& t = kamping::measurements::timer();
+    // t.synchronize_and_start(fileName);
     sorter.do_sa();
-
+    // t.stop();
     if (world_rank() == 0)
         write_array(argv[2], sorter.get_result(), realLen);
 
@@ -968,6 +973,11 @@ int main(int argc, char** argv)
 
     cudaFreeHost(input);
     CUERR;
-
+    // std::ofstream outFile(argv[1], std::ios::app);
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
     return 0;
 }
