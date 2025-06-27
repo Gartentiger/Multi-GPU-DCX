@@ -160,6 +160,7 @@ namespace crossGPUReMerge
             }
             std::span<key_t> srb(mid_values + i, 1);
             comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)i));
+            printf("[%lu] received: %u\n", world_rank(), mid_values[i]);
 
             before_mid_count += mid_index[i];
             total_size += arr_descr.lengths[i];
