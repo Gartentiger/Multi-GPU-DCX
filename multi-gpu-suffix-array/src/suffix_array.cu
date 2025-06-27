@@ -42,7 +42,7 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -945,7 +945,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,0,0,0,0,0,0,0 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,0,0,0 };
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids2);
 
