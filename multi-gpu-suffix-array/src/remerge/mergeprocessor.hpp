@@ -279,10 +279,10 @@ namespace crossGPUReMerge
             mhost_search_temp_allocator.reset();
 
             mcontext.sync_all_streams();
-            std::vector<ArrayDescriptor<NUM_GPUS, key_t, int64_t>> ads;
-            std::vector<key_t*> tempPointers;
-            tempPointers.clear();
-            ads.clear();
+            //std::vector<ArrayDescriptor<NUM_GPUS, key_t, int64_t>> ads;
+            //std::vector<key_t*> tempPointers;
+            //tempPointers.clear();
+            //ads.clear();
             // printf("[%lu] before multi_searches send\n", world_rank());
             // for (MergeNode node : mnodes) {
             //     if (node.info.index == world_rank()) {
@@ -310,62 +310,61 @@ namespace crossGPUReMerge
             //     }
             // }
 
-            for (MergeNode& node : mnodes)
-            {
-                int msgTag = 0;
-                for (auto ms : node.scheduled_work.multi_searches)
-                {
-                    for (const auto& r : ms->ranges)
-                    {
-                        // printf("[%lu] Length: %lu, i: %d\n", world_rank(), ms->ranges.size(), i);
-                        sa_index_t len = r.end.index - r.start.index;
-                        //ad.lengths[i] = r.end.index - r.start.index;
+            // for (MergeNode& node : mnodes)
+            // {
+            //     int msgTag = 0;
+            //     for (auto ms : node.scheduled_work.multi_searches)
+            //     {
+            //         for (const auto& r : ms->ranges)
+            //         {
+            //             // printf("[%lu] Length: %lu, i: %d\n", world_rank(), ms->ranges.size(), i);
+            //             sa_index_t len = r.end.index - r.start.index;                       
 
-                        // identify sender id (r.start.node)
-                        if (r.start.node == world_rank() && node.info.index != world_rank())
-                        {
-                            //  sender != reveiver -> send data
-                            std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
-                            comm_world().isend(send_buf(sb), send_count(len), tag(msgTag), destination((size_t)node.info.index));
-                        }
-                        msgTag++;
-                    }
-                }
-            }
-            // printf("[%lu] after multi_searches send\n", world_rank());
-            {
-                MergeNode& node = mnodes[world_rank()];
-                int msgTag = 0;
-                for (auto ms : node.scheduled_work.multi_searches)
-                {
-                    ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
-                    int i = 0;
+            //             // identify sender id (r.start.node)
+            //             if (r.start.node == world_rank() && node.info.index != world_rank())
+            //             {
+            //                 //  sender != reveiver -> send data
+            //                 std::span<key_t> sb(mnodes[r.start.node].info.keys + r.start.index, len);
+            //                 comm_world().isend(send_buf(sb), send_count(len), tag(msgTag), destination((size_t)node.info.index));
+            //             }
+            //             msgTag++;
+            //         }
+            //     }
+            // }
+            // // printf("[%lu] after multi_searches send\n", world_rank());
+            // {
+            //     MergeNode& node = mnodes[world_rank()];
+            //     int msgTag = 0;
+            //     for (auto ms : node.scheduled_work.multi_searches)
+            //     {
+            //         ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
+            //         int i = 0;
 
-                    for (const auto& r : ms->ranges)
-                    {
-                        sa_index_t len = r.end.index - r.start.index;
-                        ad.lengths[i] = r.end.index - r.start.index;
+            //         for (const auto& r : ms->ranges)
+            //         {
+            //             sa_index_t len = r.end.index - r.start.index;
+            //             ad.lengths[i] = r.end.index - r.start.index;
 
-                        if (r.start.node == world_rank())
-                        {
-                            ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
-                        }
-                        else {
+            //             if (r.start.node == world_rank())
+            //             {
+            //                 ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
+            //             }
+            //             else {
 
-                            key_t* temp; //= (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
-                            cudaMalloc(&temp, sizeof(key_t) * len);
-                            tempPointers.push_back(temp);
-                            std::span<key_t> rb(temp, len);
-                            comm_world().recv(recv_buf(rb), tag(msgTag), recv_count(len));
-                            ad.keys[i] = temp; // mnodes[r.start.node].info.keys + r.start.index;
-                        }
-                        i++;
-                        msgTag++;
-                    }
-                    ads.push_back(ad);
-                }
-            }
-            comm_world().barrier();
+            //                 key_t* temp; //= (key_t*)mcontext.get_device_temp_allocator(node.info.index).get_raw(len * sizeof(key_t));
+            //                 cudaMalloc(&temp, sizeof(key_t) * len);
+            //                 tempPointers.push_back(temp);
+            //                 std::span<key_t> rb(temp, len);
+            //                 comm_world().recv(recv_buf(rb), tag(msgTag), recv_count(len));
+            //                 ad.keys[i] = temp; // mnodes[r.start.node].info.keys + r.start.index;
+            //             }
+            //             i++;
+            //             msgTag++;
+            //         }
+            //         ads.push_back(ad);
+            //     }
+            // }
+            // comm_world().barrier();
             // printf("[%lu] after multi_searches recv\n", world_rank());
             for (MergeNode& node : mnodes) {
                 int msgTag = 0;
@@ -535,7 +534,7 @@ namespace crossGPUReMerge
                         ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
 
 
-                        multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ads[adCount], (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
+                        multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
                             (uint*)(ms->d_result_ptr + result_buffer_length - 1), ksmallest);
@@ -547,9 +546,9 @@ namespace crossGPUReMerge
                 }
             }
             mcontext.sync_all_streams();
-            for (auto ptr : tempPointers) {
-                cudaFree(ptr);
-            }
+            //for (auto ptr : tempPointers) {
+                //cudaFree(ptr);
+            //}
             // printf("[%lu] after searches\n", world_rank());
             MergeNode mergeNode = mnodes[world_rank()];
             // printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
