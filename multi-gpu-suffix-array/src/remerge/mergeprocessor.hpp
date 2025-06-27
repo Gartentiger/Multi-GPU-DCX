@@ -155,8 +155,8 @@ namespace crossGPUReMerge
 
             mid_index[i] = (starts[i] + ends[i]) / 2;
             if (world_rank() == i) {
-                printf("[%lu] cpying\n", world_rank());
                 cudaMemcpy(mid_values + i, arr_descr.keys[i] + mid_index[i], sizeof(key_t), cudaMemcpyDeviceToHost);
+                printf("[%lu] cpying done: %u\n", world_rank(), mid_values[i]);
             }
             std::span<key_t> srb(mid_values + i, 1);
             comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)i));
