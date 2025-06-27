@@ -137,6 +137,120 @@ namespace crossGPUReMerge
         return copies;
     }
 
+    template<typename key_t, typename int_t, class comp_fun_t, size_t MAX_GPUS>
+    std::tuple<uint, int_t, key_t> multi_way_k_selectHost(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, int_t k, comp_fun_t comp) {
+
+        int_t mid_index[MAX_GPUS];
+        key_t mid_values[MAX_GPUS];
+        int_t starts[MAX_GPUS];
+        int_t ends[MAX_GPUS];
+        int before_mid_count = 0;
+        size_t total_size = 0;
+        // Initialize
+        // M = ranges.size()
+        for (uint i = 0; i < M; ++i) {
+            starts[i] = 0;
+            ends[i] = arr_descr.lengths[i];
+            uint a = (starts[i] + ends[i]) / 2;
+
+            mid_index[i] = (starts[i] + ends[i]) / 2;
+            if (world_rank() == i) {
+                cudaMemcpy(mid_values + i, arr_descr.keys[i] + mid_index[i], sizeof(key_t), cudaMemcpyDeviceToHost);
+            }
+            std::span<key_t> srb(mid_values + i, 1);
+            comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)i));
+
+            before_mid_count += mid_index[i];
+            total_size += arr_descr.lengths[i];
+        }
+
+
+        assert(k < total_size);
+
+        bool done = false;
+        key_t result_value;
+        int_t result_index = 0;
+        int_t result_list_index;
+
+        while (!done) {
+            key_t min_value, max_value;
+            //        memset(&min_value , 0xff, sizeof(key_t));
+            //        memset(&max_value , 0x00, sizeof(key_t));
+
+            //        key_t min_value = std::numeric_limits<key_t>::max();  // Does silently fail for unknown types... :/
+            //        key_t max_value = std::numeric_limits<key_t>::min();
+            int_t max_index = -1, min_index = -2;
+
+            for (int i = 0; i < M; ++i) {
+                if (starts[i] < ends[i]) {
+                    // Pick the min index in a range of equal values.
+                    if (comp(mid_values[i], min_value) || min_index < 0) { // <
+                        min_value = mid_values[i];
+                        min_index = i;
+                    }
+                    // Pick the max index in a range of equal values.
+                    if (!comp(mid_values[i], max_value) || max_index < 0) { // >=
+                        max_value = mid_values[i];
+                        max_index = i;
+                    }
+                }
+                //            printf("Multi-way partioning search: %u from %u to %u.\n", i, starts[i], ends[i]);
+                //            std::cout << i << ". From " << starts[i] << " to " << ends[i] << ", mid: " << mid_index[i]
+                //                      << ", value: " << mid_values[i] << std::endl;
+            }
+
+            //        std::cout << "min index: " << min_index << ", value: " << min_value << std::endl;
+            //        std::cout << "max index: " << max_index << ", value: " << max_value;
+
+            //        std::cout << "\nbefore mid count: " << before_mid_count << ", k: " << k << std::endl;
+            if (min_index == max_index && before_mid_count == k) {
+                result_value = mid_values[min_index];
+                result_index = mid_index[min_index];
+                result_list_index = min_index;
+                break;
+            }
+            if (before_mid_count < k) {
+                //            std::cout << "Adjusting min..." << min_index << std::endl;
+                int_t old_mid = mid_index[min_index];
+                if (starts[min_index] == mid_index[min_index]) {
+                    starts[min_index] = mid_index[min_index] + 1;
+                }
+                else {
+                    starts[min_index] = mid_index[min_index];
+                }
+                mid_index[min_index] = (starts[min_index] + ends[min_index]) / 2;
+                if (world_rank() == min_index) {
+                    cudaMemcpy(mid_values + min_index, arr_descr.keys[min_index] + mid_index[min_index], sizeof(key_t), cudaMemcpyDeviceToHost);
+                }
+                std::span<key_t> srb(mid_values + min_index, 1);
+                comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)min_index));
+                // UPDATE_MID_INDEX_AND_VALUE(min_index);
+                before_mid_count += mid_index[min_index] - old_mid;
+            }
+            else {
+                //            std::cout << "Adjusting max... " << max_index << std::endl;
+                ends[max_index] = mid_index[max_index];
+                int_t old_mid = mid_index[max_index];
+
+                mid_index[max_index] = (starts[max_index] + ends[max_index]) / 2;
+                if (world_rank() == max_index) {
+                    cudaMemcpy(mid_values + max_index, arr_descr.keys[max_index] + mid_index[max_index], sizeof(key_t), cudaMemcpyDeviceToHost);
+                }
+                std::span<key_t> srb(mid_values + max_index, 1);
+                comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)max_index));
+                // UPDATE_MID_INDEX_AND_VALUE(max_index);
+                before_mid_count -= old_mid - mid_index[max_index];
+            }
+            //        std::cout << std::endl;
+        }
+
+        //    std::cout << "Needed " << count << " iterations with total size " << total_size << ".\n";
+
+        //    printf("Multi-way partioning search exited: result list index %u, result index %u.\n", result_list_index, result_index);
+
+        return std::make_tuple(result_list_index, result_index, result_value);
+    }
+
     template <size_t NUM_GPUS, class mtypes, template <size_t, class> class TopologyHelperT>
     class GPUMergeProcessorT
     {
@@ -336,10 +450,10 @@ namespace crossGPUReMerge
                 const uint node_index = node.info.index;
                 cudaSetDevice(mcontext.get_device_id(node_index));
                 CUERR;
+
                 if (world_rank() == node_index)
                 {
                     int msgTag = 0;
-
                     QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
 
                     for (auto s : node.scheduled_work.searches)
@@ -391,10 +505,17 @@ namespace crossGPUReMerge
                         CUERR;
                         cudaFreeAsync(tempRef, stream);
                     }
-
-                    int adCount = 0;
-                    for (auto ms : node.scheduled_work.multi_searches)
-                    {
+                }
+            }
+            for (MergeNode& node : mnodes)
+            {
+                const uint node_index = node.info.index;
+                QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
+                int adCount = 0;
+                for (auto ms : node.scheduled_work.multi_searches)
+                {
+                    std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ads[adCount], (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp);
+                    if (world_rank() == node_index) {
                         const size_t result_buffer_length = ms->ranges.size() + 1;
                         const cudaStream_t& stream = mcontext.get_gpu_default_stream(node_index);
 
@@ -410,11 +531,10 @@ namespace crossGPUReMerge
                         //     ad.lengths[i] = r.end.index - r.start.index;
                         //     i++;
                         // }
-
                         multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ads[adCount], (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
-                            (uint*)(ms->d_result_ptr + result_buffer_length - 1));
+                            (uint*)(ms->d_result_ptr + result_buffer_length - 1), ksmallest);
 
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
