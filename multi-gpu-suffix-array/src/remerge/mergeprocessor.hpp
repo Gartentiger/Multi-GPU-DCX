@@ -518,7 +518,15 @@ namespace crossGPUReMerge
                 int adCount = 0;
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
-                    std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ads[adCount], (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp);
+                    ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
+                    int i = 0;
+                    for (const auto& r : ms->ranges)
+                    {
+                        ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
+                        ad.lengths[i] = r.end.index - r.start.index;
+                        i++;
+                    }
+                    std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp);
                     if (world_rank() == node_index) {
                         const size_t result_buffer_length = ms->ranges.size() + 1;
                         const cudaStream_t& stream = mcontext.get_gpu_default_stream(node_index);
@@ -526,15 +534,7 @@ namespace crossGPUReMerge
                         ms->d_result_ptr = d_alloc.get<int64_t>(result_buffer_length);
                         ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
 
-                        // ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
-                        // int i = 0;
 
-                        // for (const auto& r : ms->ranges)
-                        // {
-                        //     ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
-                        //     ad.lengths[i] = r.end.index - r.start.index;
-                        //     i++;
-                        // }
                         multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ads[adCount], (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
