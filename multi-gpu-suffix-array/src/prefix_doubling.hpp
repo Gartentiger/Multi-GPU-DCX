@@ -16,7 +16,7 @@
 #include <span>
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
-
+#include <random>
 // #define DEBUG_SET_ZERO_TO_SEE_BETTER
 // #define DUMP_EVERYTHING
 __global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t rank)
@@ -672,6 +672,17 @@ private:
         }
 
         merge_manager.set_node_info(merge_nodes_info);
+
+
+        // size_t k = (10. * log(minput_len));
+        // std::srand(std::time(0));
+        // std::vector<uint64_t> samples(k * NUM_GPUS);
+        // samples.clear();
+        // for (size_t i = 0; i < k; i++)
+        // {
+
+        //     gpu.Old_ranks[std::rand() % mgpus[world_rank()].working_len];
+        // }
 
         // mcontext.sync_default_streams();
 
