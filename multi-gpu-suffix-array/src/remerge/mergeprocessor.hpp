@@ -584,7 +584,7 @@ namespace crossGPUReMerge
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     ms->results.resize(ms->ranges.size());
-                    for (int i = 0; i < ms.ranges.size() + 1; i++) {
+                    for (int i = 0; i < ms->ranges.size() + 1; i++) {
                         printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
                     }
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
