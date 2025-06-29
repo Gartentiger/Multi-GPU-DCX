@@ -337,7 +337,6 @@ namespace crossGPUReMerge
 
             {
                 std::vector<int64_t> resultHost(searchesGPU.size());
-                resultHost.clear();
                 cudaMemcpyAsync(resultHost.data(), resultPtrDevice,
                     searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
 
@@ -484,8 +483,10 @@ namespace crossGPUReMerge
                     //}
                     int i = 0;
                     for (auto r : ms->ranges) {
-                        ms->h_result_ptr[i++] = resultSplitted[r.start.node].front();
+                        ms->h_result_ptr[i] = resultSplitted[r.start.node].front();
                         resultSplitted[r.start.node].pop();
+                        printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
+                        i++;
                     }
                 }
             }
