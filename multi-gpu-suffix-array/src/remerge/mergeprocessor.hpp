@@ -485,9 +485,10 @@ namespace crossGPUReMerge
                     for (auto r : ms->ranges) {
                         ms->h_result_ptr[i] = resultSplitted[r.start.node].front();
                         resultSplitted[r.start.node].pop();
-                        // printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
+                        printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
                         i++;
                     }
+                    printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
                 }
             }
             mcontext.sync_all_streams();
@@ -526,43 +527,43 @@ namespace crossGPUReMerge
             //}
             // printf("Searches done %lu\n", world_rank());
 
-            size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
-            std::vector<int64_t> send_multi_search_result;
-            send_multi_search_result.reserve(mulit_search_size);
-            send_multi_search_result.clear();
-            for (auto ms : mergeNode.scheduled_work.multi_searches)
-            {
-                size_t size = ms->ranges.size() + 1;
-                for (size_t j = 0; j < size; j++)
-                {
-                    // printf("ms->h_result_ptr %ld, rank %lu\n", ms->h_result_ptr[j], world_rank());
-                    send_multi_search_result.push_back(ms->h_result_ptr[j]);
-                }
-            }
+            // size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
+            // std::vector<int64_t> send_multi_search_result;
+            // send_multi_search_result.reserve(mulit_search_size);
+            // send_multi_search_result.clear();
+            // for (auto ms : mergeNode.scheduled_work.multi_searches)
+            // {
+            //     size_t size = ms->ranges.size() + 1;
+            //     for (size_t j = 0; j < size; j++)
+            //     {
+            //         // printf("ms->h_result_ptr %ld, rank %lu\n", ms->h_result_ptr[j], world_rank());
+            //         send_multi_search_result.push_back(ms->h_result_ptr[j]);
+            //     }
+            // }
 
-            std::vector<int64_t> recv_multi_search_result;
-            auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
+            // std::vector<int64_t> recv_multi_search_result;
+            // auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
             // printf("Multi searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
             // for (int64_t ah : recv_multi_search_result)
             // {
             //     printf("[%lu] received multi search results %ld\n", world_rank(), ah);
             // }
-            printf("[%lu] after allgather 2\n", world_rank());
+            // printf("[%lu] after allgather 2\n", world_rank());
 
-            int totalIdx = 0;
-            for (int i = 0; i < comm_world().size(); i++)
-            {
-                ASSERT(mnodes[i].info.index == i);
-                for (auto ms : mnodes[i].scheduled_work.multi_searches)
-                {
-                    int size = ms->ranges.size() + 1;
-                    if (world_rank() != mnodes[i].info.index) {
-                        ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size);
-                        memcpy(ms->h_result_ptr, recv_multi_search_result.data() + totalIdx, size * sizeof(int64_t));
-                    }
-                    totalIdx += size;
-                }
-            }
+            // int totalIdx = 0;
+            // for (int i = 0; i < comm_world().size(); i++)
+            // {
+            //     ASSERT(mnodes[i].info.index == i);
+            //     for (auto ms : mnodes[i].scheduled_work.multi_searches)
+            //     {
+            //         int size = ms->ranges.size() + 1;
+            //         if (world_rank() != mnodes[i].info.index) {
+            //             ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size);
+            //             memcpy(ms->h_result_ptr, recv_multi_search_result.data() + totalIdx, size * sizeof(int64_t));
+            //         }
+            //         totalIdx += size;
+            //     }
+            // }
             // for (MergeNode node : mnodes) {
             //     for (auto ms : node.scheduled_work.multi_searches)
             //     {
