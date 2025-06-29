@@ -142,7 +142,6 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         k_value = std::get<2>(ksmallest);
         *Safe_list = k_list_index;
     }
-    printf("thidx: %u, ksmallest: %u, %ld, %u\n", thidx, k_list_index, k_index, k_value);
     // TODO: optimize this
     if (thidx == 0) {
         offsets[0] = 0;
@@ -152,6 +151,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
     }
 
     __syncthreads();
+    printf("thidx: %u, ksmallest: %u, %ld, %u\n", thidx, k_list_index, k_index, k_value);
 
     assert(blockDim.x >= M);
 
