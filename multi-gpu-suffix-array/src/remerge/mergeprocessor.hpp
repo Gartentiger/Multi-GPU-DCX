@@ -22,6 +22,7 @@
 
 #include <kamping/p2p/recv.hpp>
 
+#include <queue>
 #include <span>
 #include <fstream>
 #include <cstdio>
@@ -286,19 +287,13 @@ namespace crossGPUReMerge
 
             for (MergeNode& node : mnodes)
             {
-                uint msIdx = 0;
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     SearchGPU<NUM_GPUS, key_t, int64_t> sgpu;
-                    if (node.info.index == world_rank()) {
-                        const size_t result_buffer_length = ms->ranges.size() + 1;
-                        QDAllocator& d_alloc = mcontext.get_device_temp_allocator(world_rank());
-                        ms->d_result_ptr = d_alloc.get<int64_t>(result_buffer_length);
-                        sgpu.results = ms->d_result_ptr;
-                        sgpu.safeList = (uint*)(ms->d_result_ptr + result_buffer_length - 1);
-                    }
-
                     ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
+                    const size_t result_buffer_length = ms->ranges.size() + 1;
+                    ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
+
                     bool used = false;
                     int i = 0;
                     for (const auto& r : ms->ranges)
@@ -314,23 +309,51 @@ namespace crossGPUReMerge
 
                     }
                     std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp);
+                    *(reinterpret_cast<uint*>(ms->h_result_ptr + result_buffer_length - 1)) = (uint)std::get<0>(ksmallest);
                     if (used) {
                         sgpu.M = (int64_t)ms->ranges.size();
                         for (int i = 0; i < (int64_t)ms->ranges.size(); i++) {
                             sgpu.lengths[i] = ad.lengths[i];
                         }
                         sgpu.ksmallest = ksmallest;
+                        searchesGPU.push_back(sgpu);
                     }
 
-                    searchesGPU.push_back(sgpu);
-                    msIdx++;
                     comm_world().barrier();
                 }
             }
+
+
+            QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
+            auto resultPtrDevice = dAlloc.get<int64_t>(searchesGPU.size());
+            //sgpu.safeList = (uint*)(ms->d_result_ptr + result_buffer_length - 1);
+
             printf("[%lu] after search creation\n", world_rank());
-            find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), searchesGPU.data());
+            find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), resultPtrDevice, searchesGPU.data());
+
+            auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
+
+            cudaMemcpyAsync(resultPtrHost, resultPtrDevice,
+                searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
+
 
             mcontext.sync_all_streams();
+
+            std::span<int64_t> sendBuf(resultPtrHost, searchesGPU.size());
+            std::vector<std::queue<int64_t>> resultSplitted;
+            {
+                std::vector<int64_t> resultSplitIdx;
+                auto [recvCountsOut] = comm_world().allgatherv(send_buf(sendBuf), send_count(searchesGPU.size()), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
+                mhost_search_temp_allocator.reset();
+                int totalIdx = 0;
+                for (auto recv : recvCountsOut) {
+                    std::queue<int64_t> q;
+                    for (int i = 0; i < recv; i++) {
+                        q.push(resultSplitIdx[totalIdx]);
+                    }
+                    resultSplitted.push_back(q);
+                }
+            }
             printf("[%lu] find_partition_points\n", world_rank());
 
             for (MergeNode& node : mnodes) {
@@ -423,6 +446,8 @@ namespace crossGPUReMerge
                 }
             }
 
+
+            int total = 0;
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
@@ -439,22 +464,26 @@ namespace crossGPUReMerge
                     //     i++;
                     // }
                     //std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp);
-                    if (world_rank() == node_index) {
-                        const size_t result_buffer_length = ms->ranges.size() + 1;
-                        const cudaStream_t& stream = mcontext.get_gpu_default_stream(node_index);
+                    //if (world_rank() == node_index) {
+                    const size_t result_buffer_length = ms->ranges.size() + 1;
 
-                        //ms->d_result_ptr = d_alloc.get<int64_t>(result_buffer_length);
-                        ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
+                    //    const cudaStream_t& stream = mcontext.get_gpu_default_stream(node_index);
 
+                    //ms->d_result_ptr = d_alloc.get<int64_t>(result_buffer_length);
+                    ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
 
-                        // multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
-                        //     comp,
-                        //     (int64_t*)ms->d_result_ptr,
-                        //     (uint*)(ms->d_result_ptr + result_buffer_length - 1), ksmallest);
+                    // multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
+                    //     comp,
+                    //     (int64_t*)ms->d_result_ptr,
+                    //     (uint*)(ms->d_result_ptr + result_buffer_length - 1), ksmallest);
 
-                        cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
-                            result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
-
+                    //   cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
+                    //       result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);                    
+                    //}
+                    int i = 0;
+                    for (auto r : ms->ranges) {
+                        ms->h_result_ptr[i++] = resultSplitted[r.start.node].front();
+                        resultSplitted[r.start.node].pop();
                     }
                 }
             }

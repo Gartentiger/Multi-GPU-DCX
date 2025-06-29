@@ -119,12 +119,10 @@ struct SearchGPU {
     int_t M;
     std::tuple<size_t, size_t, key_t> ksmallest;
     int_t lengths[SIZE];
-    int_t* results;
-    uint* safeList;
 };
 
 template<size_t MAX_GPUS, typename key_t, typename int_t, class comp_fun_t>
-__global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint gpuId, SearchGPU<MAX_GPUS, key_t, int_t>* sgpus) {
+__global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint gpuId, int_t* results, SearchGPU<MAX_GPUS, key_t, int_t>* sgpus) {
     const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
     uint  k_list_index;
     int_t k_index;
@@ -135,7 +133,7 @@ __global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint 
     k_index = std::get<1>(sgpus[thidx].ksmallest);
     k_value = std::get<2>(sgpus[thidx].ksmallest);
     printf("[%u] after klist\n", gpuId);
-    *(sgpus[thidx].safeList) = k_list_index;
+    //*(sgpus[thidx].safeList) = k_list_index;
 
 
     //
@@ -178,7 +176,7 @@ __global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint 
         result = k_index;
     }
     printf("[%u] end\n", gpuId);
-    sgpus[thidx].results[gpuId] = result;
+    results[thidx] = result;
 }
 
 template<size_t MAX_GPUS, typename key_t, typename int_t, class comp_fun_t>
