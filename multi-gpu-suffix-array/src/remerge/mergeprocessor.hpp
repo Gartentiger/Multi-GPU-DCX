@@ -326,9 +326,9 @@ namespace crossGPUReMerge
 
             QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
             auto resultPtrDevice = dAlloc.get<int64_t>(searchesGPU.size());
-            for (auto searches : searchesGPU) {
-                printf("[%lu] ksmallest: %lu, %lu, %u\n", world_rank(), std::get<0>(searches.ksmallest), std::get<1>(searches.ksmallest), std::get<2>(searches.ksmallest));
-            }
+            // for (auto searches : searchesGPU) {
+            //     printf("[%lu] ksmallest: %lu, %lu, %u\n", world_rank(), std::get<0>(searches.ksmallest), std::get<1>(searches.ksmallest), std::get<2>(searches.ksmallest));
+            // }
 
             find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), resultPtrDevice, searchesGPU.data());
 
@@ -485,7 +485,7 @@ namespace crossGPUReMerge
                     for (auto r : ms->ranges) {
                         ms->h_result_ptr[i] = resultSplitted[r.start.node].front();
                         resultSplitted[r.start.node].pop();
-                        printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
+                        // printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
                         i++;
                     }
                 }
@@ -543,10 +543,10 @@ namespace crossGPUReMerge
             std::vector<int64_t> recv_multi_search_result;
             auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
             // printf("Multi searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
-            for (int64_t ah : recv_multi_search_result)
-            {
-                printf("[%lu] received multi search results %ld\n", world_rank(), ah);
-            }
+            // for (int64_t ah : recv_multi_search_result)
+            // {
+            //     printf("[%lu] received multi search results %ld\n", world_rank(), ah);
+            // }
             printf("[%lu] after allgather 2\n", world_rank());
 
             int totalIdx = 0;
