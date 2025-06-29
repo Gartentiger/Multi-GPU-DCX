@@ -343,7 +343,7 @@ namespace crossGPUReMerge
                     searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
 
                 mcontext.sync_all_streams();
-                for (int65_t re : resultHost) {
+                for (int64_t re : resultHost) {
                     printf("[%lu] resultHost: %ld\n", world_rank(), re);
                 }
                 std::vector<int64_t> resultSplitIdx;
