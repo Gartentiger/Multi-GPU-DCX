@@ -327,8 +327,10 @@ namespace crossGPUReMerge
             QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
             auto resultPtrDevice = dAlloc.get<int64_t>(searchesGPU.size());
             //sgpu.safeList = (uint*)(ms->d_result_ptr + result_buffer_length - 1);
+            for (auto searches : searchesGPU) {
+                printf("[%lu] ksmallest: %lu, %lu, %u\n", world_rank(), std::get<0>(searches.ksmallest), std::get<1>(searches.ksmallest), std::get<2>(searches.ksmallest));
+            }
 
-            printf("[%lu] after search creation\n", world_rank());
             find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), resultPtrDevice, searchesGPU.data());
 
             //auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
@@ -341,6 +343,9 @@ namespace crossGPUReMerge
                     searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
 
                 mcontext.sync_all_streams();
+                for (int65_t re : resultHost) {
+                    printf("[%lu] resultHost: %ld\n", world_rank(), re);
+                }
                 std::vector<int64_t> resultSplitIdx;
                 auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), send_count(searchesGPU.size()), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
                 int totalIdx = 0;
