@@ -165,9 +165,11 @@ namespace crossGPUReMerge {
             for (MergeNode& node : mnodes) {
                 for (auto s : node.scheduled_work.searches) {
                     s->result = *s->h_result_ptr;
-                    //printf("[%lu] result: %ld, id: %d\n", node.info.index, s->result, id);
                 }
                 for (auto ms : node.scheduled_work.multi_searches) {
+                    for (int i = 0; i < ms->ranges.size() + 1;i++) {
+                        printf("[%lu] result: %ld\n", node.info.index, ms->h_result_ptr);
+                    }
                     ms->results.resize(ms->ranges.size());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
