@@ -329,8 +329,9 @@ namespace crossGPUReMerge
             }
             printf("[%lu] after search creation\n", world_rank());
             find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), searchesGPU.data());
-            printf("[%lu] find_partition_points\n", world_rank());
 
+            mcontext.sync_all_streams();
+            printf("[%lu] find_partition_points\n", world_rank());
 
             for (MergeNode& node : mnodes) {
                 int msgTag = 0;

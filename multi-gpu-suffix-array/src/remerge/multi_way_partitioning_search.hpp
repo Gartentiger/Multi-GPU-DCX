@@ -130,10 +130,11 @@ __global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint 
     int_t k_index;
     key_t k_value;
     int_t offsets[MAX_GPUS];
-
+    printf("[%u] before klist\n", gpuId);
     k_list_index = std::get<0>(sgpus[thidx].ksmallest);
     k_index = std::get<1>(sgpus[thidx].ksmallest);
     k_value = std::get<2>(sgpus[thidx].ksmallest);
+    printf("[%u] after klist\n", gpuId);
     *(sgpus[thidx].safeList) = k_list_index;
 
 
@@ -145,6 +146,7 @@ __global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint 
 
     int_t result;
     if (gpuId != k_list_index) {
+        printf("[%u] res\n", gpuId);
         const key_t* arr = keys + sgpus[thidx].startIndex;
         int_t start, end, mid, offset, k_offset;
         key_t mid_value;
@@ -154,6 +156,7 @@ __global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint 
         offset = offsets[gpuId];
         k_offset = offsets[k_list_index] + k_index;
         while (start < end) {
+            printf("[%u] while\n", gpuId);
             mid = (start + end) / 2;
             mid_value = arr[mid];
             if (comp(mid_value, _k_value)) {
@@ -174,6 +177,7 @@ __global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint 
     else {
         result = k_index;
     }
+    printf("[%u] end\n", gpuId);
     sgpus[thidx].results[gpuId] = result;
 }
 
