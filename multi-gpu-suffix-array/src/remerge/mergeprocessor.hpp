@@ -345,12 +345,12 @@ namespace crossGPUReMerge
                     printf("[%lu] resultHost: %ld\n", world_rank(), re);
                 }
                 std::vector<int64_t> resultSplitIdx;
-                auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), send_count(searchesGPU.size()), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
+                auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
                 int totalIdx = 0;
                 for (auto recv : recvCountsOut) {
                     std::queue<int64_t> q;
                     for (int i = 0; i < recv; i++) {
-                        q.push(resultSplitIdx[totalIdx]);
+                        q.push(resultSplitIdx[totalIdx++]);
                     }
                     resultSplitted.push_back(q);
                 }
