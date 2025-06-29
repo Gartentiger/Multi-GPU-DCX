@@ -157,11 +157,11 @@ namespace crossGPUReMerge
             mid_index[i] = (starts[i] + ends[i]) / 2;
             if (world_rank() == i) {
                 cudaMemcpy(mid_values + i, arr_descr.keys[i] + mid_index[i], sizeof(key_t), cudaMemcpyDeviceToHost);
-                printf("[%lu] cpying done: %u\n", world_rank(), mid_values[i]);
+                // printf("[%lu] cpying done: %u\n", world_rank(), mid_values[i]);
             }
             std::span<key_t> srb(mid_values + i, 1);
             comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)i));
-            printf("[%lu] received: %u\n", world_rank(), mid_values[i]);
+            // printf("[%lu] received: %u\n", world_rank(), mid_values[i]);
 
             before_mid_count += mid_index[i];
             total_size += arr_descr.lengths[i];
@@ -224,7 +224,7 @@ namespace crossGPUReMerge
                 mid_index[min_index] = (starts[min_index] + ends[min_index]) / 2;
                 if (world_rank() == min_index) {
                     cudaMemcpy(mid_values + min_index, arr_descr.keys[min_index] + mid_index[min_index], sizeof(key_t), cudaMemcpyDeviceToHost);
-                    printf("[%lu]cpying 2\n", world_rank());
+                    // printf("[%lu]cpying 2\n", world_rank());
                 }
                 std::span<key_t> srb(mid_values + min_index, 1);
                 comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)min_index));
@@ -239,7 +239,7 @@ namespace crossGPUReMerge
                 mid_index[max_index] = (starts[max_index] + ends[max_index]) / 2;
                 if (world_rank() == max_index) {
                     cudaMemcpy(mid_values + max_index, arr_descr.keys[max_index] + mid_index[max_index], sizeof(key_t), cudaMemcpyDeviceToHost);
-                    printf("[%lu]cpying 3\n", world_rank());
+                    // printf("[%lu]cpying 3\n", world_rank());
                 }
                 std::span<key_t> srb(mid_values + max_index, 1);
                 comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)max_index));
@@ -326,7 +326,6 @@ namespace crossGPUReMerge
 
             QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
             auto resultPtrDevice = dAlloc.get<int64_t>(searchesGPU.size());
-            //sgpu.safeList = (uint*)(ms->d_result_ptr + result_buffer_length - 1);
             for (auto searches : searchesGPU) {
                 printf("[%lu] ksmallest: %lu, %lu, %u\n", world_rank(), std::get<0>(searches.ksmallest), std::get<1>(searches.ksmallest), std::get<2>(searches.ksmallest));
             }
