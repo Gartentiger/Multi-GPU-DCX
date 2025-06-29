@@ -279,7 +279,7 @@ namespace crossGPUReMerge
         void do_searches(comp_func_t comp)
         {
             mhost_search_temp_allocator.reset();
-
+            printf("[%lu] do_searches\n", world_rank());
             mcontext.sync_all_streams();
 
             std::vector<SearchGPU<NUM_GPUS, key_t, int64_t>> searchesGPU;
@@ -341,9 +341,9 @@ namespace crossGPUReMerge
                     searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
 
                 mcontext.sync_all_streams();
-                for (int64_t re : resultHost) {
-                    printf("[%lu] resultHost: %ld\n", world_rank(), re);
-                }
+                // for (int64_t re : resultHost) {
+                //     printf("[%lu] resultHost: %ld\n", world_rank(), re);
+                // }
                 std::vector<int64_t> resultSplitIdx;
                 auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
                 int totalIdx = 0;
@@ -573,7 +573,6 @@ namespace crossGPUReMerge
             //     }
             // }
             // printf("[%lu] searches done copying back\n", world_rank());
-            int ident = 0;
             for (MergeNode& node : mnodes)
             {
 
@@ -581,12 +580,14 @@ namespace crossGPUReMerge
                 {
                     // printf("[%lu] results: %ld, ident: %d\n", world_rank(), s->result, ident);
                     s->result = *s->h_result_ptr;
-                    ident++;
                 }
 
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     ms->results.resize(ms->ranges.size());
+                    for (int i = 0; i < ms.ranges.size() + 1; i++) {
+                        printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
+                    }
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
                 }
