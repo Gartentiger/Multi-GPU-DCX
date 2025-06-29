@@ -331,20 +331,18 @@ namespace crossGPUReMerge
             printf("[%lu] after search creation\n", world_rank());
             find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), resultPtrDevice, searchesGPU.data());
 
-            auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
-
-            cudaMemcpyAsync(resultPtrHost, resultPtrDevice,
-                searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
-
-
-            mcontext.sync_all_streams();
-
-            std::span<int64_t> sendBuf(resultPtrHost, searchesGPU.size());
+            //auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
             std::vector<std::queue<int64_t>> resultSplitted;
+
             {
+                std::vector<int64_t> resultHost(searchesGPU.size());
+                resultHost.clear();
+                cudaMemcpyAsync(resultHost.data(), resultPtrDevice,
+                    searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
+
+                mcontext.sync_all_streams();
                 std::vector<int64_t> resultSplitIdx;
-                auto [recvCountsOut] = comm_world().allgatherv(send_buf(sendBuf), send_count(searchesGPU.size()), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
-                mhost_search_temp_allocator.reset();
+                auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), send_count(searchesGPU.size()), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
                 int totalIdx = 0;
                 for (auto recv : recvCountsOut) {
                     std::queue<int64_t> q;
@@ -465,12 +463,12 @@ namespace crossGPUReMerge
                     // }
                     //std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp);
                     //if (world_rank() == node_index) {
-                    const size_t result_buffer_length = ms->ranges.size() + 1;
+                    //const size_t result_buffer_length = ms->ranges.size() + 1;
 
                     //    const cudaStream_t& stream = mcontext.get_gpu_default_stream(node_index);
 
                     //ms->d_result_ptr = d_alloc.get<int64_t>(result_buffer_length);
-                    ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
+                    //ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
 
                     // multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                     //     comp,

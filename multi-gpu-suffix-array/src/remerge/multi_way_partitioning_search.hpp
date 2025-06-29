@@ -119,6 +119,7 @@ struct SearchGPU {
     int_t M;
     std::tuple<size_t, size_t, key_t> ksmallest;
     int_t lengths[SIZE];
+
 };
 
 template<size_t MAX_GPUS, typename key_t, typename int_t, class comp_fun_t>
