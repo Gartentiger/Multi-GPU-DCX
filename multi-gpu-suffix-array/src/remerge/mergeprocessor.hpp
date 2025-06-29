@@ -157,6 +157,9 @@ namespace crossGPUReMerge {
 
                     cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                         result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
+                    //
+                    mcontext.sync_all_streams();
+                    //
                 }
 
             }
