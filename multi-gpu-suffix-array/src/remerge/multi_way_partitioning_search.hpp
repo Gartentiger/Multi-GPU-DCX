@@ -4,6 +4,7 @@
 #include <tuple>
 #include "util.h"
 #include <iostream>
+#include <thrust/device_vector.h>
 
 template<size_t SIZE, typename key_t, typename int_t>
 struct ArrayDescriptor {
@@ -112,6 +113,69 @@ multi_way_k_select(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, i
 
     return std::make_tuple(result_list_index, result_index, result_value);
 }
+template<size_t SIZE, typename key_t, typename int_t>
+struct SearchGPU {
+    int_t startIndex;
+    int_t M;
+    std::tuple<size_t, size_t, key_t> ksmallest;
+    int_t lengths[SIZE];
+    int_t* results;
+    uint* safeList;
+};
+
+template<size_t MAX_GPUS, typename key_t, typename int_t, class comp_fun_t>
+__global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint gpuId, SearchGPU<MAX_GPUS, key_t, int_t>* sgpus) {
+    const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
+    uint  k_list_index;
+    int_t k_index;
+    key_t k_value;
+    int_t offsets[MAX_GPUS];
+
+    k_list_index = std::get<0>(sgpus[thidx].ksmallest);
+    k_index = std::get<1>(sgpus[thidx].ksmallest);
+    k_value = std::get<2>(sgpus[thidx].ksmallest);
+    *(sgpus[thidx].safeList) = k_list_index;
+
+
+    //
+    offsets[0] = 0;
+    for (uint i = 1; i < sgpus[thidx].M; ++i) {
+        offsets[i] = offsets[i - 1] + sgpus[thidx].lengths[i - 1];
+    }
+
+    int_t result;
+    if (gpuId != k_list_index) {
+        const key_t* arr = keys + sgpus[thidx].startIndex;
+        int_t start, end, mid, offset, k_offset;
+        key_t mid_value;
+        key_t _k_value = k_value;
+        start = 0;
+        end = sgpus[thidx].lengths[gpuId];
+        offset = offsets[gpuId];
+        k_offset = offsets[k_list_index] + k_index;
+        while (start < end) {
+            mid = (start + end) / 2;
+            mid_value = arr[mid];
+            if (comp(mid_value, _k_value)) {
+                start = mid + 1;
+            }
+            else if (!comp(mid_value, _k_value) && !comp(_k_value, mid_value)) { // ==
+                if (offset + mid < k_offset)
+                    start = mid + 1;
+                else
+                    end = mid;
+            }
+            else {
+                end = mid;
+            }
+        }
+        result = start;
+    }
+    else {
+        result = k_index;
+    }
+    sgpus[thidx].results[gpuId] = result;
+}
 
 template<size_t MAX_GPUS, typename key_t, typename int_t, class comp_fun_t>
 __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr,
@@ -125,16 +189,13 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
     __shared__ int_t offsets[MAX_GPUS];
 
 
-    //printf("A %d\n", thidx);
     if (thidx == 0) {
         std::tuple<size_t, size_t, key_t> ksmallest = ksmallestHost;//multi_way_k_select(arr_descr, M, k, comp);
-        //printf("B\n");
         k_list_index = std::get<0>(ksmallest);
         k_index = std::get<1>(ksmallest);
         k_value = std::get<2>(ksmallest);
         *Safe_list = k_list_index;
     }
-    //printf("AA %d\n", thidx);
 
     // TODO: optimize this
     if (thidx == 0) {
@@ -143,10 +204,8 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
             offsets[i] = offsets[i - 1] + arr_descr.lengths[i - 1];
         }
     }
-    //printf("C %d\n", thidx);
 
     __syncthreads();
-    //printf("D %d\n", thidx);
     assert(blockDim.x >= M);
 
     if (thidx < M) {
@@ -154,15 +213,12 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         int_t result;
         if (list != k_list_index) {
             const key_t* arr = arr_descr.keys[list];
-            //printf("E %d\n", thidx);
             int_t start, end, mid, offset, k_offset;
             key_t mid_value;
             key_t _k_value = k_value;
             start = 0;
             end = arr_descr.lengths[list];
-            //printf("F %d\n", thidx);
             offset = offsets[list];
-            //printf("G %d\n", thidx);
             k_offset = offsets[k_list_index] + k_index;
             while (start < end) {
                 mid = (start + end) / 2;
@@ -179,16 +235,13 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
                 else {
                     end = mid;
                 }
-                //            std::cout << "From " << start << " to " << end << ", mid: " << mid << ", mid-value: " << mid_value << std::endl;
 
             }
-            //            std::cout << "List " << list << ", k: " << k << " looking for: " << value <<", s: " << start << ", e: " << end << "\n";
             result = start;
         }
         else {
             result = k_index;
         }
-        //printf("H %d\n", thidx);
         Results[list] = result;
     }
 
