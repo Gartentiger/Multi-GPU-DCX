@@ -519,14 +519,14 @@ private:
         InitialMergeManager merge_manager(mcontext, mhost_temp_pinned_allocator);
 
         std::array<InitialMergeNodeInfo, NUM_GPUS> merge_nodes_info;
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU gpu = mgpus[gpu_index];
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 20);
-            mcontext.sync_default_streams();
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 20);
-            mcontext.sync_default_streams();
-        }
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU gpu = mgpus[gpu_index];
+        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 20);
+        //     mcontext.sync_default_streams();
+        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 20);
+        //     mcontext.sync_default_streams();
+        // }
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
@@ -577,23 +577,23 @@ private:
 
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU gpu = mgpus[gpu_index];
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
-            mcontext.sync_default_streams();
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
-            mcontext.sync_default_streams();
-        }
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU gpu = mgpus[gpu_index];
+        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
+        //     mcontext.sync_default_streams();
+        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
+        //     mcontext.sync_default_streams();
+        // }
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU gpu = mgpus[gpu_index];
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
-            mcontext.sync_default_streams();
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
-            mcontext.sync_default_streams();
-        }
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU gpu = mgpus[gpu_index];
+        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
+        //     mcontext.sync_default_streams();
+        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
+        //     mcontext.sync_default_streams();
+        // }
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 
