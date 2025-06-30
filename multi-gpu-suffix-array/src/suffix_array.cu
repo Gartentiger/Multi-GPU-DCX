@@ -212,9 +212,9 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Copy Input\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] Copy Input\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Copy_Input);
@@ -222,9 +222,9 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
         produce_kmers();
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Produce kmers\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] Produce kmers\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Produce_KMers);

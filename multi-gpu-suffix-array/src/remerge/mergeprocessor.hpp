@@ -690,7 +690,7 @@ namespace crossGPUReMerge
             //     mcontext.sync_gpu_default_stream(mnode.info.index);
             // }
             mcontext.sync_all_streams();
-            printf("[%lu] before multi merge\n", world_rank());
+            // printf("[%lu] before multi merge\n", world_rank());
             if (!multi_mergers.empty())
             {
                 bool finished = false;
