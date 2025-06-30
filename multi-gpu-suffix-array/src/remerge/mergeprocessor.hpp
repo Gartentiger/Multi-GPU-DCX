@@ -341,15 +341,17 @@ namespace crossGPUReMerge
                     searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
 
                 mcontext.sync_all_streams();
-                // for (int64_t re : resultHost) {
-                //     printf("[%lu] resultHost: %ld\n", world_rank(), re);
-                // }
+                for (int64_t re : resultHost) {
+                    printf("[%lu] resultHost: %ld\n", world_rank(), re);
+                }
                 std::vector<int64_t> resultSplitIdx;
                 auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
                 int totalIdx = 0;
                 for (auto recv : recvCountsOut) {
                     std::queue<int64_t> q;
                     for (int i = 0; i < recv; i++) {
+                        printf("[%lu] result[%d] after com: %ld\n", world_rank(), totalIdx, resultSplitIdx[totalIdx]);
+
                         q.push(resultSplitIdx[totalIdx++]);
                     }
                     resultSplitted.push_back(q);
@@ -586,7 +588,7 @@ namespace crossGPUReMerge
                 {
                     ms->results.resize(ms->ranges.size());
                     for (int i = 0; i < ms->ranges.size() + 1; i++) {
-                        printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
+                        printf("[%lu] results[%d] 2: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
                     }
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
