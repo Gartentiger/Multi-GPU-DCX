@@ -583,16 +583,20 @@ namespace crossGPUReMerge
                 for (auto s : node.scheduled_work.searches)
                 {
                     s->result = *s->h_result_ptr;
+                    printf("[%lu] search result: %ld\n", world_rank(), s->result);
                 }
 
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     ms->results.resize(ms->ranges.size());
-                    for (int i = 0; i < ms->ranges.size() + 1; i++) {
-                        printf("[%lu] results[%d] 2: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
-                    }
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
+                    for (int i = 0; i < ms->ranges.size(); i++) {
+                        printf("[%lu] results[%d] 2: %ld\n", world_rank(), i, ms->results[i]);
+                    }
+
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
+                    printf("[%lu] range_to_take_one_more: %ld\n", world_rank(), ms->range_to_take_one_more);
+
                 }
             }
         }
