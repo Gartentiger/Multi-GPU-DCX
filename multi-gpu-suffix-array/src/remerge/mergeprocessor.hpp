@@ -336,6 +336,7 @@ namespace crossGPUReMerge
             std::vector<std::queue<int64_t>> resultSplitted;
 
             {
+
                 std::vector<int64_t> resultHost(searchesGPU.size());
                 cudaMemcpyAsync(resultHost.data(), resultPtrDevice,
                     searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));

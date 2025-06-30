@@ -176,7 +176,7 @@ __global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint 
         result = k_index;
     }
     results[thidx] = result;
-    // printf("[%u] thidx: %u, result %ld\n", gpuId, thidx, result);
+    printf("[%u] thidx: %u, result %ld\n", gpuId, thidx, result);
 }
 
 template<size_t MAX_GPUS, typename key_t, typename int_t, class comp_fun_t>
