@@ -280,7 +280,7 @@ namespace crossGPUReMerge
         {
             mhost_search_temp_allocator.reset();
             mcontext.sync_all_streams();
-            printf("[%lu] do_searches\n", world_rank());
+            // printf("[%lu] do_searches\n", world_rank());
 
             std::vector<SearchGPU<NUM_GPUS, key_t, int64_t>> searchesGPU;
             searchesGPU.clear();
@@ -520,7 +520,7 @@ namespace crossGPUReMerge
                     enumer++;
                 }
             }
-            printf("[%lu] after allgather\n", world_rank());
+            // printf("[%lu] after allgather\n", world_rank());
             //}
             // printf("Searches done %lu\n", world_rank());
 
@@ -577,19 +577,19 @@ namespace crossGPUReMerge
                 for (auto s : node.scheduled_work.searches)
                 {
                     s->result = *s->h_result_ptr;
-                    printf("[%lu] search result: %ld\n", world_rank(), s->result);
+                    // printf("[%lu] search result: %ld\n", world_rank(), s->result);
                 }
 
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     ms->results.resize(ms->ranges.size());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
-                    for (int i = 0; i < ms->ranges.size(); i++) {
-                        printf("[%lu] results[%d] 2: %ld\n", world_rank(), i, ms->results[i]);
-                    }
+                    // for (int i = 0; i < ms->ranges.size(); i++) {
+                    //     printf("[%lu] results[%d] 2: %ld\n", world_rank(), i, ms->results[i]);
+                    // }
 
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
-                    printf("[%lu] range_to_take_one_more: %ld\n", world_rank(), ms->range_to_take_one_more);
+                    // printf("[%lu] range_to_take_one_more: %ld\n", world_rank(), ms->range_to_take_one_more);
 
                 }
             }
