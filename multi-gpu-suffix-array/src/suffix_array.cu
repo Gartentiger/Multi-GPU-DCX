@@ -659,6 +659,7 @@ private:
         merge_manager.merge(ranges, S0Comparator(), nullptr);
 
         mcontext.sync_all_streams();
+        printf("[%lu] after merge s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Combine);
@@ -679,6 +680,7 @@ private:
             CUERR;
         }
         mcontext.sync_default_streams();
+        printf("[%lu] after s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Combine);
         //            dump_final_merge("before final merge");
     }
@@ -703,14 +705,14 @@ private:
                     gpu.merge_ptr.remaining_storage_size);
             }
         }
-
+        printf("[%lu] final merge\n", world_rank());
         auto h_temp_mem = mmemory_manager.get_host_temp_mem();
         QDAllocator qd_alloc_h_temp(h_temp_mem.first, h_temp_mem.second);
         distrib_merge::DistributedMerge<MergeStageSuffix, int, sa_index_t, NUM_GPUS, DistribMergeTopology>::
             merge_async(inp_S12, inp_S0, result, MergeCompFunctor(), false, mcontext, qd_alloc_h_temp);
 
         mcontext.sync_default_streams();
-        // printf("[%lu] after merge_async\n", world_rank());
+        printf("[%lu] after merge_async\n", world_rank());
 
         // printf("[%lu] merge async done\n", world_rank());
         // comm_world().barrier();

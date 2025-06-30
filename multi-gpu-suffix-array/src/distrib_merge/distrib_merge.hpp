@@ -143,7 +143,7 @@ namespace distrib_merge {
         template <class comp_f>
         void merge(comp_f comp, bool do_values) {
             std::array<std::vector<Search>, NUM_NODES - 1> searches = plan_searches();
-            // printf("[%lu] before execute_searches\n", world_rank());
+            printf("[%lu] before execute_searches\n", world_rank());
             execute_searches(searches, comp);
 
             std::array<std::pair<MergePosition, MergePosition>, NUM_NODES - 1> partition_points =
@@ -168,12 +168,12 @@ namespace distrib_merge {
                                                        s.count, 1 });
                 }
             }
-            // printf("[%lu] before do_copies_async\n", world_rank());
+            printf("[%lu] before do_copies_async\n", world_rank());
 
             mtopology_helper.do_copies_async(copies, minp_a, minp_b, mout, do_values);
 
             mcontext.sync_all_streams();
-            // printf("[%lu] before execute_merges_async\n", world_rank());
+            printf("[%lu] before execute_merges_async\n", world_rank());
 
             execute_merges_async(partitions, comp, do_values);
         }
@@ -272,7 +272,7 @@ namespace distrib_merge {
                     cudaFreeAsync(temp, stream);
                     i++;
                 }
-                // printf("[%lu] recv done\n", world_rank());
+                printf("[%lu] execute searches recv done\n", world_rank());
             }
 
             mcontext.sync_all_streams();
@@ -284,7 +284,7 @@ namespace distrib_merge {
             std::vector<int64_t> hResultsOut;
             hResultsOut.clear();
             comm_world().allgatherv(send_buf(hResultsIn), send_count(hResultsIn.size()), recv_buf<resize_to_fit>(hResultsOut));
-            // printf("[%lu] allgatherv distributed_merge done\n", world_rank());
+            printf("[%lu] allgatherv distributed_merge done\n", world_rank());
             int i = 0;
             for (uint node = 0; node < NUM_NODES; ++node) {
                 for (Search* s : searches_on_nodes[node]) {
