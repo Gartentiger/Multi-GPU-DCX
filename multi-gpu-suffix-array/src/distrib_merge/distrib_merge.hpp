@@ -201,17 +201,20 @@ namespace distrib_merge {
                             const auto& node_a = minp_a[s->node_a];
                             std::span<key_t> sb(node_a.keys, size_t(node_a.count));
                             comm_world().isend(send_buf(sb), send_count(size_t(node_a.count)), tag(i), destination((size_t)s->node_b));
+                            printf("[%lu] send to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_a.count), i);
+
                         }
                         else if (s->node_b == world_rank()) {
                             const auto& node_b = minp_b[s->node_b];
                             std::span<key_t> sb(node_b.keys, size_t(node_b.count));
                             comm_world().isend(send_buf(sb), send_count(size_t(node_b.count)), tag(i), destination((size_t)s->node_a));
+                            printf("[%lu] send to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_b.count), i);
                         }
                         i++;
                     }
-                    // printf("[%lu] sends done\n", world_rank());
                 }
             }
+            printf("[%lu] sends done\n", world_rank());
             //for (uint node = 0; node < NUM_NODES; ++node)
             {
                 uint node = world_rank();
@@ -238,6 +241,7 @@ namespace distrib_merge {
                         // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_b.count));
                         cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
 
+                        printf("[%lu] receive length %lu, i: %d\n", world_rank(), size_t(node_b.count), i);
                         std::span<key_t> rb(temp, size_t(node_b.count));
                         comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_b.count)));
                         run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
@@ -252,7 +256,7 @@ namespace distrib_merge {
                     else {
                         // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_a.count));
                         cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
-
+                        printf("[%lu] receive length %lu, i: %d\n", world_rank(), size_t(node_a.count), i);
                         std::span<key_t> rb(temp, size_t(node_a.count));
                         comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_a.count)));
                         run_partitioning_search << <1, 1, 0, stream >> > (temp,
@@ -266,7 +270,7 @@ namespace distrib_merge {
                     }
                     // printf("[%lu] recv, i: %d \n", world_rank(), i);
                     s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
-
+                    printf("[%lu] receive done, i: %d\n", world_rank(), i);
                     cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
                         sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
                     cudaFreeAsync(temp, stream);
