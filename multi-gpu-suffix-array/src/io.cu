@@ -2,9 +2,9 @@
 #include "cuda_helpers.h"
 #include <cstdio>
 
-void write_array(const char *ofile, const sa_index_t *sa, size_t len)
+void write_array(const char* ofile, const sa_index_t* sa, size_t len)
 {
-    FILE *fp = fopen(ofile, "wb");
+    FILE* fp = fopen(ofile, "wb");
     if (!fp)
     {
         error("Couldn't open file for writing!");
@@ -22,10 +22,10 @@ void write_array(const char *ofile, const sa_index_t *sa, size_t len)
     fclose(fp);
 }
 
-size_t read_file_into_host_memory(char **contents, const char *path, size_t &real_len,
-                                  size_t padd_to, char padd_c)
+size_t read_file_into_host_memory(char** contents, const char* path, size_t& real_len,
+    size_t padd_to, char padd_c, size_t maxLength)
 {
-    FILE *file = fopen(path, "rb");
+    FILE* file = fopen(path, "rb");
     if (!file)
     {
         error("Couldn't open file.");
@@ -33,6 +33,9 @@ size_t read_file_into_host_memory(char **contents, const char *path, size_t &rea
     fseek(file, 0, SEEK_END);
 
     size_t len = ftell(file);
+
+    if (len > maxLength)
+        len = maxLength;
 
     if (len == 0)
     {
@@ -46,8 +49,8 @@ size_t read_file_into_host_memory(char **contents, const char *path, size_t &rea
     cudaMallocHost(contents, len_padded);
     CUERR
 
-    if (fread(*contents, 1, len, file) != len)
-        error("Error reading file!");
+        if (fread(*contents, 1, len, file) != len)
+            error("Error reading file!");
 
     fclose(file);
 
