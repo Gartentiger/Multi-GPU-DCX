@@ -279,8 +279,8 @@ namespace crossGPUReMerge
         void do_searches(comp_func_t comp)
         {
             mhost_search_temp_allocator.reset();
-            printf("[%lu] do_searches\n", world_rank());
             mcontext.sync_all_streams();
+            printf("[%lu] do_searches\n", world_rank());
 
             std::vector<SearchGPU<NUM_GPUS, key_t, int64_t>> searchesGPU;
             searchesGPU.clear();
@@ -329,7 +329,7 @@ namespace crossGPUReMerge
             // for (auto searches : searchesGPU) {
             //     printf("[%lu] ksmallest: %lu, %lu, %u\n", world_rank(), std::get<0>(searches.ksmallest), std::get<1>(searches.ksmallest), std::get<2>(searches.ksmallest));
             // }
-
+            printf("[%lu] searchesGPU.size(): %lu\n", world_rank(), searchesGPU.size());
             find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), resultPtrDevice, searchesGPU.data());
 
             //auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
