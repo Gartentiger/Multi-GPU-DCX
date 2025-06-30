@@ -280,7 +280,7 @@ namespace crossGPUReMerge
         {
             mhost_search_temp_allocator.reset();
             mcontext.sync_all_streams();
-            // printf("[%lu] do_searches\n", world_rank());
+            printf("[%lu] do_searches\n", world_rank());
 
             std::vector<SearchGPU<NUM_GPUS, key_t, int64_t>> searchesGPU;
             searchesGPU.clear();
@@ -491,7 +491,7 @@ namespace crossGPUReMerge
             mcontext.sync_all_streams();
 
             MergeNode mergeNode = mnodes[world_rank()];
-            // printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
+            printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
             size_t send_size = mergeNode.scheduled_work.searches.size();
 
             std::vector<int64_t> send_search_result(send_size);
@@ -501,12 +501,12 @@ namespace crossGPUReMerge
                 // printf("[%lu] result before communication %u\n", world_rank(), *s->h_result_ptr);
                 send_search_result.push_back(*s->h_result_ptr);
             }
-            // printf("[%lu] before allgather\n", world_rank());
+            printf("[%lu] before allgather\n", world_rank());
 
             std::vector<int64_t> recv_search_result;
             comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result));
 
-            // printf("Allgather %lu\n", world_rank());
+            printf("Allgather %lu\n", world_rank());
             int enumer = 0;
             for (int i = 0; i < comm_world().size(); i++)
             {
@@ -520,7 +520,7 @@ namespace crossGPUReMerge
                     enumer++;
                 }
             }
-            // printf("[%lu] after allgather\n", world_rank());
+            printf("[%lu] after allgather\n", world_rank());
             //}
             // printf("Searches done %lu\n", world_rank());
 
