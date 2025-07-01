@@ -147,12 +147,12 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         offsets[0] = 0;
         for (uint i = 1; i < M; ++i) {
             offsets[i] = offsets[i - 1] + arr_descr.lengths[i - 1];
-            printf("offsets[%u]: %ld\n", i, offsets[i]);
+            // printf("offsets[%u]: %ld\n", i, offsets[i]);
         }
     }
 
     __syncthreads();
-    printf("thidx: %u, ksmallest: %u, %ld, %u\n", thidx, k_list_index, k_index, k_value);
+    // printf("thidx: %u, ksmallest: %u, %ld, %u\n", thidx, k_list_index, k_index, k_value);
 
     assert(blockDim.x >= M);
 
