@@ -63,7 +63,7 @@ int main(int argc, char** argv)
         t.stop_and_append();
 
     }
-    std::ofstream outFile(argv[2], std::ios::app);
+    std::ofstream outFile(argv[1], std::ios::app);
     t.aggregate_and_print(
         kamping::measurements::SimpleJsonPrinter{ outFile, {} });
     std::cout << std::endl;
