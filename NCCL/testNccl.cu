@@ -23,8 +23,8 @@
 #include <kamping/request_pool.hpp>
 
 
-static const size_t SEND_SIZE = 1000;
-static const size_t SEND_TIMES = 1000;
+static const size_t SEND_SIZE = 1024;
+static const size_t SEND_TIMES = 1024;
 
 #define CUDACHECK(cmd) do {                         \
   cudaError_t err = cmd;                            \
