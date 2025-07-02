@@ -48,11 +48,11 @@ static const size_t SEND_TIMES = 1000;
 
 int main(int argc, char** argv)
 {
-    cudaSetDevice(0);
-
     using namespace kamping;
     kamping::Environment e;
     Communicator comm;
+
+    cudaSetDevice(world_rank());
 #ifdef USE_NCCL
     ncclComm_t nccl_comm;
     ncclUniqueId Id;
@@ -69,7 +69,24 @@ int main(int argc, char** argv)
 
 #endif
     cudaStream_t stream;
-    cudaStreamCreate(&stream);
+    CUDACHECK(cudaStreamCreate(&stream));
+
+    if (world_rank() == 0) {
+        int canAccess;
+        cudaDeviceCanAccessPeer(&canAccess, world_rank(), 1);
+        if (canAccess) {
+            CUDACHECK(cudaDeviceEnablePeerAccess(1, 0));
+        }
+
+    }
+    else if (world_rank() == 1) {
+        int canAccess;
+        cudaDeviceCanAccessPeer(&canAccess, world_rank(), 0);
+        if (canAccess) {
+            CUDACHECK(cudaDeviceEnablePeerAccess(0, 0));
+        }
+    }
+
 
     int* sendBuf, * recvBuf;
     cudaMalloc(&sendBuf, sizeof(int) * SEND_SIZE);
@@ -89,7 +106,6 @@ int main(int argc, char** argv)
     auto& t = kamping::measurements::timer();
     t.synchronize_and_start("pingping");
 #ifdef USE_NCCL
-
     for (int i = 0; i < SEND_TIMES; i++) {
         t.synchronize_and_start("ping" + std::to_string(i));
         ncclGroupStart();
@@ -104,7 +120,8 @@ int main(int argc, char** argv)
         ncclGroupEnd();
         t.stop_and_append();
     }
-#else
+#else 
+
     RequestPool req;
     for (int i = 0; i < SEND_TIMES; i++) {
         t.synchronize_and_start("ping" + std::to_string(i));
@@ -121,6 +138,7 @@ int main(int argc, char** argv)
     }
 #endif
     t.stop();
+
 
     std::cout << "Ping pong complete" << std::endl;
     std::ofstream outFile(argv[1], std::ios::app);
