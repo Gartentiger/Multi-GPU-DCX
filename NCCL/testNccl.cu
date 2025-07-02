@@ -76,6 +76,7 @@ int main(int argc, char** argv)
         cudaDeviceCanAccessPeer(&canAccess, world_rank(), 1);
         if (canAccess) {
             CUDACHECK(cudaDeviceEnablePeerAccess(1, 0));
+            printf("[%lu] peer to peer enabled", world_rank());
         }
 
     }
@@ -84,6 +85,7 @@ int main(int argc, char** argv)
         cudaDeviceCanAccessPeer(&canAccess, world_rank(), 0);
         if (canAccess) {
             CUDACHECK(cudaDeviceEnablePeerAccess(0, 0));
+            printf("[%lu] peer to peer enabled", world_rank());
         }
     }
 
