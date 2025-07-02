@@ -22,7 +22,7 @@
 #include <kamping/request_pool.hpp>
 
 static const size_t SEND_SIZE = 1000;
-static const size_t SEND_TIMES = 2;
+static const size_t SEND_TIMES = 1000;
 
 
 int main(int argc, char** argv)
@@ -63,6 +63,7 @@ int main(int argc, char** argv)
         t.stop_and_append();
 
     }
+    std::cout << "Ping pong complete" << std::endl;
     std::ofstream outFile(argv[1], std::ios::app);
     t.aggregate_and_print(
         kamping::measurements::SimpleJsonPrinter{ outFile, {} });
