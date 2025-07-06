@@ -299,11 +299,9 @@ namespace crossGPUReMerge
                             assert(!ms->used);
                             ms->used = true;
                         }
-
-                        if (world_rank() != r.start.node)
-                            ms->in_node_merge &= mcontext.get_peer_status(world_rank(), r.start.node) >= 1;
+                        ms->in_node_merge &= mcontext.get_peer_status(world_rank(), r.start.node) >= 1;
                     }
-
+                    printf("[%lu] multi search in node: %s\n", world_rank(), ms->in_node_merge ? "true" : "false");
                     if (ms->in_node_merge) {
                         ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
                         int i = 0;
@@ -331,7 +329,7 @@ namespace crossGPUReMerge
                 }
             }
 
-
+            printf("[%lu] queue\n", world_rank());
             // queue work for the gpu associated with this process
             for (MergeNode& node : mnodes)
             {
@@ -349,6 +347,7 @@ namespace crossGPUReMerge
                         continue;
                     }
 
+                    printf("[%lu] not in node\n", world_rank());
                     SearchGPU<NUM_GPUS, key_t, int64_t> sgpu;
                     ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
 
@@ -365,6 +364,7 @@ namespace crossGPUReMerge
                         ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                         i++;
                     }
+
 
                     Communicator c = comm_world().create_subcommunicators(ranks);
                     // could be multi threaded
@@ -389,7 +389,7 @@ namespace crossGPUReMerge
 
                 //auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
 
-
+            printf("[%lu] result HOst\n", world_rank());
             std::vector<int64_t> resultHost(searchesGPU.size());
             if (searchesGPU.size() > 0)
             {
@@ -402,18 +402,21 @@ namespace crossGPUReMerge
 
             // sync again for next communication
             comm_world().barrier();
+            printf("[%lu] multi partition find done\n", world_rank());
 
             for (MergeNode& node : mnodes) {
                 int msgTag = 0;
                 for (auto s : node.scheduled_work.searches)
                 {
-                    // in one node
-                    if (s->node_1 / mcontext.num_per_node == s->node_1 / mcontext.num_per_node) {
-                        continue;
-                    }
-
                     if (node.info.index != world_rank())
                     {
+                        assert(node.info.index == s->node_1 || node.info.index == s->node_2);
+                        // we have peer access no need to send data
+                        if (mcontext.get_peer_status(world_rank(), node.info.index) >= 1) {
+                            msgTag++;
+                            continue;
+                        }
+
                         if (s->node_1 == world_rank())
                         {
                             key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
@@ -434,7 +437,7 @@ namespace crossGPUReMerge
                     msgTag++;
                 }
             }
-
+            printf("[%lu] send d\n", world_rank());
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
@@ -459,13 +462,14 @@ namespace crossGPUReMerge
                         key_t* start_2;
                         key_t* tempRef;
 
-                        if (other == node.info.index || uint(other / mcontext.num_per_node) != mcontext.get_node_id())
+                        if (other == node.info.index || mcontext.get_peer_status(world_rank(), other) >= 1)
                         {
                             start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
                             start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                         }
                         else
                         {
+                            printf("[%lu] receiving search, no peer access\n", world_rank());
                             if (s->node_1 == world_rank())
                             {
                                 start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
@@ -498,6 +502,7 @@ namespace crossGPUReMerge
             }
 
             mcontext.sync_all_streams();
+            printf("[%lu] partition search working done\n", world_rank());
 
             std::vector<int64_t> resultSplitIdx;
             auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
@@ -509,7 +514,7 @@ namespace crossGPUReMerge
                 }
                 resultSplitted.push_back(q);
             }
-
+            printf("[%lu] allgatg\n", world_rank());
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
@@ -547,6 +552,7 @@ namespace crossGPUReMerge
                         comm_world().bcast(send_recv_buf(std::span<int64_t>(ms->h_result_ptr, ms->ranges.size() + 1)), root((size_t)node.info.index));
                         continue;
                     }
+                    printf("[%lu] after bcast\n", world_rank());
 
                     int i = 0;
                     for (auto r : ms->ranges) {

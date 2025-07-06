@@ -235,6 +235,7 @@ public:
                 comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handle, 1)), recv_count(1), tag(node_offest + i));
                 void* ptrHandle;
                 cudaIpcOpenMemHandle(&ptrHandle, other_handle, cudaIpcMemLazyEnablePeerAccess);
+                printf("[%lu] opened mem handle from %d\n", world_rank(), i);
                 malloc_base[node_offest + i] = reinterpret_cast<unsigned char*>(ptrHandle);
             }
         }
