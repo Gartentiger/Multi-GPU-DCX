@@ -53,6 +53,7 @@ namespace crossGPUReMerge {
         int64_t result;
         int64_t* d_result_ptr;
         int64_t* h_result_ptr;
+        bool in_node_merge;
     };
 
     // Multi merge
@@ -61,6 +62,7 @@ namespace crossGPUReMerge {
             : ranges(ranges_)
         {
             results.reserve(ranges.size());
+            in_node_merge = false;
         }
 
         //    MultiWayPartitioningSearch(const MultiWayPartitioningSearch& other) = delete;
@@ -72,6 +74,8 @@ namespace crossGPUReMerge {
         uint scheduled_on, range_to_take_one_more;
         int64_t* d_result_ptr;
         int64_t* h_result_ptr;
+        bool in_node_merge;
+        bool used;
     };
 
     struct MultiWayMergePartition {

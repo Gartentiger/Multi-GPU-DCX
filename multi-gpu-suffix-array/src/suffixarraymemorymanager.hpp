@@ -6,6 +6,10 @@
 #include <array>
 #include <cstdint>
 
+#include <kamping/p2p/isend.hpp>
+#include <kamping/p2p/recv.hpp>
+#include <span>
+
 #include "suffix_types.h"
 
 // #define ENABLE_DUMPING
@@ -200,21 +204,42 @@ public:
 
         madditional_pd_space_size = (misa_offset - 8 * mpd_array_aligned_len * sizeof(sa_index_t));
 
+        //for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
+        {
+            uint gpu = world_rank();
+
+            // cudaSetDevice(mcontext.get_device_id(gpu));
+            cudaMalloc(&malloc_base[gpu], malloc_size);
+            CUERR;
+
+            if (zero)
+            {
+                cudaMemsetAsync(malloc_base[gpu], 0, malloc_size,
+                    mcontext.get_gpu_default_stream(gpu));
+                CUERR;
+            }
+            uint node_offest = mcontext.get_node_id() * mcontext.num_per_node;
+            cudaIpcMemHandle_t handle;
+            cudaIpcGetMemHandle(&handle, malloc_base[gpu]);
+            for (int i = 0; i < mcontext.num_per_node; i++) {
+                if (node_offest + i == world_rank()) {
+                    continue;
+                }
+                comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handle, 1)), send_count(1), tag(world_rank()), destination(size_t(node_offest + i)));
+            }
+            for (int i = 0; i < mcontext.num_per_node; i++) {
+                if (node_offest + i == world_rank()) {
+                    continue;
+                }
+                cudaIpcMemHandle_t other_handle;
+                comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handle, 1)), recv_count(1), tag(node_offest + i));
+                void* ptrHandle;
+                cudaIpcOpenMemHandle(&ptrHandle, other_handle, cudaIpcMemLazyEnablePeerAccess);
+                malloc_base[node_offest + i] = reinterpret_cast<unsigned char*>(ptrHandle);
+            }
+        }
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
-            if (world_rank() == gpu)
-            {
-                cudaSetDevice(mcontext.get_device_id(gpu));
-                cudaMalloc(&malloc_base[gpu], malloc_size);
-                CUERR;
-
-                if (zero)
-                {
-                    cudaMemsetAsync(malloc_base[gpu], 0, malloc_size,
-                        mcontext.get_gpu_default_stream(gpu));
-                    CUERR;
-                }
-            }
             marrays_pd[gpu] = make_pd_arrays(malloc_base[gpu]);
             marrays_prepare_S12[gpu] = make_prepare_S12_arrays(malloc_base[gpu]);
             marrays_prepare_S0[gpu] = make_prepare_S0_arrays(malloc_base[gpu]);
@@ -246,10 +271,13 @@ public:
         {
             if (gpu == world_rank())
             {
-
-                cudaSetDevice(mcontext.get_device_id(gpu));
                 cudaFree(malloc_base[gpu]);
             }
+            else if (mcontext.get_node_id() == uint(gpu / mcontext.num_per_node)) {
+                cudaIpcCloseMemHandle(malloc_base[gpu]);
+            }
+
+            // cudaSetDevice(mcontext.get_device_id(gpu));
         }
 
         cudaFreeHost(mhost_temp_mem);

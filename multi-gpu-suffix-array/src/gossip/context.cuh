@@ -36,18 +36,24 @@ private:
     std::array<std::array<cudaStream_t, NUM_GPUS>, NUM_GPUS> streams;
     std::array<device_id_t, NUM_GPUS> device_ids;
 
+
     std::array<std::array<uint, NUM_GPUS>, NUM_GPUS> peer_status;
 
     std::array<std::array<mgpu::my_mpgu_context_t*, NUM_GPUS>, NUM_GPUS> mpgu_contexts;
     std::array<QDAllocator, NUM_GPUS> mdevice_temp_allocators;
+    uint node_id;
 
 public:
     static const uint num_gpus = NUM_GPUS;
+    uint num_per_node;
     MultiGPUContext(const MultiGPUContext&) = delete;
     MultiGPUContext& operator=(const MultiGPUContext&) = delete;
 
-    MultiGPUContext(const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr)
+    MultiGPUContext(const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr, uint num_node = 4)
     {
+        num_per_node = num_node;
+        node_id = uint(world_rank() / num_per_node);
+
         // Copy num_gpus many device identifiers
 
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
@@ -62,7 +68,7 @@ public:
         {
             if (world_rank() == src_gpu)
             {
-                cudaSetDevice(0); // get_device_id(src_gpu));
+                //cudaSetDevice(0); // get_device_id(src_gpu));
                 cudaDeviceSynchronize();
             }
             for (uint part = 0; part < num_gpus; ++part)
@@ -77,49 +83,45 @@ public:
         }
         CUERR;
 
+
         // compute the connectivity matrix
-        for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
-        {
-            // device_id_t src = get_device_id(src_gpu);
-            // cudaSetDevice(src);
-            for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
-            {
-                //     uint dst = get_device_id(dst_gpu);
+        uint in_node_rank = world_rank() % num_per_node;
 
-                //     // Check if src can access dst.
-                if (src_gpu == dst_gpu)
-                {
-                    peer_status[src_gpu][dst_gpu] = PEER_STATUS_DIAG;
-                }
-                else
-                {
-                    //     else {
-                    //         int status;
-                    //         cudaDeviceCanAccessPeer(&status, src, dst);
-                    //         peer_status[src_gpu][dst_gpu] = status ? PEER_STATUS_FAST : PEER_STATUS_SLOW;
-                    //     }
+        uint src = get_device_id(world_rank());
+        for (uint dst_gpu = 0; dst_gpu < num_gpus; dst_gpu++) {
+            // gpus are only connected through pcie
+            if (in_node_rank != dst_gpu % num_per_node) {
+                peer_status[world_rank()][dst_gpu] = PEER_STATUS_SLOW;
+            }
+            else {
+                uint dst = get_device_id(dst_gpu);
+                int status;
+                cudaDeviceCanAccessPeer(&status, src, dst);
+                peer_status[world_rank()][dst_gpu] = status ? PEER_STATUS_FAST : PEER_STATUS_SLOW;
 
-                    peer_status[src_gpu][dst_gpu] = PEER_STATUS_SLOW;
-                }
             }
         }
+
+
+
         CUERR;
 
-        for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
+        //for (uint src_gpu = 0; src_gpu < NUM_PER_NODE; ++src_gpu)
         {
+            uint src_gpu = world_rank();
             const device_id_t src = get_device_id(src_gpu);
-            cudaSetDevice(src);
+            // cudaSetDevice(src);
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
             {
                 device_id_t dst = get_device_id(dst_gpu);
 
-                if (src_gpu != dst_gpu)
+                if (src_gpu != dst_gpu && in_node_rank == dst_gpu % num_per_node)
                 {
                     if (THROW_EXCEPTIONS)
                     {
                         if (src == dst) {
-                            continue;
-                            //throw std::invalid_argument("Device identifiers are not unique.");
+                            //continue;
+                            throw std::invalid_argument("Device identifiers are not unique.");
                         }
                     }
                 }
@@ -156,12 +158,11 @@ public:
         // for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
         {
             uint src_gpu = world_rank();
-            cudaSetDevice(get_device_id(src_gpu));
+            // cudaSetDevice(get_device_id(src_gpu));
             cudaDeviceSynchronize();
             CUERR;
             for (uint part = 0; part < num_gpus; ++part)
             {
-
                 cudaStreamSynchronize(get_streams(src_gpu)[part]);
                 CUERR;
                 delete mpgu_contexts[src_gpu][part];
@@ -172,10 +173,11 @@ public:
         CUERR;
 
         // disable peer access
-        for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
+        //for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
         {
+            uint src_gpu = world_rank();
             device_id_t src = get_device_id(src_gpu);
-            cudaSetDevice(src);
+            // cudaSetDevice(src);
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
             {
                 device_id_t dst = get_device_id(dst_gpu);
@@ -201,6 +203,10 @@ public:
             }
         }
         CUERR
+    }
+
+    uint get_node_id() {
+        return node_id;
     }
 
     device_id_t get_device_id(uint gpu) const noexcept

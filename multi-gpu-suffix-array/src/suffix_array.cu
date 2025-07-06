@@ -42,7 +42,8 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 
-static const uint NUM_GPUS = 2;
+static const uint NUM_GPUS = 8;
+static const uint NUM_PER_NODE = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -934,7 +935,7 @@ int main(int argc, char** argv)
 
     char* input = nullptr;
 
-    cudaSetDevice(0);
+    cudaSetDevice(world_rank() % NUM_PER_NODE);
 
     size_t realLen;
     size_t maxLength = 1024 * 1024 * 250 * NUM_GPUS;
@@ -948,9 +949,9 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,0 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3,0,1,2,3 };
 
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids2);
+    MultiGPUContext<NUM_GPUS> context(&gpu_ids2, NUM_PER_NODE);
 
 #endif
     SuffixSorter sorter(context, realLen, input);

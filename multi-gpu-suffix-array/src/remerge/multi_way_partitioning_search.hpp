@@ -181,7 +181,7 @@ __global__  void find_partition_points(const key_t* keys, comp_fun_t comp, uint 
 
 template<size_t MAX_GPUS, typename key_t, typename int_t, class comp_fun_t>
 __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr,
-    int_t M, int_t k, comp_fun_t comp, int_t* Results, uint* Safe_list, std::tuple<size_t, size_t, key_t> ksmallestHost) {
+    int_t M, int_t k, comp_fun_t comp, int_t* Results, uint* Safe_list) {
 
     const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -192,7 +192,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
 
 
     if (thidx == 0) {
-        std::tuple<size_t, size_t, key_t> ksmallest = ksmallestHost;//multi_way_k_select(arr_descr, M, k, comp);
+        std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_select(arr_descr, M, k, comp);
         k_list_index = std::get<0>(ksmallest);
         k_index = std::get<1>(ksmallest);
         k_value = std::get<2>(ksmallest);

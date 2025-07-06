@@ -139,7 +139,7 @@ namespace crossGPUReMerge
     }
 
     template<typename key_t, typename int_t, class comp_fun_t, size_t MAX_GPUS>
-    std::tuple<uint, int_t, key_t> multi_way_k_selectHost(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, int_t k, comp_fun_t comp) {
+    std::tuple<uint, int_t, key_t> multi_way_k_selectHost(ArrayDescriptor<MAX_GPUS, key_t, int_t> arr_descr, int_t M, int_t k, comp_fun_t comp, Communicator<> comm) {
 
         int_t mid_index[MAX_GPUS];
         key_t mid_values[MAX_GPUS];
@@ -160,7 +160,7 @@ namespace crossGPUReMerge
                 // printf("[%lu] cpying done: %u\n", world_rank(), mid_values[i]);
             }
             std::span<key_t> srb(mid_values + i, 1);
-            comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)i));
+            comm.bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)i));
             // printf("[%lu] received: %u\n", world_rank(), mid_values[i]);
 
             before_mid_count += mid_index[i];
@@ -227,7 +227,7 @@ namespace crossGPUReMerge
                     // printf("[%lu]cpying 2\n", world_rank());
                 }
                 std::span<key_t> srb(mid_values + min_index, 1);
-                comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)min_index));
+                comm.bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)min_index));
                 // UPDATE_MID_INDEX_AND_VALUE(min_index);
                 before_mid_count += mid_index[min_index] - old_mid;
             }
@@ -242,7 +242,7 @@ namespace crossGPUReMerge
                     // printf("[%lu]cpying 3\n", world_rank());
                 }
                 std::span<key_t> srb(mid_values + max_index, 1);
-                comm_world().bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)max_index));
+                comm.bcast(send_recv_buf(srb), send_recv_count(1), root((size_t)max_index));
                 // UPDATE_MID_INDEX_AND_VALUE(max_index);
                 before_mid_count -= old_mid - mid_index[max_index];
             }
@@ -284,42 +284,99 @@ namespace crossGPUReMerge
 
             std::vector<SearchGPU<NUM_GPUS, key_t, int64_t>> searchesGPU;
             searchesGPU.clear();
+            QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
 
+            // check for all merges that are in one node. They can be executed normally
             for (MergeNode& node : mnodes)
             {
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
-                    SearchGPU<NUM_GPUS, key_t, int64_t> sgpu;
-                    ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
+                    ms->in_node_merge = true;
+                    ms->used = false;
+                    for (const auto& r : ms->ranges)
+                    {
+                        if (world_rank() == r.start.node) {
+                            assert(!ms->used);
+                            ms->used = true;
+                        }
+
+                        if (world_rank() != r.start.node)
+                            ms->in_node_merge &= mcontext.get_peer_status(world_rank(), r.start.node) >= 1;
+                    }
+
+                    if (ms->in_node_merge) {
+                        ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
+                        int i = 0;
+                        for (const auto& r : ms->ranges)
+                        {
+                            ad.lengths[i] = r.end.index - r.start.index;
+                            ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
+                            i++;
+                        }
+                        const size_t result_buffer_length = ms->ranges.size() + 1;
+
+                        const cudaStream_t& stream = mcontext.get_gpu_default_stream(world_rank());
+
+                        ms->d_result_ptr = dAlloc.get<int64_t>(result_buffer_length);
+                        ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
+
+                        multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
+                            comp,
+                            (int64_t*)ms->d_result_ptr,
+                            (uint*)(ms->d_result_ptr + result_buffer_length - 1));
+
+                        cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
+                            result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
+                    }
+                }
+            }
+
+
+            // queue work for the gpu associated with this process
+            for (MergeNode& node : mnodes)
+            {
+                for (auto ms : node.scheduled_work.multi_searches)
+                {
+                    // only processes involved in the merge know, otherwise always false
+                    if (ms->in_node_merge) {
+                        continue;
+                    }
+
                     const size_t result_buffer_length = ms->ranges.size() + 1;
                     ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
 
-                    bool used = false;
+                    if (!ms->used) {
+                        continue;
+                    }
+
+                    SearchGPU<NUM_GPUS, key_t, int64_t> sgpu;
+                    ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
+
+                    std::vector<int> ranks(ms->ranges.size());
+
                     int i = 0;
                     for (const auto& r : ms->ranges)
                     {
+                        ranks[i] = r.start.node;
                         if (r.start.node == world_rank()) {
-                            assert(!used);
-                            used = true;
                             sgpu.startIndex = r.start.index;
                         }
                         ad.lengths[i] = r.end.index - r.start.index;
                         ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
                         i++;
-
                     }
-                    std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp);
+
+                    Communicator c = comm_world().create_subcommunicators(ranks);
+                    // could be multi threaded
+                    std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp, c);
                     *(reinterpret_cast<uint*>(ms->h_result_ptr + result_buffer_length - 1)) = (uint)std::get<0>(ksmallest);
-                    if (used) {
-                        sgpu.M = (int64_t)ms->ranges.size();
-                        for (int i = 0; i < (int64_t)ms->ranges.size(); i++) {
-                            sgpu.lengths[i] = ad.lengths[i];
-                        }
-                        sgpu.ksmallest = ksmallest;
-                        searchesGPU.push_back(sgpu);
-                    }
 
-                    comm_world().barrier();
+                    sgpu.M = (int64_t)ms->ranges.size();
+                    for (int i = 0; i < (int64_t)ms->ranges.size(); i++) {
+                        sgpu.lengths[i] = ad.lengths[i];
+                    }
+                    sgpu.ksmallest = ksmallest;
+                    searchesGPU.push_back(sgpu);
                 }
             }
 
@@ -332,34 +389,29 @@ namespace crossGPUReMerge
 
                 //auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
 
+
+            std::vector<int64_t> resultHost(searchesGPU.size());
             if (searchesGPU.size() > 0)
             {
-                QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
                 auto resultPtrDevice = dAlloc.get<int64_t>(searchesGPU.size());
                 find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), resultPtrDevice, searchesGPU.data());
 
-                std::vector<int64_t> resultHost(searchesGPU.size());
                 cudaMemcpyAsync(resultHost.data(), resultPtrDevice,
                     searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
-
-                mcontext.sync_all_streams();
-
-                std::vector<int64_t> resultSplitIdx;
-                auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
-                int totalIdx = 0;
-                for (auto recv : recvCountsOut) {
-                    std::queue<int64_t> q;
-                    for (int i = 0; i < recv; i++) {
-                        q.push(resultSplitIdx[totalIdx++]);
-                    }
-                    resultSplitted.push_back(q);
-                }
             }
+
+            // sync again for next communication
+            comm_world().barrier();
 
             for (MergeNode& node : mnodes) {
                 int msgTag = 0;
                 for (auto s : node.scheduled_work.searches)
                 {
+                    // in one node
+                    if (s->node_1 / mcontext.num_per_node == s->node_1 / mcontext.num_per_node) {
+                        continue;
+                    }
+
                     if (node.info.index != world_rank())
                     {
                         if (s->node_1 == world_rank())
@@ -386,20 +438,20 @@ namespace crossGPUReMerge
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
-                cudaSetDevice(mcontext.get_device_id(node_index));
-                CUERR;
+                // cudaSetDevice(mcontext.get_device_id(node_index));
+                // CUERR;
 
                 if (world_rank() == node_index)
                 {
                     int msgTag = 0;
-                    QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node_index);
+
 
                     for (auto s : node.scheduled_work.searches)
                     {
                         uint other = (node_index == s->node_1) ? s->node_2 : s->node_1;
                         const cudaStream_t& stream = mcontext.get_streams(node_index).at(other);
 
-                        s->d_result_ptr = d_alloc.get<int64_t>(1);
+                        s->d_result_ptr = dAlloc.get<int64_t>(1);
                         s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
                         int64_t size_1 = s->node1_range.end - s->node1_range.start;
                         int64_t size_2 = s->node2_range.end - s->node2_range.start;
@@ -407,8 +459,7 @@ namespace crossGPUReMerge
                         key_t* start_2;
                         key_t* tempRef;
 
-
-                        if (other == node.info.index)
+                        if (other == node.info.index || uint(other / mcontext.num_per_node) != mcontext.get_node_id())
                         {
                             start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
                             start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
@@ -446,8 +497,19 @@ namespace crossGPUReMerge
                 }
             }
 
+            mcontext.sync_all_streams();
 
-            int total = 0;
+            std::vector<int64_t> resultSplitIdx;
+            auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
+            int totalIdx = 0;
+            for (auto recv : recvCountsOut) {
+                std::queue<int64_t> q;
+                for (int i = 0; i < recv; i++) {
+                    q.push(resultSplitIdx[totalIdx++]);
+                }
+                resultSplitted.push_back(q);
+            }
+
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
@@ -480,6 +542,12 @@ namespace crossGPUReMerge
                     //   cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                     //       result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);                    
                     //}
+
+                    if (ms->in_node_merge) {
+                        comm_world().bcast(send_recv_buf(std::span<int64_t>(ms->h_result_ptr, ms->ranges.size() + 1)), root((size_t)node.info.index));
+                        continue;
+                    }
+
                     int i = 0;
                     for (auto r : ms->ranges) {
                         ms->h_result_ptr[i] = resultSplitted[r.start.node].front();
@@ -488,7 +556,6 @@ namespace crossGPUReMerge
                     }
                 }
             }
-            mcontext.sync_all_streams();
 
             MergeNode mergeNode = mnodes[world_rank()];
             printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
