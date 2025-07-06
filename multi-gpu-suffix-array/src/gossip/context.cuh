@@ -85,12 +85,12 @@ public:
 
 
         // compute the connectivity matrix
-        uint in_node_rank = world_rank() % num_per_node;
+
 
         uint src = get_device_id(world_rank());
         for (uint dst_gpu = 0; dst_gpu < num_gpus; dst_gpu++) {
             // gpus are only connected through pcie
-            if (in_node_rank != dst_gpu % num_per_node) {
+            if (node_id != dst_gpu / num_per_node) {
                 peer_status[world_rank()][dst_gpu] = PEER_STATUS_SLOW;
             }
             else {
@@ -98,7 +98,7 @@ public:
                 int status;
                 cudaDeviceCanAccessPeer(&status, src, dst);
                 peer_status[world_rank()][dst_gpu] = status ? PEER_STATUS_FAST : PEER_STATUS_SLOW;
-
+                printf("[%lu] peer access to [%u] activated: %u\n", world_rank(), dst_gpu, peer_status[world_rank()][dst_gpu]);
             }
         }
 
@@ -115,13 +115,14 @@ public:
             {
                 device_id_t dst = get_device_id(dst_gpu);
 
-                if (src_gpu != dst_gpu && in_node_rank == dst_gpu % num_per_node)
+                // in node ids should be unique
+                if (src_gpu != dst_gpu && node_id == dst_gpu / num_per_node)
                 {
                     if (THROW_EXCEPTIONS)
                     {
                         if (src == dst) {
                             //continue;
-                            throw std::invalid_argument("Device identifiers are not unique.");
+                            throw std::invalid_argument("Device identifiers are not unique inside a node.");
                         }
                     }
                 }
