@@ -209,7 +209,7 @@ namespace crossGPUReMerge {
             int i = 0;
             for (uint node = 0; node < NUM_GPUS; ++node) {
 
-                cudaSetDevice(mcontext.get_device_id(node));CUERR;
+                //(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
                     ASSERT(c.src_node == node);
                     //printf("[%lu] node: %u, c.src_node: %u, c.dest_node: %u, c.src_index %u, c.dest_index: %u, c.len: %lu\n", world_rank(), node, c.src_node, c.dest_node, c.src_index, c.dest_index, c.len);

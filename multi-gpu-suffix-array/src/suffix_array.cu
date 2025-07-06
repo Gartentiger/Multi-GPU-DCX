@@ -392,7 +392,7 @@ private:
         // Need the halo to the right for kmers...
         size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
 
-        cudaSetDevice(mcontext.get_device_id(gpu_index));
+        //(mcontext.get_device_id(gpu_index));
         cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
             mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
@@ -414,7 +414,7 @@ private:
         auto gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
 
-        cudaSetDevice(mcontext.get_device_id(gpu_index));
+        //(mcontext.get_device_id(gpu_index));
         //                kernels::produce_index_kmer_tuples _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))
         //                        ((char*)gpu.input, offset, gpu.pd_index, gpu.pd_kmers, gpu.num_elements); CUERR;
         kernels::produce_index_kmer_tuples_12_64 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
@@ -442,7 +442,7 @@ private:
             if (world_rank() == gpu_index)
             {
 
-                // cudaSetDevice(0);
+                // //(0);
                 kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
                 CUERR;
                 mcontext.get_device_temp_allocator(gpu_index).init(gpu.prepare_S12_ptr.S12_buffer1,
@@ -471,7 +471,7 @@ private:
         {
             uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            //(mcontext.get_device_id(gpu_index));
 
             const sa_index_t* next_Isa = nullptr; //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
             const unsigned char* next_Input = nullptr; //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
@@ -541,7 +541,7 @@ private:
             const uint SORT_DOWN_TO_BIT = 11;
 
             SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            //(mcontext.get_device_id(gpu_index));
 
             cub::DoubleBuffer<uint64_t> keys(reinterpret_cast<uint64_t*>(gpu.prepare_S12_ptr.S12_buffer2),
                 reinterpret_cast<uint64_t*>(gpu.prepare_S12_ptr.S12_buffer1));
@@ -598,7 +598,7 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
-            // cudaSetDevice(mcontext.get_device_id(gpu_index));
+            // //(mcontext.get_device_id(gpu_index));
             size_t count = gpu.num_elements - gpu.pd_elements;
             if (world_rank() == gpu_index) {
 
@@ -669,7 +669,7 @@ private:
         {
             uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            //(mcontext.get_device_id(gpu_index));
 
             size_t count = gpu.num_elements - gpu.pd_elements;
 
@@ -723,7 +723,7 @@ private:
         {
             uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
-            // cudaSetDevice(mcontext.get_device_id(gpu_index));
+            // //(mcontext.get_device_id(gpu_index));
             kernels::from_merge_suffix_to_index _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.merge_ptr.S12_result, gpu.merge_ptr.result, gpu.num_elements);
             CUERR;
         }
@@ -737,7 +737,7 @@ private:
         //{
         uint gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
-        cudaSetDevice(mcontext.get_device_id(gpu_index));
+        //(mcontext.get_device_id(gpu_index));
         cudaMemcpyAsync(h_result + gpu.offset, gpu.merge_ptr.result, gpu.num_elements * sizeof(sa_index_t),
             cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         CUERR;

@@ -28,7 +28,7 @@ namespace crossGPUReMerge {
         }
 
         bool do_merge_step() {
-            cudaSetDevice(mcontext.get_device_id(mnode.info.index));
+            //(mcontext.get_device_id(mnode.info.index));
             mstreams_used.clear();
             if (msrc_ranges->size() > 1) {
                 uint stream_index = 0;
@@ -107,7 +107,7 @@ namespace crossGPUReMerge {
         }
 
         void sync_used_streams() {
-            cudaSetDevice(mcontext.get_device_id(mnode.info.index)); CUERR;
+            //(mcontext.get_device_id(mnode.info.index)); CUERR;
             for (uint stream_index : mstreams_used) {
                 cudaStreamSynchronize(mcontext.get_streams(mnode.info.index)[stream_index]);CUERR;
             }

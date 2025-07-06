@@ -43,7 +43,7 @@ namespace distrib_merge {
             RequestPool pool;
             int msgTag = 0;
             for (uint node = 0; node < NUM_GPUS; ++node) {
-                cudaSetDevice(mcontext.get_device_id(node));CUERR;
+                //(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
                     ASSERT(c.src_node == node);
 
@@ -204,7 +204,7 @@ namespace distrib_merge {
 
             mcontext.sync_all_streams();
             for (uint node = 0; node < NUM_GPUS; ++node) {
-                cudaSetDevice(mcontext.get_device_id(node));
+                //(mcontext.get_device_id(node));
                 for (const InterNodeCopy& c : deferred_direct_copies[node]) {
                     key_t* src_k_buff = c.extra ? b[c.src_node].keys : a[c.src_node].keys;
                     key_t* dest_k_buff = out[c.dest_node].keys_buffer;

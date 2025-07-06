@@ -26,7 +26,7 @@ public:
         {
             //if (world_rank() == gpu)
             //{
-            cudaSetDevice(0);
+            //(0);
             cudaMallocHost(&h_offsets[gpu], sizeof(uint32_t) * NUM_GPUS);
             //}
         }
@@ -37,7 +37,7 @@ public:
     {
         for (uint gpu = 0; gpu < num_gpus; ++gpu)
         {
-            cudaSetDevice(context.get_device_id(gpu));
+            //(context.get_device_id(gpu));
             cudaFreeHost(h_offsets[gpu]);
         }
         CUERR;
@@ -85,7 +85,7 @@ public:
 
         for (uint gpu = 0; gpu < num_gpus; ++gpu)
         {
-            cudaSetDevice(context.get_device_id(gpu));
+            //(context.get_device_id(gpu));
             const MultiSplitNodeInfo& info = node_info[gpu];
             if (info.src_len > 0)
             {

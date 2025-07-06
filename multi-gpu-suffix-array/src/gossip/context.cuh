@@ -68,7 +68,7 @@ public:
         {
             if (world_rank() == src_gpu)
             {
-                //cudaSetDevice(0); // get_device_id(src_gpu));
+                ////(0); // get_device_id(src_gpu));
                 cudaDeviceSynchronize();
             }
             for (uint part = 0; part < num_gpus; ++part)
@@ -110,7 +110,7 @@ public:
         {
             uint src_gpu = world_rank();
             const device_id_t src = get_device_id(src_gpu);
-            // cudaSetDevice(src);
+            // //(src);
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
             {
                 device_id_t dst = get_device_id(dst_gpu);
@@ -158,7 +158,7 @@ public:
         // for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
         {
             uint src_gpu = world_rank();
-            // cudaSetDevice(get_device_id(src_gpu));
+            // //(get_device_id(src_gpu));
             cudaDeviceSynchronize();
             CUERR;
             for (uint part = 0; part < num_gpus; ++part)
@@ -177,7 +177,7 @@ public:
         {
             uint src_gpu = world_rank();
             device_id_t src = get_device_id(src_gpu);
-            // cudaSetDevice(src);
+            // //(src);
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
             {
                 device_id_t dst = get_device_id(dst_gpu);
@@ -248,7 +248,7 @@ public:
     {
         if (gpu == world_rank())
         {
-            cudaSetDevice(get_device_id(gpu));
+            //(get_device_id(gpu));
             CUERR;
             cudaStreamSynchronize(get_gpu_default_stream(gpu));
             CUERR;
@@ -257,7 +257,7 @@ public:
 
     void sync_default_streams() const noexcept
     {
-        cudaSetDevice(0);
+        //(0);
         CUERR;
         cudaStreamSynchronize(get_gpu_default_stream(world_rank()));
         CUERR;
@@ -268,7 +268,7 @@ public:
         // sync all streams associated with the corresponding GPU
         if (gpu == world_rank())
         {
-            cudaSetDevice(get_device_id(gpu));
+            //(get_device_id(gpu));
             CUERR;
             for (uint part = 0; part < num_gpus; ++part)
             {
@@ -293,7 +293,7 @@ public:
     {
         // sync all GPUs
 
-        cudaSetDevice(0);
+        //(0);
         cudaDeviceSynchronize();
         CUERR;
 

@@ -438,7 +438,7 @@ namespace crossGPUReMerge
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
-                // cudaSetDevice(mcontext.get_device_id(node_index));
+                // //(mcontext.get_device_id(node_index));
                 // CUERR;
 
                 if (world_rank() == node_index)
@@ -704,7 +704,7 @@ namespace crossGPUReMerge
 
             for (const MergeNode& node : mnodes)
             {
-                cudaSetDevice(mcontext.get_device_id(node.info.index));
+                // //(mcontext.get_device_id(node.info.index));
 
                 mgpu::my_mpgu_context_t& mgpu_context = mcontext.get_mgpu_default_context_for_device(node.info.index);
                 if (node.info.index == world_rank())
@@ -739,7 +739,7 @@ namespace crossGPUReMerge
             }
 
             //            for (const MergeNode& node : mnodes) {
-            //                cudaSetDevice(mcontext.get_device_id(node.info.index));
+            //                //(mcontext.get_device_id(node.info.index));
 
             //                for (const MultiWayMergePartition* p : node.scheduled_work.multi_merge_partitions) {
             //                // Iteratively merge multi-partitions, queueing all the launches and hoping for the best...

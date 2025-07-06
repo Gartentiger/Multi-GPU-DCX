@@ -208,7 +208,7 @@ public:
         {
             uint gpu = world_rank();
 
-            // cudaSetDevice(mcontext.get_device_id(gpu));
+            // //(mcontext.get_device_id(gpu));
             cudaMalloc(&malloc_base[gpu], malloc_size);
             CUERR;
 
@@ -277,7 +277,7 @@ public:
                 cudaIpcCloseMemHandle(malloc_base[gpu]);
             }
 
-            // cudaSetDevice(mcontext.get_device_id(gpu));
+            // //(mcontext.get_device_id(gpu));
         }
 
         cudaFreeHost(mhost_temp_mem);
@@ -291,7 +291,7 @@ public:
 #ifdef ENABLE_DUMPING
     void copy_down_for_inspection(uint gpu)
     {
-        cudaSetDevice(mcontext.get_device_id(gpu));
+        //(mcontext.get_device_id(gpu));
         cudaMemcpy(mhost_alloc_base, malloc_base[gpu], malloc_size, cudaMemcpyDeviceToHost);
     }
 #endif

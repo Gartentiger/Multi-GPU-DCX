@@ -512,7 +512,7 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            //(mcontext.get_device_id(gpu_index));
 
             size_t temp_storage_bytes = 0;
 
@@ -581,7 +581,7 @@ private:
             //uint gpu_index = mcontext.world_rank;
             SaGPU& gpu = mgpus[gpu_index];
             if (world_rank() == gpu_index) {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                //(mcontext.get_device_id(gpu_index));
 
                 size_t temp_storage_bytes = 0;
 
@@ -727,7 +727,7 @@ private:
         //{
         uint gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
-        cudaSetDevice(mcontext.get_device_id(gpu_index));
+        //(mcontext.get_device_id(gpu_index));
         //printf("initial\n");
         const rank_t* last_element_prev = nullptr;
 
@@ -768,7 +768,7 @@ private:
                 if (gpu.index == world_rank())
                 {
 
-                    cudaSetDevice(mcontext.get_device_id(gpu_index));
+                    //(mcontext.get_device_id(gpu_index));
                     // Temp1 --> Sa_rank
                     // uses: Temp3, 4
 
@@ -833,7 +833,7 @@ private:
             if (gpu.working_len > 0)
             {
                 // printf("gpu.working length %lu, rank: %lu\n", gpu.working_len, world_rank());
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                //(mcontext.get_device_id(gpu_index));
                 kernels::write_if_eq _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_rank, gpu.Sa_rank, 0, mhost_temp_mem[gpu_index - 1], gpu.working_len);
                 CUERR;
             }
@@ -850,7 +850,7 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
         }
@@ -886,7 +886,7 @@ private:
             // printf("[%lu] after isend compact\n", world_rank());
             if (gpu.working_len > 0)
             {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                //(mcontext.get_device_id(gpu_index));
                 const sa_index_t* Last_rank_prev;
                 const sa_index_t* First_rank_next;
 
@@ -961,7 +961,7 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Sa_index, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Sa_rank, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
         }
@@ -1002,7 +1002,7 @@ private:
                 finished = false;
                 if (gpu_index == world_rank()) {
 
-                    cudaSetDevice(mcontext.get_device_id(gpu_index));
+                    //(mcontext.get_device_id(gpu_index));
 
                     kernels::write_ranks_diff _KLC_SIMPLE_((size_t)lens_after_compacting,
                         mcontext.get_gpu_default_stream(gpu_index))(gpu.Old_ranks, gpu.Temp1, 0, SA_INDEX_T_MAX, lens_after_compacting);
@@ -1076,7 +1076,7 @@ private:
             // printf("[%lu][%u] old rank start %u, old rank end: %u\n", world_rank(), gpu_index, gpu.old_rank_start, gpu.old_rank_end);
             if (gpu.working_len > 0)
             {
-                // cudaSetDevice(mcontext.get_device_id(gpu_index));
+                // //(mcontext.get_device_id(gpu_index));
 
                 gpu.working_len = mhost_temp_mem[gpu_index];
                 gpu.num_segments = mhost_temp_mem[gpu_index + NUM_GPUS];
@@ -1223,7 +1223,7 @@ private:
                 if (dest_lens[gpu_index] > sort_threshold)
                 {
                     sorting = true;
-                    cudaSetDevice(mcontext.get_device_id(gpu_index));
+                    //(mcontext.get_device_id(gpu_index));
                     kernels::sub_value _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Old_ranks, gpu.Temp1, gpu.offset, dest_lens[gpu_index]);
                     CUERR;
 
@@ -1258,7 +1258,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu_index == world_rank())
             {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                //(mcontext.get_device_id(gpu_index));
                 if (dest_lens[gpu_index] > sort_threshold)
                 {
                     if (initial)
@@ -1318,7 +1318,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 0)
             {
-                // cudaSetDevice(mcontext.get_device_id(gpu_index));
+                // //(mcontext.get_device_id(gpu_index));
 
                 kernels::write_sa_index_adding_h _KLC_SIMPLE_(SDIV(gpu.working_len, 2), mcontext.get_gpu_default_stream(gpu_index))(gpu.Sa_index, h, minput_len - 1, gpu.Temp1, gpu.Temp2, gpu.working_len);
                 CUERR;
@@ -1388,7 +1388,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (dest_lens[gpu_index] > 0)
             {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                //(mcontext.get_device_id(gpu_index));
                 kernels::fetch_isa_multi _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Temp1, gpu.Isa, gpu.offset, gpu.Temp3, dest_lens[gpu_index], gpu.isa_len);
                 CUERR;
                 // Needed, will be synced with all2all back:
@@ -1427,7 +1427,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (src_lens[gpu_index] > 0)
             {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                //(mcontext.get_device_id(gpu_index));
                 kernels::write_to_rank _KLC_SIMPLE_((size_t)src_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Temp1, gpu.Temp4, gpu.Sa_rank, src_lens[gpu_index]);
                 CUERR;
             }
@@ -1490,7 +1490,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 1)
             {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                //(mcontext.get_device_id(gpu_index));
                 mgpu::my_mpgu_context_t& mgpu_context = mcontext.get_mgpu_default_context_for_device(gpu_index);
 
                 sa_index_t* temp = gpu.Temp1;
@@ -1563,7 +1563,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             uint gpu_index = world_rank();
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            //(mcontext.get_device_id(gpu_index));
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 0)
             {
@@ -1660,7 +1660,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         {
             SaGPU& gpu = mgpus[gpu_index];
             ASSERT(gpu.isa_len > 0);
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            //(mcontext.get_device_id(gpu_index));
             kernels::prepare_isa_transform _KLC_SIMPLE_(SDIV(gpu.isa_len, 2), mcontext.get_gpu_default_stream(gpu_index))(gpu.Isa, gpu.offset, gpu.Temp1, gpu.Temp2, gpu.isa_len);
             CUERR;
         }
@@ -1715,7 +1715,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
             SaGPU& gpu = mgpus[gpu_index];
             if (dest_lens[gpu_index] > 0)
             {
-                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                //(mcontext.get_device_id(gpu_index));
                 kernels::write_to_isa_sub_offset _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Temp2, gpu.Temp1, gpu.Sa_index, gpu.offset, dest_lens[gpu_index], gpu.isa_len);
                 CUERR;
             }

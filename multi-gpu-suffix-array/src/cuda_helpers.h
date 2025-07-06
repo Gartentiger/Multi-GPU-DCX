@@ -27,7 +27,6 @@
 
 // convenient timers
 #define TIMERSTART(label)                                                    \
-        cudaSetDevice(0);                                                    \
         cudaEvent_t start##label, stop##label;                               \
         float time##label;                                                   \
         cudaEventCreate(&start##label);                                      \
@@ -35,7 +34,6 @@
         cudaEventRecord(start##label, 0);
 
 #define TIMERSTOP(label)                                                     \
-        cudaSetDevice(0);                                                    \
         cudaEventRecord(stop##label, 0);                                     \
         cudaEventSynchronize(stop##label);                                   \
         cudaEventElapsedTime(&time##label, start##label, stop##label);       \

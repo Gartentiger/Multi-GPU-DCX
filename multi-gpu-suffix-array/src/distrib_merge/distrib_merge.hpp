@@ -221,7 +221,7 @@ namespace distrib_merge {
                 QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node);
 
 
-                // cudaSetDevice(mcontext.get_device_id(node));
+                // //(mcontext.get_device_id(node));
                 int i = 0;
                 for (Search* s : searches_on_nodes[node])
                 {
@@ -306,7 +306,7 @@ namespace distrib_merge {
                     const MergePartition& p = partitions[node];
                     ASSERT(node == p.dest_node);
                     //                printf("Merging %zu from A, %zu from B on node %u.\n", p.size_from_a, p.size_from_b, node);
-                    cudaSetDevice(mcontext.get_device_id(node));
+                    //(mcontext.get_device_id(node));
                     if (do_values) {
                         mgpu::merge(mout[node].keys_buffer, mout[node].values_buffer, p.size_from_a,
                             mout[node].keys_buffer + p.size_from_a, mout[node].values_buffer + p.size_from_a, p.size_from_b,
