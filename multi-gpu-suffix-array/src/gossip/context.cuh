@@ -89,6 +89,11 @@ public:
 
         uint src = get_device_id(world_rank());
         for (uint dst_gpu = 0; dst_gpu < num_gpus; dst_gpu++) {
+            if (dst_gpu == world_rank()) {
+                peer_status[world_rank()][dst_gpu] = PEER_STATUS_DIAG;
+                continue;
+            }
+
             // gpus are only connected through pcie
             if (node_id != dst_gpu / num_per_node) {
                 peer_status[world_rank()][dst_gpu] = PEER_STATUS_SLOW;
@@ -97,7 +102,11 @@ public:
                 uint dst = get_device_id(dst_gpu);
                 int status;
                 cudaDeviceCanAccessPeer(&status, src, dst);
-                peer_status[world_rank()][dst_gpu] = status ? PEER_STATUS_FAST : PEER_STATUS_SLOW;
+                if (!status) {
+                    std::cerr << "Could not enable peer access between " << world_rank() << " and " << dst_gpu << std::endl;
+                    exit(1);
+                }
+                peer_status[world_rank()][dst_gpu] = PEER_STATUS_FAST;
                 printf("[%lu] peer access to [%u] activated: %u\n", world_rank(), dst_gpu, peer_status[world_rank()][dst_gpu]);
             }
         }
