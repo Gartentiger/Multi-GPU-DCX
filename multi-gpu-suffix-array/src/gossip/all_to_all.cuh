@@ -126,7 +126,6 @@ namespace gossip {
                     //     from_v, context.get_device_id(src_gpu),
                     //     len * sizeof(value_t),
                     //     context.get_streams(src_gpu)[dest_gpu]);
-                    comm_world().barrier();
                 } CUERR;
             }
             pool.wait_all();
