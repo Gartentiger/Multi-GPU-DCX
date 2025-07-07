@@ -287,11 +287,11 @@ namespace crossGPUReMerge
             searchesGPU.clear();
             QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
 
-            for (int i = 0; i < 4; i++) {
-                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, mnodes[i].info.num_elements, world_rank(), i);
-            }
-            mcontext.sync_all_streams();
-            comm_world().barrier();
+            // for (int i = 0; i < 4; i++) {
+            //     printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, mnodes[i].info.num_elements, world_rank(), i);
+            // }
+            // mcontext.sync_all_streams();
+            // comm_world().barrier();
 
             // check for all merges that are in one node. They can be executed normally
             for (MergeNode& node : mnodes)
@@ -324,7 +324,7 @@ namespace crossGPUReMerge
 
                         ms->d_result_ptr = dAlloc.get<int64_t>(result_buffer_length);
                         ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
-
+                        printf("[%lu] ranges.size(): %ld, split_index: %ld\n", world_rank(), (int64_t)ms->ranges.size(), (int64_t)ms->split_index);
                         multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
@@ -339,6 +339,7 @@ namespace crossGPUReMerge
                         }
                     }
                 }
+                comm_world().barrier();
             }
 
             printf("[%lu] queue\n", world_rank());
