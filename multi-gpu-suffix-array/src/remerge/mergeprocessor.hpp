@@ -325,6 +325,11 @@ namespace crossGPUReMerge
 
                         cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
+
+                        mcontext.sync_all_streams();
+                        for (int i = 0; i < ms.ranges.size() + 1; i++) {
+                            printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
+                        }
                     }
                 }
             }
@@ -389,10 +394,10 @@ namespace crossGPUReMerge
 
                 //auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
 
-            printf("[%lu] result HOst\n", world_rank());
             std::vector<int64_t> resultHost(searchesGPU.size());
             if (searchesGPU.size() > 0)
             {
+                printf("[%lu] result HOst\n", world_rank());
                 auto resultPtrDevice = dAlloc.get<int64_t>(searchesGPU.size());
                 find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), resultPtrDevice, searchesGPU.data());
 
@@ -437,7 +442,7 @@ namespace crossGPUReMerge
                     msgTag++;
                 }
             }
-            printf("[%lu] send d\n", world_rank());
+
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
@@ -579,7 +584,7 @@ namespace crossGPUReMerge
             std::vector<int64_t> recv_search_result;
             comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result));
 
-            printf("Allgather %lu\n", world_rank());
+            // printf("Allgather %lu\n", world_rank());
             int enumer = 0;
             for (int i = 0; i < comm_world().size(); i++)
             {
@@ -650,19 +655,19 @@ namespace crossGPUReMerge
                 for (auto s : node.scheduled_work.searches)
                 {
                     s->result = *s->h_result_ptr;
-                    // printf("[%lu] search result: %ld\n", world_rank(), s->result);
+                    printf("[%lu] search result: %ld\n", world_rank(), s->result);
                 }
 
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     ms->results.resize(ms->ranges.size());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
-                    // for (int i = 0; i < ms->ranges.size(); i++) {
-                    //     printf("[%lu] results[%d] 2: %ld\n", world_rank(), i, ms->results[i]);
-                    // }
+                    for (int i = 0; i < ms->ranges.size(); i++) {
+                        printf("[%lu] results[%d] 2: %ld\n", world_rank(), i, ms->results[i]);
+                    }
 
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
-                    // printf("[%lu] range_to_take_one_more: %ld\n", world_rank(), ms->range_to_take_one_more);
+                    printf("[%lu] range_to_take_one_more: %ld\n", world_rank(), ms->range_to_take_one_more);
 
                 }
             }
