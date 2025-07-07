@@ -286,6 +286,8 @@ namespace crossGPUReMerge
             std::vector<SearchGPU<NUM_GPUS, key_t, int64_t>> searchesGPU;
             searchesGPU.clear();
             QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
+            // needed for ipc shared mem
+            comm_world().barrier();
 
             for (int i = 0; i < 4; i++) {
                 printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, 5, world_rank(), i);
