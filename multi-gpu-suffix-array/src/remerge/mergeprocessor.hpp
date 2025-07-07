@@ -302,7 +302,7 @@ namespace crossGPUReMerge
                         ms->in_node_merge &= mcontext.get_peer_status(world_rank(), r.start.node) >= 1;
                     }
                     printf("[%lu] multi search in node: %s\n", world_rank(), ms->in_node_merge ? "true" : "false");
-                    if (ms->in_node_merge) {
+                    if (ms->in_node_merge && world_rank() == node.info.index) {
                         ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
                         int i = 0;
                         for (const auto& r : ms->ranges)
