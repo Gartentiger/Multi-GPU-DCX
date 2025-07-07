@@ -1204,7 +1204,7 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-
+        comm_world().barrier();
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
 
