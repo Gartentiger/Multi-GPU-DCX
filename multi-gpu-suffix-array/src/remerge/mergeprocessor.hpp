@@ -288,7 +288,7 @@ namespace crossGPUReMerge
             QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
 
             for (int i = 0; i < 4; i++) {
-                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, 40, world_rank(), i);
+                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, 5, world_rank(), i);
             }
             mcontext.sync_all_streams();
             comm_world().barrier();
@@ -472,7 +472,7 @@ namespace crossGPUReMerge
                         int64_t size_2 = s->node2_range.end - s->node2_range.start;
                         key_t* start_1;
                         key_t* start_2;
-                        key_t* tempRef;
+                        key_t* tempRef = nullptr;
 
                         if (other == node.info.index || mcontext.get_peer_status(world_rank(), other) >= 1)
                         {
@@ -508,7 +508,8 @@ namespace crossGPUReMerge
                         cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
                             sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
                         CUERR;
-                        cudaFreeAsync(tempRef, stream);
+                        if (tempRef != nullptr)
+                            cudaFreeAsync(tempRef, stream);
                     }
                 }
             }
