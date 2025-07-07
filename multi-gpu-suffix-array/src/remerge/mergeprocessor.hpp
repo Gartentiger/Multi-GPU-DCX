@@ -149,7 +149,7 @@ namespace crossGPUReMerge {
                         ad.lengths[i] = r.end.index - r.start.index;
                         i++;
                     }
-
+                    printf("[%u] ranges.size(): %ld, split_index: %ld\n", node.info.index, (int64_t)ms->ranges.size(), (int64_t)ms->split_index);
                     multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                         comp,
                         (int64_t*)ms->d_result_ptr,
@@ -175,13 +175,14 @@ namespace crossGPUReMerge {
                     ms->results.resize(ms->ranges.size());
 
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
-                    // for (int i = 0; i < ms->ranges.size(); i++) {
-                        // printf("[%lu] results[%d] 2: %ld\n", node.info.index, i, ms->results[i]);
-                    // }
+                    for (int i = 0; i < ms->ranges.size(); i++) {
+                        printf("[%lu] results[%d] 2: %ld\n", node.info.index, i, ms->results[i]);
+                    }
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
-                    // printf("[%lu] range_to_take_one_more: %ld\n", node.info.index, ms->range_to_take_one_more);
+                    printf("[%lu] range_to_take_one_more: %ld\n", node.info.index, ms->range_to_take_one_more);
                 }
             }
+            exit(0);
         }
 
         void dump_array(const sa_index_t* idx, size_t size) {
