@@ -118,7 +118,7 @@ namespace gossip {
                             comm_world().isend(send_buf(sbValue), send_count(len), tag(i + 1), destination((size_t)dest_gpu), request(pool.get_request()));
                         }
                     }
-                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
+                    if (dest_gpu == world_rank() && context.get_peer_status(dest_gpu, src_gpu) < 1) {
                         std::span<key_t> rb(to_k, len);
                         comm_world().irecv(recv_buf(rb), tag(i), recv_count(len), request(pool.get_request()));
 
