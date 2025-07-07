@@ -91,22 +91,37 @@ namespace gossip {
                     const table_t dest_index = v_table[src_gpu][dest_gpu];
                     const table_t len = table[src_gpu][dest_gpu];
 
+                    key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
+                    key_t* from_k = node_info[src_gpu].src_keys + src_index;
+
+                    value_t* from_v = node_info[src_gpu].src_values + src_index;
+                    value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
+
                     // printf("src[%u] to dst[%u], rank %lu\n", src_gpu, dest_gpu, world_rank());
                     if (src_gpu == world_rank()) {
-                        key_t* from_k = node_info[src_gpu].src_keys + src_index;
-                        std::span<key_t> sb(from_k, len);
-                        comm_world().isend(send_buf(sb), send_count(len), tag(i), destination((size_t)dest_gpu), request(pool.get_request()));
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
+                            cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
+                                from_k, context.get_device_id(src_gpu),
+                                len * sizeof(key_t),
+                                context.get_streams(src_gpu)[dest_gpu]);
 
-                        value_t* from_v = node_info[src_gpu].src_values + src_index;
-                        std::span<value_t> sbValue(from_v, len);
-                        comm_world().isend(send_buf(sbValue), send_count(len), tag(i + 1), destination((size_t)dest_gpu), request(pool.get_request()));
+                            cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
+                                from_v, context.get_device_id(src_gpu),
+                                len * sizeof(value_t),
+                                context.get_streams(src_gpu)[dest_gpu]);
+                        }
+                        else {
+                            std::span<key_t> sb(from_k, len);
+                            comm_world().isend(send_buf(sb), send_count(len), tag(i), destination((size_t)dest_gpu), request(pool.get_request()));
+
+                            std::span<value_t> sbValue(from_v, len);
+                            comm_world().isend(send_buf(sbValue), send_count(len), tag(i + 1), destination((size_t)dest_gpu), request(pool.get_request()));
+                        }
                     }
-                    if (dest_gpu == world_rank()) {
-                        key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
+                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
                         std::span<key_t> rb(to_k, len);
                         comm_world().irecv(recv_buf(rb), tag(i), recv_count(len), request(pool.get_request()));
 
-                        value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
                         std::span<value_t> rbValue(to_v, len);
                         comm_world().irecv(recv_buf(rbValue), tag(i + 1), recv_count(len), request(pool.get_request()));
                     }

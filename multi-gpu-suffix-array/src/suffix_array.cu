@@ -648,7 +648,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             size_t count = gpu.num_elements - gpu.pd_elements;
             // send which current is used (only for in node merges)
-            comm_world().bcast(send_recv_buf(std::span<bool>(&is_buffer_2_current[gpu_index], 1)), root((size_t)gpu_index));
+            comm_world().bcast(send_recv_buf(std::span<bool>(&is_buffer_2_current[gpu_index], 1)), send_recv_count(1), root((size_t)gpu_index));
             merge_nodes_info[gpu_index] = { count, ms0_reserved_len, gpu_index,
                                            is_buffer_2_current[gpu_index] ? gpu.prepare_S0_ptr.S0_buffer2_keys
                                                                           : gpu.prepare_S0_ptr.S0_buffer1_keys,
