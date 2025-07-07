@@ -20,6 +20,7 @@
 #include <kamping/p2p/send.hpp>
 #include <kamping/p2p/isend.hpp>
 
+
 #include <kamping/p2p/recv.hpp>
 
 #include <queue>
@@ -286,6 +287,12 @@ namespace crossGPUReMerge
             searchesGPU.clear();
             QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
 
+            for (int i = 0; i < 4; i++) {
+                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, mnodes[i].info.num_elements, world_rank(), 0);
+            }
+            mcontext.sync_all_streams();
+            comm_world().barrier();
+            exit(1);
             // check for all merges that are in one node. They can be executed normally
             for (MergeNode& node : mnodes)
             {
@@ -553,7 +560,11 @@ namespace crossGPUReMerge
                     //       result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);                    
                     //}
 
+                    // potential problem
                     if (ms->in_node_merge) {
+                        if (world_rank() != node.info.index) {
+                            ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(ms->ranges.size() + 1);
+                        }
                         comm_world().bcast(send_recv_buf(std::span<int64_t>(ms->h_result_ptr, ms->ranges.size() + 1)), root((size_t)node.info.index));
                         continue;
                     }
