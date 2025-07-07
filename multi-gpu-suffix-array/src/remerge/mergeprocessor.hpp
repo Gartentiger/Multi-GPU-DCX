@@ -327,7 +327,7 @@ namespace crossGPUReMerge
                             result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
 
                         mcontext.sync_all_streams();
-                        for (int i = 0; i < ms.ranges.size() + 1; i++) {
+                        for (int i = 0; i < ms->ranges.size() + 1; i++) {
                             printf("[%lu] results[%d]: %ld\n", world_rank(), i, ms->h_result_ptr[i]);
                         }
                     }
