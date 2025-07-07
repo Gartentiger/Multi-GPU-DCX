@@ -289,11 +289,11 @@ namespace crossGPUReMerge
             // needed for ipc shared mem
             comm_world().barrier();
 
-            for (int i = 0; i < 4; i++) {
-                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, 7, world_rank(), i);
-            }
-            mcontext.sync_all_streams();
-            comm_world().barrier();
+            // for (int i = 0; i < 4; i++) {
+            //     printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, 7, world_rank(), i);
+            // }
+            // mcontext.sync_all_streams();
+            // comm_world().barrier();
 
             // check for all merges that are in one node. They can be executed normally
             for (MergeNode& node : mnodes)
