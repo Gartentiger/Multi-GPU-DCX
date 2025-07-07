@@ -99,26 +99,15 @@ namespace gossip {
 
                     // printf("src[%u] to dst[%u], rank %lu\n", src_gpu, dest_gpu, world_rank());
                     if (src_gpu == world_rank()) {
-                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
-                            cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
-                                from_k, context.get_device_id(src_gpu),
-                                len * sizeof(key_t),
-                                context.get_streams(src_gpu)[dest_gpu]);
 
-                            cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
-                                from_v, context.get_device_id(src_gpu),
-                                len * sizeof(value_t),
-                                context.get_streams(src_gpu)[dest_gpu]);
-                        }
-                        else {
-                            std::span<key_t> sb(from_k, len);
-                            comm_world().isend(send_buf(sb), send_count(len), tag(i), destination((size_t)dest_gpu), request(pool.get_request()));
+                        std::span<key_t> sb(from_k, len);
+                        comm_world().isend(send_buf(sb), send_count(len), tag(i), destination((size_t)dest_gpu), request(pool.get_request()));
 
-                            std::span<value_t> sbValue(from_v, len);
-                            comm_world().isend(send_buf(sbValue), send_count(len), tag(i + 1), destination((size_t)dest_gpu), request(pool.get_request()));
-                        }
+                        std::span<value_t> sbValue(from_v, len);
+                        comm_world().isend(send_buf(sbValue), send_count(len), tag(i + 1), destination((size_t)dest_gpu), request(pool.get_request()));
+
                     }
-                    if (dest_gpu == world_rank() && context.get_peer_status(dest_gpu, src_gpu) < 1) {
+                    if (dest_gpu == world_rank()) {
                         std::span<key_t> rb(to_k, len);
                         comm_world().irecv(recv_buf(rb), tag(i), recv_count(len), request(pool.get_request()));
 
