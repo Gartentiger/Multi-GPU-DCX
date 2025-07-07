@@ -290,7 +290,7 @@ namespace crossGPUReMerge
             comm_world().barrier();
 
             for (int i = 0; i < 4; i++) {
-                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, 5, world_rank(), i);
+                printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, 7, world_rank(), i);
             }
             mcontext.sync_all_streams();
             comm_world().barrier();
@@ -318,6 +318,7 @@ namespace crossGPUReMerge
                         {
                             ad.lengths[i] = r.end.index - r.start.index;
                             ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
+                            printf("[%lu] i: %d, node: %u, index; %u, length: %lu\n", world_rank(), i, r.start.node, r.start.index, ad.lengths[i]);
                             i++;
                         }
                         const size_t result_buffer_length = ms->ranges.size() + 1;
