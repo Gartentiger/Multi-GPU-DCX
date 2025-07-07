@@ -214,8 +214,7 @@ public:
 
             if (zero)
             {
-                cudaMemsetAsync(malloc_base[gpu], 0, malloc_size,
-                    mcontext.get_gpu_default_stream(gpu));
+                cudaMemset(malloc_base[gpu], 0, malloc_size);
                 CUERR;
             }
             uint node_offest = mcontext.get_node_id() * mcontext.num_per_node;
