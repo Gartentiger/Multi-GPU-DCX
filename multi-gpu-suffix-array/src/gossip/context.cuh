@@ -7,7 +7,9 @@
 
 #include <kamping/checking_casts.hpp>
 #include <kamping/communicator.hpp>
+#include <kamping/collectives/bcast.hpp>
 #include <kamping/environment.hpp>
+#include <span>
 
 #include "../my_mgpu_context.hxx"
 
