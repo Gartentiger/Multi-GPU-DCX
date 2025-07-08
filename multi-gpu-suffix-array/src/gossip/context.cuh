@@ -164,7 +164,8 @@ public:
 
         for (size_t src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
         {
-            comm_world().bcast(send_recv_buf(std::span<uint>(peer_status[src_gpu], num_gpus)), root(src_gpu));
+            std::span<uint> srb(&peer_status[src_gpu][0], num_gpus);
+            comm_world().bcast(send_recv_buf(srb), send_recv_count(num_gpus), root(src_gpu));
         }
     }
 
