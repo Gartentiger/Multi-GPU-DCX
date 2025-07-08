@@ -159,6 +159,11 @@ public:
             }
         }
         CUERR;
+
+        for (size_t src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
+        {
+            comm_world().bcast(send_recv_buf(std::span<uint>(peer_status[src_gpu], num_gpus)), root(src_gpu));
+        }
     }
 
     ~MultiGPUContext()

@@ -308,7 +308,7 @@ namespace crossGPUReMerge
                             assert(!ms->used);
                             ms->used = true;
                         }
-                        ms->in_node_merge &= mcontext.get_peer_status(world_rank(), r.start.node) >= 1;
+                        ms->in_node_merge &= mcontext.get_peer_status(node.info.index, r.start.node) >= 1;
                     }
                     printf("[%lu] multi search in node: %s\n", world_rank(), ms->in_node_merge ? "true" : "false");
                     if (ms->in_node_merge && world_rank() == node.info.index) {
@@ -350,17 +350,16 @@ namespace crossGPUReMerge
             {
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
-                    // only processes involved in the merge know, otherwise always false
                     if (ms->in_node_merge) {
+                        continue;
+                    }
+
+                    if (!ms->used) {
                         continue;
                     }
 
                     const size_t result_buffer_length = ms->ranges.size() + 1;
                     ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
-
-                    if (!ms->used) {
-                        continue;
-                    }
 
                     printf("[%lu] not in node\n", world_rank());
                     SearchGPU<NUM_GPUS, key_t, int64_t> sgpu;
@@ -396,7 +395,6 @@ namespace crossGPUReMerge
             }
 
 
-            std::vector<std::queue<int64_t>> resultSplitted;
             // for (auto searches : searchesGPU) {
                 //     printf("[%lu] ksmallest: %lu, %lu, %u\n", world_rank(), std::get<0>(searches.ksmallest), std::get<1>(searches.ksmallest), std::get<2>(searches.ksmallest));
                 // }
@@ -520,6 +518,7 @@ namespace crossGPUReMerge
             mcontext.sync_all_streams();
             printf("[%lu] partition search working done\n", world_rank());
 
+            std::vector<std::queue<int64_t>> resultSplitted;
             std::vector<int64_t> resultSplitIdx;
             auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
             int totalIdx = 0;
@@ -563,16 +562,20 @@ namespace crossGPUReMerge
                     //   cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
                     //       result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);                    
                     //}
+                    const size_t result_buffer_length = ms->ranges.size() + 1;
 
-                    // potential problem
                     if (ms->in_node_merge) {
                         if (world_rank() != node.info.index) {
-                            ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(ms->ranges.size() + 1);
+                            ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
                         }
                         comm_world().bcast(send_recv_buf(std::span<int64_t>(ms->h_result_ptr, ms->ranges.size() + 1)), root((size_t)node.info.index));
                         continue;
                     }
                     printf("[%lu] after bcast\n", world_rank());
+
+                    if (!ms->used) {
+                        ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
+                    }
 
                     int i = 0;
                     for (auto r : ms->ranges) {
