@@ -47,21 +47,29 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
         error("File is empty!");
     }
 
-    auto length_per_gpu = SDIV(len, num_gpus);
-    fseek(file, kamping::world_rank() * length_per_gpu, SEEK_SET);
+    size_t mper_gpu = SDIV(len, num_gpus);
+    mper_gpu = SDIV(mper_gpu, 3) * 3;
+    size_t offset = mper_gpu * kamping::world_rank();
 
-    size_t len_padded = SDIV(length_per_gpu, padd_to) * padd_to;
+    if (kamping::world_rank() == num_gpus - 1)
+        mper_gpu = len - (num_gpus - 1) * mper_gpu;
+
+    size_t copy_len = std::min(mper_gpu + sizeof(uint64_t), len - offset);
+
+    fseek(file, offset, SEEK_SET);
+
+    size_t len_padded = SDIV(mper_gpu, padd_to) * padd_to;
     cudaMallocHost(contents, len_padded);
-    CUERR
+    CUERR;
 
-        if (fread(*contents, 1, length_per_gpu, file) != length_per_gpu)
-            error("Error reading file!");
+    if (fread(*contents, 1, copy_len, file) != copy_len)
+        error("Error reading file!");
 
     fclose(file);
 
     // For logging.
-    fprintf(stdout, "Read %zu bytes from %s.\n", length_per_gpu, path);
-    fprintf(stderr, "Read %zu bytes from %s.\n", length_per_gpu, path);
+    fprintf(stdout, "Read %zu bytes from %s.\n", copy_len, path);
+    fprintf(stderr, "Read %zu bytes from %s.\n", copy_len, path);
 
     real_len = len;
 
