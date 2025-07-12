@@ -42,7 +42,7 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 static const uint NUM_PER_NODE = 4;
 
 #ifdef DGX1_TOPOLOGY
@@ -393,7 +393,7 @@ private:
         size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
 
         //(mcontext.get_device_id(gpu_index));
-        cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
+        cudaMemcpyAsync(gpu.pd_ptr.Input, minput, copy_len, cudaMemcpyHostToDevice,
             mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
         if (gpu_index == NUM_GPUS - 1)
@@ -757,23 +757,34 @@ private:
         uint gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
         //(mcontext.get_device_id(gpu_index));
-        cudaMemcpyAsync(h_result + gpu.offset, gpu.merge_ptr.result, gpu.num_elements * sizeof(sa_index_t),
+        cudaMemcpyAsync(h_result, gpu.merge_ptr.result, gpu.num_elements * sizeof(sa_index_t),
             cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
+        mcontext.sync_gpu_default_stream(gpu_index);
+        MPI_File outputFile;
+        MPI_File_open(MPI_COMM_WORLD, "output",
+            MPI_MODE_CREATE | MPI_MODE_WRONLY,
+            MPI_INFO_NULL, &outputFile);
+
+        MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+
+        MPI_File_close(&outputFile);
+
         //}
-        mcontext.sync_default_streams();
-        std::vector<sa_index_t> recv;
-        recv.clear();
-        std::span<sa_index_t> sb(h_result + gpu.offset, gpu.num_elements);
-        auto [sendCounts] = comm_world().gatherv(send_buf(sb), recv_buf<resize_to_fit>(recv), recv_counts_out());
-        int sumCounts = 0;
-        int i = 0;
-        for (auto count : sendCounts) {
-            ASSERT(count == mgpus[i].num_elements);
-            memcpy(h_result + mgpus[i].offset, recv.data() + sumCounts, sizeof(sa_index_t) * count);
-            sumCounts += count;
-            i++;
-        }
+        // mcontext.sync_default_streams();
+
+        // std::vector<sa_index_t> recv;
+        // recv.clear();
+        // std::span<sa_index_t> sb(h_result + gpu.offset, gpu.num_elements);
+        // auto [sendCounts] = comm_world().gatherv(send_buf(sb), recv_buf<resize_to_fit>(recv), recv_counts_out());
+        // int sumCounts = 0;
+        // int i = 0;
+        // for (auto count : sendCounts) {
+        //     ASSERT(count == mgpus[i].num_elements);
+        //     memcpy(h_result + mgpus[i].offset, recv.data() + sumCounts, sizeof(sa_index_t) * count);
+        //     sumCounts += count;
+        //     i++;
+        // }
         // for (int gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
         //     std::span<sa_index_t> buffer(h_result + gpu.offset, gpu.num_elements);
         //     comm_world().bcast(send_recv_buf(buffer), root(gpu_index));
@@ -958,7 +969,7 @@ int main(int argc, char** argv)
 
     size_t realLen;
     size_t maxLength = 1024 * 1024 * 250 * NUM_GPUS;
-    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
+    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
 
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
@@ -968,7 +979,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3,0,1,2,3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3 };
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids2, NUM_PER_NODE);
 
@@ -984,8 +995,8 @@ int main(int argc, char** argv)
     // t.synchronize_and_start(fileName);
     sorter.do_sa();
     // t.stop();
-    if (world_rank() == 0)
-        write_array(argv[2], sorter.get_result(), realLen);
+    // if (world_rank() == 0)
+    //     write_array(argv[2], sorter.get_result(), realLen);
 
     sorter.done();
 

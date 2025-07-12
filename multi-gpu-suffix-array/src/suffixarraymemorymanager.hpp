@@ -247,7 +247,7 @@ public:
         }
         //if (world_rank() == NUM_GPUS - 1)
         //{
-        cudaMallocHost(&mh_result, input_len * sizeof(sa_index_t));
+        cudaMallocHost(&mh_result, malloc_size);
         CUERR;
         cudaMallocHost(&mhost_temp_mem, HOST_TEMP_MEM_SIZE);
         CUERR;
