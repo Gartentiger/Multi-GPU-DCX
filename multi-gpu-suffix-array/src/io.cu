@@ -58,7 +58,7 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
 
     fseek(file, offset, SEEK_SET);
 
-    size_t len_padded = SDIV(mper_gpu, padd_to) * padd_to;
+    size_t len_padded = SDIV(copy_len, padd_to) * padd_to;
     cudaMallocHost(contents, len_padded);
     CUERR;
 
