@@ -66,12 +66,12 @@ namespace distrib_merge {
             type_t a_key;// = a_keys[mid];
             type_t b_key;// = b_keys[diag - 1 - mid];
             if (a) {
-                cudaMemcpy(&a_key, a_keys + mid, 1, cudaMemcpyDeviceToHost);
+                cudaMemcpy(&a_key, a_keys + mid, sizeof(type_t), cudaMemcpyDeviceToHost);
                 comm_world().send(send_buf(std::span<type_t>(&a_key, 1)), send_count(1), destination(size_t(other)));
                 comm_world().recv(recv_buf(std::span<type_t>(&b_key, 1)), recv_count(1), source(size_t(other)));
             }
             else {
-                cudaMemcpy(&b_key, b_keys + diag - 1 - mid, 1, cudaMemcpyDeviceToHost);
+                cudaMemcpy(&b_key, b_keys + diag - 1 - mid, sizeof(type_t), cudaMemcpyDeviceToHost);
                 comm_world().recv(recv_buf(std::span<type_t>(&a_key, 1)), recv_count(1), source(size_t(other)));
                 comm_world().send(send_buf(std::span<type_t>(&b_key, 1)), send_count(1), destination(size_t(other)));
             }
@@ -380,6 +380,7 @@ namespace distrib_merge {
                                 s->cross_diagonal,
                                 comp, other, true,
                                 s->h_result_ptr);
+                            printf("[%lu]");
                         }
                         else {
                             printf("[%lu] a: false, other %u\n", world_rank(), other);
@@ -390,7 +391,9 @@ namespace distrib_merge {
                                 s->cross_diagonal,
                                 comp, other, false,
                                 s->h_result_ptr);
+
                         }
+                        printf("[%lu] res: %ld\n", world_rank(), *s->h_result_ptr);
                     }
                     // else {
                     //     if (node == s->node_a) {
