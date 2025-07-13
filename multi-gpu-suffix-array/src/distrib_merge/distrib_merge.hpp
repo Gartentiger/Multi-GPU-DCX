@@ -328,9 +328,9 @@ namespace distrib_merge {
             // }
 
             printf("[%lu] sends done, search count: %lu\n", world_rank(), searches_on_nodes[world_rank()].size());
-            //for (uint node = 0; node < NUM_NODES; ++node)
+            for (uint node = 0; node < NUM_NODES; ++node)
             {
-                uint node = world_rank();
+                //uint node = world_rank();
                 QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node);
 
 
@@ -339,7 +339,9 @@ namespace distrib_merge {
 
                 for (Search* s : searches_on_nodes[node])
                 {
-                    ASSERT(s->node_a == world_rank() || s->node_b == world_rank());
+                    if (s->node_a != world_rank() && s->node_b != world_rank()) {
+                        continue;
+                    }
 
                     uint other = (node == s->node_a) ? s->node_b : s->node_a;
                     const cudaStream_t& stream = mcontext.get_streams(node).at(other);
@@ -351,39 +353,38 @@ namespace distrib_merge {
 
                     s->d_result_ptr = d_alloc.get<int64_t>(1);
                     if (mcontext.get_peer_status(world_rank(), other) >= 1) {
-                        run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
-                            int64_t(node_a.count),
-                            node_b.keys,
-                            int64_t(node_b.count),
-                            s->cross_diagonal,
-                            comp,
-                            s->d_result_ptr);
-                        CUERR;
-                        cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
-                            sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
-
+                        if (world_rank() == node) {
+                            run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
+                                int64_t(node_a.count),
+                                node_b.keys,
+                                int64_t(node_b.count),
+                                s->cross_diagonal,
+                                comp,
+                                s->d_result_ptr);
+                            CUERR;
+                            cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
+                                sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
+                        }
                     }
                     else {
+                        // Communicator c = comm_world().create_subcommunicators(std::array<int, 2>{node, other});
                         if (s->node_a == node) {
-
-                            run_partitioning_searchHost << <1, 1, 0, stream >> > (node_a.keys,
+                            run_partitioning_searchHost(node_a.keys,
                                 int64_t(node_a.count),
                                 node_b.keys,
                                 int64_t(node_b.count),
                                 s->cross_diagonal,
                                 comp, other, true,
                                 s->h_result_ptr);
-                            CUERR;
                         }
                         else {
-                            run_partitioning_searchHost << <1, 1, 0, stream >> > (node_a.keys,
+                            run_partitioning_searchHost(node_a.keys,
                                 int64_t(node_a.count),
                                 node_b.keys,
                                 int64_t(node_b.count),
                                 s->cross_diagonal,
                                 comp, other, false,
                                 s->h_result_ptr);
-                            CUERR;
                         }
                     }
                     // else {
@@ -437,7 +438,6 @@ namespace distrib_merge {
             }
             std::vector<int64_t> hResultsOut;
             hResultsOut.clear();
-            comm_world().barrier();
             comm_world().allgatherv(send_buf(hResultsIn), send_count(hResultsIn.size()), recv_buf<resize_to_fit>(hResultsOut));
             printf("[%lu] allgatherv distributed_merge done\n", world_rank());
             int i = 0;
