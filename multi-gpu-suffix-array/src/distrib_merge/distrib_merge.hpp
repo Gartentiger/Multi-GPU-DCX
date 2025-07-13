@@ -254,7 +254,7 @@ namespace distrib_merge {
                 }
             }
 
-            auto statuses = pool.wait_all(statuses_out());
+            auto statuses = rq.wait_all(statuses_out());
             for (MPI_Status& native_status : statuses) {
                 Status status(native_status);
                 std::cout << "[R" << world_rank() << "] "
