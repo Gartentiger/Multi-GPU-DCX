@@ -218,7 +218,7 @@ namespace distrib_merge {
                     }
                 }
             }
-            printf("[%lu] sends done\n", world_rank());
+            printf("[%lu] sends done, search count: %lu\n", world_rank(), searches_on_nodes[world_rank()].size());
             //for (uint node = 0; node < NUM_NODES; ++node)
             {
                 uint node = world_rank();
@@ -227,6 +227,7 @@ namespace distrib_merge {
 
                 // //(mcontext.get_device_id(node));
                 int i = 0;
+
                 for (Search* s : searches_on_nodes[node])
                 {
                     ASSERT(s->node_a == world_rank() || s->node_b == world_rank());
@@ -256,9 +257,9 @@ namespace distrib_merge {
                             // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_b.count));
                             cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
 
-                            printf("[%lu] receive length %lu, i: %d\n", world_rank(), size_t(node_b.count), i);
                             std::span<key_t> rb(temp, size_t(node_b.count));
-                            comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_b.count)));
+                            comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_b)), recv_count(size_t(node_b.count)));
+                            printf("[%lu] receive length %lu, i: %d\n", world_rank(), size_t(node_b.count), i);
                             run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
                                 int64_t(node_a.count),
                                 temp,
@@ -271,9 +272,9 @@ namespace distrib_merge {
                         else {
                             // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_a.count));
                             cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
-                            printf("[%lu] receive length %lu, i: %d\n", world_rank(), size_t(node_a.count), i);
                             std::span<key_t> rb(temp, size_t(node_a.count));
-                            comm_world().recv(recv_buf(rb), tag(i), recv_count(size_t(node_a.count)));
+                            comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_a)), recv_count(size_t(node_a.count)));
+                            printf("[%lu] receive length %lu, i: %d\n", world_rank(), size_t(node_a.count), i);
                             run_partitioning_search << <1, 1, 0, stream >> > (temp,
                                 int64_t(node_a.count),
                                 node_b.keys,
