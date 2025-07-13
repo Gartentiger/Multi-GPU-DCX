@@ -221,8 +221,8 @@ namespace distrib_merge {
                     }
                 }
                 else {
-                    msgTag += searches_on_nodes[node].size();
                     offset = msgTag;
+                    msgTag += searches_on_nodes[node].size();
                 }
             }
             printf("[%lu] sends done, search count: %lu\n", world_rank(), searches_on_nodes[world_rank()].size());
