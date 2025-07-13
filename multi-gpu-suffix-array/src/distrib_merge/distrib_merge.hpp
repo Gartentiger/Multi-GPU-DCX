@@ -192,11 +192,11 @@ namespace distrib_merge {
 
             int offset = 0;
 
+            int i = 0;
             for (uint node = 0; node < NUM_NODES; ++node)
             {
                 //uint node = world_rank();
 
-                int i = 0;
                 if (node != world_rank()) {
                     for (Search* s : searches_on_nodes[node]) {
                         ASSERT(!(s->node_a == world_rank() && s->node_b == world_rank()));
