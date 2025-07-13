@@ -333,8 +333,8 @@ namespace distrib_merge {
             for (uint node = 0; node < NUM_NODES; ++node)
             {
                 //uint node = world_rank();
-                QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node);
 
+                QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node);
 
                 // //(mcontext.get_device_id(node));
                 int i = offset;
@@ -345,7 +345,7 @@ namespace distrib_merge {
                         continue;
                     }
 
-                    uint other = (node == s->node_a) ? s->node_b : s->node_a;
+                    uint other = (world_rank() == s->node_a) ? s->node_b : s->node_a;
                     const cudaStream_t& stream = mcontext.get_streams(node).at(other);
 
                     auto& node_a = minp_a[s->node_a];
@@ -353,9 +353,9 @@ namespace distrib_merge {
 
                     s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
 
-                    s->d_result_ptr = d_alloc.get<int64_t>(1);
                     if (mcontext.get_peer_status(world_rank(), other) >= 1) {
                         if (world_rank() == node) {
+                            s->d_result_ptr = d_alloc.get<int64_t>(1);
                             run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
                                 int64_t(node_a.count),
                                 node_b.keys,
@@ -370,7 +370,7 @@ namespace distrib_merge {
                     }
                     else {
                         // Communicator c = comm_world().create_subcommunicators(std::array<int, 2>{node, other});
-                        if (s->node_a == node) {
+                        if (s->node_a == world_rank()) {
                             run_partitioning_searchHost(node_a.keys,
                                 int64_t(node_a.count),
                                 node_b.keys,
