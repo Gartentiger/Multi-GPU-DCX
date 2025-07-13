@@ -192,7 +192,7 @@ namespace distrib_merge {
 
             int offset = 0;
 
-            int i = 0;
+            int msgTag = 0;
             for (uint node = 0; node < NUM_NODES; ++node)
             {
                 //uint node = world_rank();
@@ -205,7 +205,7 @@ namespace distrib_merge {
                                 const auto& node_a = minp_a[s->node_a];
                                 std::span<key_t> sb(node_a.keys, size_t(node_a.count));
                                 comm_world().isend(send_buf(sb), send_count(size_t(node_a.count)), tag(i), destination((size_t)s->node_b));
-                                printf("[%lu] send to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_a.count), i);
+                                printf("[%lu] send to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_a.count), msgTag);
 
                             }
                         }
@@ -214,15 +214,15 @@ namespace distrib_merge {
                                 const auto& node_b = minp_b[s->node_b];
                                 std::span<key_t> sb(node_b.keys, size_t(node_b.count));
                                 comm_world().isend(send_buf(sb), send_count(size_t(node_b.count)), tag(i), destination((size_t)s->node_a));
-                                printf("[%lu] send to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_b.count), i);
+                                printf("[%lu] send to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_b.count), msgTag);
                             }
                         }
-                        i++;
+                        msgTag++;
                     }
                 }
                 else {
-                    i += searches_on_nodes[node].size();
-                    offset = i;
+                    msgTag += searches_on_nodes[node].size();
+                    offset = msgTag;
                 }
             }
             printf("[%lu] sends done, search count: %lu\n", world_rank(), searches_on_nodes[world_rank()].size());
