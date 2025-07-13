@@ -85,14 +85,14 @@ namespace distrib_merge {
         TopologyHelper mtopology_helper;
         QDAllocator& mhost_search_temp_allocator;
 
-        const DistrArray& minp_a;
-        const DistrArray& minp_b;
+        DistrArray& minp_a;
+        DistrArray& minp_b;
         DistrArray& mout;
 
     public:
 
         template <class comp_f>
-        static void merge_async(const DistrArray& a, const DistrArray& b, DistrArray& out, comp_f comp,
+        static void merge_async(DistrArray& a, DistrArray& b, DistrArray& out, comp_f comp,
             bool do_values, Context& context, QDAllocator& host_search_temp_allocator) {
             DistributedMerge dm(context, host_search_temp_allocator, a, b, out);
             dm.merge(comp, do_values);
@@ -134,7 +134,7 @@ namespace distrib_merge {
         };
 
         DistributedMerge(Context& context, QDAllocator& host_search_temp_allocator,
-            const DistrArray& a, const DistrArray& b, DistrArray& out)
+            DistrArray& a, DistrArray& b, DistrArray& out)
             : mcontext(context), mtopology_helper(context),
             mhost_search_temp_allocator(host_search_temp_allocator),
             minp_a(a), minp_b(b), mout(out)
@@ -207,7 +207,7 @@ namespace distrib_merge {
                         ASSERT(!(s->node_a == world_rank() && s->node_b == world_rank()));
                         if (s->node_a == world_rank()) {
                             if (mcontext.get_peer_status(world_rank(), s->node_b) < 1) {
-                                const auto& node_a = minp_a[s->node_a];
+                                auto& node_a = minp_a[s->node_a];
                                 std::span<key_t> sb(node_a.keys, size_t(node_a.count));
                                 comm_world().isend(send_buf(sb), send_count(size_t(node_a.count)), tag(msgTag), destination((size_t)s->node_b), request(rq.get_request()));
                                 printf("[%lu] send A to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_a.count), msgTag);
@@ -215,7 +215,7 @@ namespace distrib_merge {
                         }
                         else if (s->node_b == world_rank()) {
                             if (mcontext.get_peer_status(world_rank(), s->node_a) < 1) {
-                                const auto& node_b = minp_b[s->node_b];
+                                auto& node_b = minp_b[s->node_b];
                                 std::span<key_t> sb(node_b.keys, size_t(node_b.count));
                                 comm_world().isend(send_buf(sb), send_count(size_t(node_b.count)), tag(msgTag), destination((size_t)s->node_a), request(rq.get_request()));
 
@@ -229,8 +229,8 @@ namespace distrib_merge {
                     for (Search* s : searches_on_nodes[world_rank()]) {
                         uint other = (world_rank() == s->node_a) ? s->node_b : s->node_a;
                         // key_t* temp;
-                        const auto& node_a = minp_a[s->node_a];
-                        const auto& node_b = minp_b[s->node_b];
+                        auto& node_a = minp_a[s->node_a];
+                        auto& node_b = minp_b[s->node_b];
                         if (mcontext.get_peer_status(world_rank(), other) < 1) {
                             if (node == s->node_a) {
                                 key_t* temp;
@@ -303,8 +303,8 @@ namespace distrib_merge {
                     uint other = (node == s->node_a) ? s->node_b : s->node_a;
                     const cudaStream_t& stream = mcontext.get_streams(node).at(other);
 
-                    const auto& node_a = minp_a[s->node_a];
-                    const auto& node_b = minp_b[s->node_b];
+                    auto& node_a = minp_a[s->node_a];
+                    auto& node_b = minp_b[s->node_b];
 
 
                     s->d_result_ptr = d_alloc.get<int64_t>(1);
