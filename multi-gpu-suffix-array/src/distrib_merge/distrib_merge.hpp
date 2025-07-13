@@ -233,16 +233,20 @@ namespace distrib_merge {
                         const auto& node_b = minp_b[s->node_b];
                         if (mcontext.get_peer_status(world_rank(), other) < 1) {
                             if (node == s->node_a) {
-                                cudaMalloc(&node_b.keys, sizeof(key_t) * size_t(node_b.count));
+                                key_t* temp;
+                                cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
                                 CUERR;
+                                node_b.keys = temp;
                                 std::span<key_t> rb(node_b.keys, size_t(node_b.count));
                                 printf("[%lu] receive B, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_b.count), msgTag);
                                 comm_world().irecv(recv_buf(rb), tag(msgTag), source(size_t(s->node_b)), recv_count(size_t(node_b.count)), request(rq.get_request()));
                                 // printf("[%lu] after B receive\n", world_rank());
                             }
                             else {
-                                cudaMalloc(&node_a.keys, sizeof(key_t) * size_t(node_a.count));
+                                key_t* temp;
+                                cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
                                 CUERR;
+                                node_a.keys = temp;
                                 std::span<key_t> rb(node_a.keys, size_t(node_a.count));
                                 printf("[%lu] receive A, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_a.count), msgTag);
                                 comm_world().irecv(recv_buf(rb), tag(msgTag), source(size_t(s->node_a)), recv_count(size_t(node_a.count)), request(rq.get_request()));
