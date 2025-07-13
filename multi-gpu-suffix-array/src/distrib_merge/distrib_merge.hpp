@@ -194,6 +194,8 @@ namespace distrib_merge {
                 }
             }
 
+            comm_world().barrier();
+
             int offset = 0;
 
             int msgTag = 0;
@@ -210,7 +212,7 @@ namespace distrib_merge {
                                 auto& node_a = minp_a[s->node_a];
                                 std::span<key_t> sb(node_a.keys, size_t(node_a.count));
                                 printf("[%lu] send A to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_a.count), msgTag);
-                                comm_world().send(send_buf(sb), send_count(size_t(node_a.count)), tag(msgTag), destination((size_t)s->node_b));
+                                comm_world().send(send_buf(sb), send_count(size_t(1)), tag(msgTag), destination((size_t)s->node_b));
                             }
                         }
                         else if (s->node_b == world_rank()) {
@@ -218,7 +220,7 @@ namespace distrib_merge {
                                 auto& node_b = minp_b[s->node_b];
                                 std::span<key_t> sb(node_b.keys, size_t(node_b.count));
                                 printf("[%lu] send B to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_b.count), msgTag);
-                                comm_world().send(send_buf(sb), send_count(size_t(node_b.count)), tag(msgTag), destination((size_t)s->node_a));
+                                comm_world().send(send_buf(sb), send_count(size_t(1)), tag(msgTag), destination((size_t)s->node_a));
                             }
                         }
                         msgTag++;
@@ -237,8 +239,8 @@ namespace distrib_merge {
                                 CUERR;
                                 node_b.keys = temp;
                                 std::span<key_t> rb(node_b.keys, size_t(node_b.count));
-                                printf("[%lu] receive B, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_b.count), msgTag);
-                                comm_world().recv(recv_buf(rb), tag(msgTag), source(size_t(s->node_b)), recv_count(size_t(node_b.count)));
+                                printf("[%lu] receive B, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_b, sizeof(key_t) * size_t(node_b.count), msgTag);
+                                comm_world().recv(recv_buf(rb), tag(msgTag), recv_count(size_t(1)));
                                 printf("[%lu] after B receive\n", world_rank());
                             }
                             else {
@@ -247,16 +249,14 @@ namespace distrib_merge {
                                 CUERR;
                                 node_a.keys = temp;
                                 std::span<key_t> rb(node_a.keys, size_t(node_a.count));
-                                printf("[%lu] receive A, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_a.count), msgTag);
-                                comm_world().recv(recv_buf(rb), tag(msgTag), source(size_t(s->node_a)), recv_count(size_t(node_a.count)));
+                                printf("[%lu] receive A, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_a, sizeof(key_t) * size_t(node_a.count), msgTag);
+                                comm_world().recv(recv_buf(rb), tag(msgTag), recv_count(size_t(1)));
                                 printf("[%lu] after A receive\n", world_rank());
                             }
                         }
                         msgTag++;
                     }
                 }
-
-                comm_world().barrier();
             }
 
             //auto statuses = rq.wait_all(statuses_out());
