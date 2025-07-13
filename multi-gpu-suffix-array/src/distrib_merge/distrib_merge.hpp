@@ -68,11 +68,11 @@ namespace distrib_merge {
             if (a) {
                 cudaMemcpy(&a_key, a_keys + mid, 1, cudaMemcpyDeviceToHost);
                 comm_world().send(send_buf(std::span<type_t>(&a_key, 1)), send_count(1), destination(size_t(other)));
-                comm_world().recv(recv_buf(std::span<type_t>(&a_key, 1)), recv_count(1), source(size_t(other)));
+                comm_world().recv(recv_buf(std::span<type_t>(&b_key, 1)), recv_count(1), source(size_t(other)));
             }
             else {
                 cudaMemcpy(&b_key, b_keys + diag - 1 - mid, 1, cudaMemcpyDeviceToHost);
-                comm_world().recv(recv_buf(std::span<type_t>(&b_key, 1)), recv_count(1), source(size_t(other)));
+                comm_world().recv(recv_buf(std::span<type_t>(&a_key, 1)), recv_count(1), source(size_t(other)));
                 comm_world().send(send_buf(std::span<type_t>(&b_key, 1)), send_count(1), destination(size_t(other)));
             }
 
@@ -370,7 +370,9 @@ namespace distrib_merge {
                     }
                     else {
                         // Communicator c = comm_world().create_subcommunicators(std::array<int, 2>{node, other});
+                        printf("[%lu] run partitioning with [%u]\n", world_rank(), other);
                         if (s->node_a == world_rank()) {
+                            printf("[%lu] a: true, other: %u\n", world_rank(), other);
                             run_partitioning_searchHost(node_a.keys,
                                 int64_t(node_a.count),
                                 node_b.keys,
@@ -380,6 +382,7 @@ namespace distrib_merge {
                                 s->h_result_ptr);
                         }
                         else {
+                            printf("[%lu] a: false, other %u\n", world_rank(), other);
                             run_partitioning_searchHost(node_a.keys,
                                 int64_t(node_a.count),
                                 node_b.keys,
