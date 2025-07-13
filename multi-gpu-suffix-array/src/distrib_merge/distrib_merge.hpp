@@ -189,12 +189,15 @@ namespace distrib_merge {
                 }
             }
             // printf("[%lu]---------------------------------------------------------------\n", world_rank());
+
+            int offset = 0;
+
             for (uint node = 0; node < NUM_NODES; ++node)
             {
                 //uint node = world_rank();
 
+                int i = 0;
                 if (node != world_rank()) {
-                    int i = 0;
                     for (Search* s : searches_on_nodes[node]) {
                         ASSERT(!(s->node_a == world_rank() && s->node_b == world_rank()));
                         if (s->node_a == world_rank()) {
@@ -217,6 +220,10 @@ namespace distrib_merge {
                         i++;
                     }
                 }
+                else {
+                    i += searches_on_nodes[node].size();
+                    offset = i;
+                }
             }
             printf("[%lu] sends done, search count: %lu\n", world_rank(), searches_on_nodes[world_rank()].size());
             //for (uint node = 0; node < NUM_NODES; ++node)
@@ -226,7 +233,7 @@ namespace distrib_merge {
 
 
                 // //(mcontext.get_device_id(node));
-                int i = 0;
+                int i = offset;
 
                 for (Search* s : searches_on_nodes[node])
                 {
