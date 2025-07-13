@@ -175,9 +175,7 @@ namespace crossGPUReMerge {
                     ms->results.resize(ms->ranges.size());
 
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
-                    for (int i = 0; i < ms->ranges.size(); i++) {
-                        // printf("[%lu] results[%d] 2: %ld\n", node.info.index, i, ms->results[i]);
-                    }
+
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
                     // printf("[%lu] range_to_take_one_more: %ld\n", node.info.index, ms->range_to_take_one_more);
                 }

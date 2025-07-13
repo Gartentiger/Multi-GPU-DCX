@@ -634,7 +634,7 @@ private:
         {
             SaGPU& gpu = mgpus[gpu_index];
             cudaSetDevice(mcontext.get_device_id(gpu_index));
-            printf("[%u] result length: %lu\n", gpu_index, gpu.num_elements);
+            // printf("[%u] result length: %lu\n", gpu_index, gpu.num_elements);
             cudaMemcpyAsync(h_result + gpu.offset, gpu.merge_ptr.result, gpu.num_elements * sizeof(sa_index_t),
                 cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
             CUERR;
