@@ -380,7 +380,6 @@ namespace distrib_merge {
                                 s->cross_diagonal,
                                 comp, other, true,
                                 s->h_result_ptr);
-                            printf("[%lu]");
                         }
                         else {
                             printf("[%lu] a: false, other %u\n", world_rank(), other);
