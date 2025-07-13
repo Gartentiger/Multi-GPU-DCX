@@ -5,7 +5,7 @@
 
 #include <array>
 #include <vector>
-#include<algorithm>
+#include <algorithm>
 #include <cassert>
 #include <moderngpu/kernel_merge.hxx>
 
@@ -19,6 +19,8 @@
 #include <kamping/checking_casts.hpp>
 #include <kamping/named_parameters.hpp>
 #include <kamping/collectives/allgather.hpp>
+#include <kamping/p2p/send.hpp>
+#include <kamping/p2p/recv.hpp>
 #include <span>
 
 namespace distrib_merge {
@@ -69,9 +71,9 @@ namespace distrib_merge {
                 comm_world().recv(recv_buf(std::span<type_t>(&a_key, 1)), recv_count(1), source(size_t(other)));
             }
             else {
-                cudaMemcpy(&b_key, b_key + diag - 1 - mid, 1, cudaMemcpyDeviceToHost);
+                cudaMemcpy(&b_key, b_keys + diag - 1 - mid, 1, cudaMemcpyDeviceToHost);
                 comm_world().recv(recv_buf(std::span<type_t>(&b_key, 1)), recv_count(1), source(size_t(other)));
-                comm_world().send(send_buf(std::span<type_t>(b_key + diag - 1 - mid, 1)), send_count(1), destination(size_t(other)));
+                comm_world().send(send_buf(std::span<type_t>(&b_key, 1)), send_count(1), destination(size_t(other)));
             }
 
             bool pred = (bounds_upper == bounds) ? comp(a_key, b_key) : !comp(b_key, a_key);
