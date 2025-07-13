@@ -258,8 +258,8 @@ namespace distrib_merge {
                             cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
 
                             std::span<key_t> rb(temp, size_t(node_b.count));
+                            printf("[%lu] receive length %lu, source %lu , i: %d\n", world_rank(), size_t(node_b.count), (size_t)s->node_b, i);
                             comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_b)), recv_count(size_t(node_b.count)));
-                            printf("[%lu] receive length %lu, i: %d\n", world_rank(), size_t(node_b.count), i);
                             run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
                                 int64_t(node_a.count),
                                 temp,
@@ -273,8 +273,8 @@ namespace distrib_merge {
                             // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_a.count));
                             cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
                             std::span<key_t> rb(temp, size_t(node_a.count));
+                            printf("[%lu] receive length %lu, source %lu , i: %d\n", world_rank(), size_t(node_a.count), (size_t)s->node_a, i);
                             comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_a)), recv_count(size_t(node_a.count)));
-                            printf("[%lu] receive length %lu, i: %d\n", world_rank(), size_t(node_a.count), i);
                             run_partitioning_search << <1, 1, 0, stream >> > (temp,
                                 int64_t(node_a.count),
                                 node_b.keys,
@@ -296,7 +296,6 @@ namespace distrib_merge {
                 }
                 printf("[%lu] execute searches recv done\n", world_rank());
             }
-
             mcontext.sync_all_streams();
             std::vector<int64_t> hResultsIn;
             hResultsIn.clear();
@@ -305,6 +304,7 @@ namespace distrib_merge {
             }
             std::vector<int64_t> hResultsOut;
             hResultsOut.clear();
+            comm_world().barrier();
             comm_world().allgatherv(send_buf(hResultsIn), send_count(hResultsIn.size()), recv_buf<resize_to_fit>(hResultsOut));
             printf("[%lu] allgatherv distributed_merge done\n", world_rank());
             int i = 0;
