@@ -23,6 +23,7 @@
 
 namespace distrib_merge {
 
+
     enum MergePathBounds { bounds_lower, bounds_upper };
 
     // This function comes from ModernGPU.
@@ -178,6 +179,10 @@ namespace distrib_merge {
             execute_merges_async(partitions, comp, do_values);
         }
 
+        struct sendData {
+            bool a;
+            size_t sendCount;
+        };
 
         template <class comp_f>
         void execute_searches(std::array<std::vector<Search>, NUM_NODES - 1>& searches, comp_f comp) {
@@ -188,11 +193,11 @@ namespace distrib_merge {
                     searches_on_nodes[search.scheduled_on].push_back(&search);
                 }
             }
-            // printf("[%lu]---------------------------------------------------------------\n", world_rank());
 
             int offset = 0;
 
             int msgTag = 0;
+            RequestPool rq;
             for (uint node = 0; node < NUM_NODES; ++node)
             {
                 //uint node = world_rank();
@@ -204,27 +209,79 @@ namespace distrib_merge {
                             if (mcontext.get_peer_status(world_rank(), s->node_b) < 1) {
                                 const auto& node_a = minp_a[s->node_a];
                                 std::span<key_t> sb(node_a.keys, size_t(node_a.count));
-                                comm_world().isend(send_buf(sb), send_count(size_t(node_a.count)), tag(msgTag), destination((size_t)s->node_b));
-                                printf("[%lu] send to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_a.count), msgTag);
-
+                                comm_world().isend(send_buf(sb), send_count(size_t(node_a.count)), tag(msgTag), destination((size_t)s->node_b), request(rq.get_request()));
+                                printf("[%lu] send A to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_a.count), msgTag);
                             }
                         }
                         else if (s->node_b == world_rank()) {
                             if (mcontext.get_peer_status(world_rank(), s->node_a) < 1) {
                                 const auto& node_b = minp_b[s->node_b];
                                 std::span<key_t> sb(node_b.keys, size_t(node_b.count));
-                                comm_world().isend(send_buf(sb), send_count(size_t(node_b.count)), tag(msgTag), destination((size_t)s->node_a));
-                                printf("[%lu] send to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_b.count), msgTag);
+                                comm_world().isend(send_buf(sb), send_count(size_t(node_b.count)), tag(msgTag), destination((size_t)s->node_a), request(rq.get_request()));
+
+                                printf("[%lu] send B to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_b.count), msgTag);
                             }
                         }
                         msgTag++;
                     }
                 }
                 else {
-                    offset = msgTag;
-                    msgTag += searches_on_nodes[node].size();
+                    for (Search* s : searches_on_nodes[world_rank()]) {
+                        uint other = (world_rank() == s->node_a) ? s->node_b : s->node_a;
+                        // key_t* temp;
+                        const auto& node_a = minp_a[s->node_a];
+                        const auto& node_b = minp_b[s->node_b];
+                        if (mcontext.get_peer_status(world_rank(), other) < 1) {
+                            if (node == s->node_a) {
+                                cudaMalloc(&node_b.keys, sizeof(key_t) * size_t(node_b.count));
+                                CUERR;
+                                std::span<key_t> rb(node_b.keys, size_t(node_b.count));
+                                printf("[%lu] receive B, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_b.count), msgTag);
+                                comm_world().irecv(recv_buf(rb), tag(msgTag), source(size_t(s->node_b)), recv_count(size_t(node_b.count)), request(rq.get_request()));
+                                // printf("[%lu] after B receive\n", world_rank());
+                            }
+                            else {
+                                cudaMalloc(&node_a.keys, sizeof(key_t) * size_t(node_a.count));
+                                CUERR;
+                                std::span<key_t> rb(node_a.keys, size_t(node_a.count));
+                                printf("[%lu] receive A, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_a.count), msgTag);
+                                comm_world().irecv(recv_buf(rb), tag(msgTag), source(size_t(s->node_a)), recv_count(size_t(node_a.count)), request(rq.get_request()));
+                                // printf("[%lu] after A receive\n", world_rank());
+                            }
+                        }
+                        msgTag++;
+                    }
                 }
             }
+
+            auto statuses = pool.wait_all(statuses_out());
+            for (MPI_Status& native_status : statuses) {
+                Status status(native_status);
+                std::cout << "[R" << world_rank() << "] "
+                    << "Status(source="
+                    << (status.source_signed() == MPI_PROC_NULL ? "MPI_PROC_NULL" : std::to_string(status.source_signed())
+                        )
+                    << ", tag=" << (status.tag() == MPI_ANY_TAG ? "MPI_ANY_TAG" : std::to_string(status.tag()))
+                    << ", count=" << status.count<int>() << ")" << std::endl;
+            }
+
+            // for (int i = 0; i < NUM_NODES; i++) {
+            //     if (d[i] <= 0) {
+            //         continue;
+            //     }
+            //     const auto& node = minp_b[world_rank()];
+            //     std::span<key_t> sb(node.keys, size_t(node.count));
+            //     comm_world().isend(send_buf(sb), send_count(size_t(node_b.count)), tag(world_rank()), destination((size_t)s->node_a));
+            //     if (recvCount[i] <= 0) {
+            //         continue;
+            //     }
+            //     key_t* temp;
+            //     cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
+            //     CUERR;
+            //     comm_world().irecv(recv_buf(), recv_count(recvCount[i])), tag(i), source((size_t)i));
+
+            // }
+
             printf("[%lu] sends done, search count: %lu\n", world_rank(), searches_on_nodes[world_rank()].size());
             //for (uint node = 0; node < NUM_NODES; ++node)
             {
@@ -247,58 +304,65 @@ namespace distrib_merge {
 
 
                     s->d_result_ptr = d_alloc.get<int64_t>(1);
-                    key_t* temp = nullptr;
 
-                    if (mcontext.get_peer_status(node, other) >= 1) {
-                        run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
-                            int64_t(node_a.count),
-                            node_b.keys,
-                            int64_t(node_b.count),
-                            s->cross_diagonal,
-                            comp,
-                            s->d_result_ptr);
-                        CUERR;
-                    }
-                    else {
-                        if (node == s->node_a) {
-                            // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_b.count));
-                            cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
+                    run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
+                        int64_t(node_a.count),
+                        node_b.keys,
+                        int64_t(node_b.count),
+                        s->cross_diagonal,
+                        comp,
+                        s->d_result_ptr);
+                    CUERR;
 
-                            std::span<key_t> rb(temp, size_t(node_b.count));
-                            printf("[%lu] receive length %lu, source %lu , i: %d\n", world_rank(), size_t(node_b.count), (size_t)s->node_b, i);
-                            comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_b)), recv_count(size_t(node_b.count)));
-                            run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
-                                int64_t(node_a.count),
-                                temp,
-                                int64_t(node_b.count),
-                                s->cross_diagonal,
-                                comp,
-                                s->d_result_ptr);
-                            CUERR;
-                        }
-                        else {
-                            // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_a.count));
-                            cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
-                            std::span<key_t> rb(temp, size_t(node_a.count));
-                            printf("[%lu] receive length %lu, source %lu , i: %d\n", world_rank(), size_t(node_a.count), (size_t)s->node_a, i);
-                            comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_a)), recv_count(size_t(node_a.count)));
-                            run_partitioning_search << <1, 1, 0, stream >> > (temp,
-                                int64_t(node_a.count),
-                                node_b.keys,
-                                int64_t(node_b.count),
-                                s->cross_diagonal,
-                                comp,
-                                s->d_result_ptr);
-                            CUERR;
-                        }
-                    }
+                    // else {
+                    //     if (node == s->node_a) {
+                    //         // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_b.count));
+                    //         cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
+                    //         CUERR;
+                    //         std::span<key_t> rb(temp, size_t(node_b.count));
+                    //         printf("[%lu] receive length %lu, source %lu , i: %d\n", world_rank(), size_t(node_b.count), (size_t)s->node_b, i);
+                    //         comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_b)), recv_count(size_t(node_b.count)));
+                    //         printf("[%lu] after receive\n", world_rank());
+                    //         run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
+                    //             int64_t(node_a.count),
+                    //             temp,
+                    //             int64_t(node_b.count),
+                    //             s->cross_diagonal,
+                    //             comp,
+                    //             s->d_result_ptr);
+                    //         CUERR;
+                    //     }
+                    //     else {
+                    //         // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_a.count));
+                    //         cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
+                    //         CUERR;
+                    //         std::span<key_t> rb(temp, size_t(node_a.count));
+                    //         printf("[%lu] receive length %lu, source %lu , i: %d\n", world_rank(), size_t(node_a.count), (size_t)s->node_a, i);
+                    //         comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_a)), recv_count(size_t(node_a.count)));
+                    //         printf("[%lu] after receive\n", world_rank());
+                    //         run_partitioning_search << <1, 1, 0, stream >> > (temp,
+                    //             int64_t(node_a.count),
+                    //             node_b.keys,
+                    //             int64_t(node_b.count),
+                    //             s->cross_diagonal,
+                    //             comp,
+                    //             s->d_result_ptr);
+                    //         CUERR;
+                    //     }
+                    // }
                     // printf("[%lu] recv, i: %d \n", world_rank(), i);
                     s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
                     printf("[%lu] receive done, i: %d\n", world_rank(), i);
                     cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
                         sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
-                    if (temp != nullptr)
-                        cudaFreeAsync(temp, stream);
+                    if (mcontext.get_peer_status(node, other) < 1) {
+                        if (node == s->node_a) {
+                            cudaFreeAsync(node_b.keys, stream);
+                        }
+                        else {
+                            cudaFreeAsync(node_a.keys, stream);
+                        }
+                    }
                     i++;
                 }
                 printf("[%lu] execute searches recv done\n", world_rank());
