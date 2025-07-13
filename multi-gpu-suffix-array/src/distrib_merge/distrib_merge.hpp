@@ -49,6 +49,41 @@ namespace distrib_merge {
         }
         return begin;
     }
+    // This function comes from ModernGPU.
+    template<MergePathBounds bounds = bounds_lower, typename a_keys_it,
+        typename b_keys_it, typename int_t, typename comp_t>
+    int_t merge_pathHost(a_keys_it a_keys, int_t a_count, b_keys_it b_keys, int_t b_count, int_t diag,
+        comp_t comp, uint other, bool a) {
+        using type_t = typename std::iterator_traits<a_keys_it>::value_type;
+
+        int_t begin = max(int_t(0), diag - b_count);
+        int_t end = min(diag, a_count);
+
+        while (begin < end) {
+            int_t mid = (begin + end) / 2;
+            type_t a_key;// = a_keys[mid];
+            type_t b_key;// = b_keys[diag - 1 - mid];
+            if (a) {
+                cudaMemcpy(&a_key, a_keys + mid, 1, cudaMemcpyDeviceToHost);
+                comm_world().send(send_buf(std::span<type_t>(&a_key, 1)), send_count(1), destination(size_t(other)));
+                comm_world().recv(recv_buf(std::span<type_t>(&a_key, 1)), recv_count(1), source(size_t(other)));
+            }
+            else {
+                cudaMemcpy(&b_key, b_key + diag - 1 - mid, 1, cudaMemcpyDeviceToHost);
+                comm_world().recv(recv_buf(std::span<type_t>(&b_key, 1)), recv_count(1), source(size_t(other)));
+                comm_world().send(send_buf(std::span<type_t>(b_key + diag - 1 - mid, 1)), send_count(1), destination(size_t(other)));
+            }
+
+            bool pred = (bounds_upper == bounds) ? comp(a_key, b_key) : !comp(b_key, a_key);
+
+            if (pred)
+                begin = mid + 1;
+            else
+                end = mid;
+        }
+        return begin;
+    }
+
 
     template <typename a_keys_it, typename b_keys_it, typename comp_t>
     __global__ void run_partitioning_search(a_keys_it a_keys, int64_t a_count, b_keys_it b_keys, int64_t b_count,
@@ -56,6 +91,11 @@ namespace distrib_merge {
         *store_result = merge_path(a_keys, a_count, b_keys, b_count, diag, comp);
     }
 
+    template <typename a_keys_it, typename b_keys_it, typename comp_t>
+    void run_partitioning_searchHost(a_keys_it a_keys, int64_t a_count, b_keys_it b_keys, int64_t b_count,
+        int64_t diag, comp_t comp, uint other, bool a, int64_t* store_result) {
+        *store_result = merge_pathHost(a_keys, a_count, b_keys, b_count, diag, comp, other, a);
+    }
 
     /* Class for merging two arrays that are distributed across multiple GPUs to an array
      * that is also distributed across multiple GPUs. The number of output elements on each GPU
@@ -212,7 +252,7 @@ namespace distrib_merge {
                                 auto& node_a = minp_a[s->node_a];
                                 std::span<key_t> sb(node_a.keys, size_t(node_a.count));
                                 printf("[%lu] send A to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_b, size_t(node_a.count), msgTag);
-                                comm_world().send(send_buf(sb), send_count(size_t(1)), tag(msgTag), destination((size_t)s->node_b));
+                                //comm_world().send(send_buf(sb), send_count(size_t(node_a.count)), tag(msgTag), destination((size_t)s->node_b));
                             }
                         }
                         else if (s->node_b == world_rank()) {
@@ -220,7 +260,7 @@ namespace distrib_merge {
                                 auto& node_b = minp_b[s->node_b];
                                 std::span<key_t> sb(node_b.keys, size_t(node_b.count));
                                 printf("[%lu] send B to [%lu] length: %lu, i: %d\n", world_rank(), (size_t)s->node_a, size_t(node_b.count), msgTag);
-                                comm_world().send(send_buf(sb), send_count(size_t(1)), tag(msgTag), destination((size_t)s->node_a));
+                                //comm_world().send(send_buf(sb), send_count(size_t(node_b.count)), tag(msgTag), destination((size_t)s->node_a));
                             }
                         }
                         msgTag++;
@@ -235,22 +275,22 @@ namespace distrib_merge {
                         if (mcontext.get_peer_status(world_rank(), other) < 1) {
                             if (node == s->node_a) {
                                 key_t* temp;
-                                cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
-                                CUERR;
+                                //cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
+                                //CUERR;
                                 node_b.keys = temp;
                                 std::span<key_t> rb(node_b.keys, size_t(node_b.count));
                                 printf("[%lu] receive B, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_b, sizeof(key_t) * size_t(node_b.count), msgTag);
-                                comm_world().recv(recv_buf(rb), tag(msgTag), recv_count(size_t(1)));
+                                //comm_world().recv(recv_buf(rb), tag(msgTag), recv_count(size_t(node_b.count)));
                                 printf("[%lu] after B receive\n", world_rank());
                             }
                             else {
                                 key_t* temp;
-                                cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
-                                CUERR;
+                                //cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
+                                //CUERR;
                                 node_a.keys = temp;
                                 std::span<key_t> rb(node_a.keys, size_t(node_a.count));
                                 printf("[%lu] receive A, source %lu, length %lu, i: %d\n", world_rank(), (size_t)s->node_a, sizeof(key_t) * size_t(node_a.count), msgTag);
-                                comm_world().recv(recv_buf(rb), tag(msgTag), recv_count(size_t(1)));
+                                //comm_world().recv(recv_buf(rb), tag(msgTag), recv_count(size_t(node_a.count)));
                                 printf("[%lu] after A receive\n", world_rank());
                             }
                         }
@@ -307,18 +347,45 @@ namespace distrib_merge {
                     auto& node_a = minp_a[s->node_a];
                     auto& node_b = minp_b[s->node_b];
 
+                    s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
 
                     s->d_result_ptr = d_alloc.get<int64_t>(1);
+                    if (mcontext.get_peer_status(world_rank(), other) >= 1) {
+                        run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
+                            int64_t(node_a.count),
+                            node_b.keys,
+                            int64_t(node_b.count),
+                            s->cross_diagonal,
+                            comp,
+                            s->d_result_ptr);
+                        CUERR;
+                        cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
+                            sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
 
-                    run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
-                        int64_t(node_a.count),
-                        node_b.keys,
-                        int64_t(node_b.count),
-                        s->cross_diagonal,
-                        comp,
-                        s->d_result_ptr);
-                    CUERR;
+                    }
+                    else {
+                        if (s->node_a == node) {
 
+                            run_partitioning_searchHost << <1, 1, 0, stream >> > (node_a.keys,
+                                int64_t(node_a.count),
+                                node_b.keys,
+                                int64_t(node_b.count),
+                                s->cross_diagonal,
+                                comp, other, true,
+                                s->h_result_ptr);
+                            CUERR;
+                        }
+                        else {
+                            run_partitioning_searchHost << <1, 1, 0, stream >> > (node_a.keys,
+                                int64_t(node_a.count),
+                                node_b.keys,
+                                int64_t(node_b.count),
+                                s->cross_diagonal,
+                                comp, other, false,
+                                s->h_result_ptr);
+                            CUERR;
+                        }
+                    }
                     // else {
                     //     if (node == s->node_a) {
                     //         // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_b.count));
@@ -356,18 +423,8 @@ namespace distrib_merge {
                     //     }
                     // }
                     // printf("[%lu] recv, i: %d \n", world_rank(), i);
-                    s->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(1);
                     printf("[%lu] receive done, i: %d\n", world_rank(), i);
-                    cudaMemcpyAsync(s->h_result_ptr, s->d_result_ptr,
-                        sizeof(int64_t), cudaMemcpyDeviceToHost, stream);CUERR;
-                    if (mcontext.get_peer_status(node, other) < 1) {
-                        if (node == s->node_a) {
-                            cudaFreeAsync(node_b.keys, stream);
-                        }
-                        else {
-                            cudaFreeAsync(node_a.keys, stream);
-                        }
-                    }
+
                     i++;
                 }
                 printf("[%lu] execute searches recv done\n", world_rank());
