@@ -20,7 +20,7 @@
 #include "gossip/multisplit.cuh"
 #include "distrib_merge/distrib_merge.hpp"
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 2;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
