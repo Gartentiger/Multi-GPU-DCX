@@ -762,7 +762,7 @@ private:
         CUERR;
         mcontext.sync_gpu_default_stream(gpu_index);
         MPI_File outputFile;
-        MPI_File_open(MPI_COMM_WORLD, "output",
+        MPI_File_open(MPI_COMM_WORLD, "outputData",
             MPI_MODE_CREATE | MPI_MODE_WRONLY,
             MPI_INFO_NULL, &outputFile);
 
@@ -961,7 +961,7 @@ int main(int argc, char** argv)
 
     if (argc != 4)
     {
-        error("Usage: sa-test <ifile> <ofile>!");
+        error("Usage: sa-test <ofile> <ifile> !");
     }
 
     char* input = nullptr;
@@ -970,7 +970,7 @@ int main(int argc, char** argv)
 
     size_t realLen;
     size_t maxLength = 1024 * 1024 * 250 * NUM_GPUS;
-    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
 
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
@@ -1003,7 +1003,7 @@ int main(int argc, char** argv)
 
     if (world_rank() == 0) {
         sorter.print_pd_stats();
-        sorter.get_perf_measurements().print();
+        sorter.get_perf_measurements().print(argv[1]);
     }
 
     cudaFreeHost(input);

@@ -119,7 +119,7 @@ public:
         mfetch_rank_performance_recorder.done();
     }
 
-    void print() const {
+    void print(char* outputFile = "output") const {
         std::cout << "\nWrite ISA:\n";
         mwrite_isa_performance_recorder.print();
         std::cout << "\nFetch Rank:\n";
@@ -128,12 +128,13 @@ public:
         std::cout << "\nLoop:\n";
         // mloop_performance_recorder
         mloop_performance_recorder.print();
-
+        mloop_performance_recorder.writeMeas(outputFile);
         std::cout << "\nPrepare final merge:\n";
         mprepare_final_merge_performance_recorder.print();
 
         std::cout << "\n\nMain:\n";
         mmain_performance_recorder.print();
+        mmain_performance_recorder.writeMeas(outputFile);
         // mmain_performance_recorder.write();
         float total = mmain_performance_recorder.get_total() + mloop_performance_recorder.get_total();
         std::cout << "\n" << "Total: " << total << "\n\n";

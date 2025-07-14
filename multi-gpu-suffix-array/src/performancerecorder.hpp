@@ -165,27 +165,18 @@ namespace perf_rec {
             }
         }
 
-        void writeMeas() const {
+        void writeMeas(char* outputFile) const {
             if (current_iteration == 0) {
-                print_single_rec_wrapped();
+                const StagePerformanceRecorder& rec = stage_recorders[0];
+                write(outputFile, rec);
                 return;
             }
-            std::cout << std::endl;
-
-            print_labels();
 
             if (stage_recorders.empty())
                 return;
 
-            for (int rep = 0; rep <= current_iteration; ++rep) {
-                const StagePerformanceRecorder& r = stage_recorders[rep];
-                print_recorder(r);
-            }
-
             if (current_iteration > 0) {
-                std::cout << std::endl << "Aggregated:" << std::endl;
-                print_labels();
-                print_recorder(aggregated);
+                write(outputFile, aggregated);
             }
         }
 
@@ -196,7 +187,9 @@ namespace perf_rec {
                 return 1;
             }
             for (int stage = 0; stage < NO_STAGES; ++stage) {
-                outFile << rec.get_all()[stage] << ";";
+                outFile << rec.get_all()[stage];
+                if (stage + 1 < NO_STAGES)
+                    outFile << ";";
             }
             outFile << std::endl;
             outFile.close();
