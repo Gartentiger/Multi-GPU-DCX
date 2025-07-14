@@ -42,8 +42,8 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 
-static const uint NUM_GPUS = 4;
-static const uint NUM_PER_NODE = 4;
+static const uint NUM_GPUS = 2;
+static const uint NUM_PER_NODE = 2;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -959,7 +959,7 @@ int main(int argc, char** argv)
     Communicator comm;
 
 
-    if (argc != 4)
+    if (argc != 3)
     {
         error("Usage: sa-test <ofile> <ifile> !");
     }
@@ -980,7 +980,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1 };
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids2, NUM_PER_NODE);
 
