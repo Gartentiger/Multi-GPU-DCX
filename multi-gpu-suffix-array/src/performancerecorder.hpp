@@ -7,11 +7,12 @@
 #include <iostream>
 #include <iomanip>
 #include "util.h"
+#include <fstream>
 
 namespace perf_rec {
 
-template <typename STAGE_ENUM, size_t NO_STAGES, typename TIME_MEASURE_T>
-class SimplePerformanceRecorder {
+    template <typename STAGE_ENUM, size_t NO_STAGES, typename TIME_MEASURE_T>
+    class SimplePerformanceRecorder {
     public:
         static const size_t _NO_STAGES = NO_STAGES;
         using measurements_t = std::array<TIME_MEASURE_T, NO_STAGES>;
@@ -47,11 +48,11 @@ class SimplePerformanceRecorder {
 
     private:
         measurements_t measurements;
-};
+    };
 
-template<typename STAGE_ENUM, size_t NO_STAGES, typename TIME_MEASURE_T>
-class PerformanceRecorder
-{
+    template<typename STAGE_ENUM, size_t NO_STAGES, typename TIME_MEASURE_T>
+    class PerformanceRecorder
+    {
     public:
         using stage_names_t = std::array<const char*, NO_STAGES>;
         using StagePerformanceRecorder = SimplePerformanceRecorder<STAGE_ENUM, NO_STAGES, TIME_MEASURE_T>;
@@ -65,7 +66,7 @@ class PerformanceRecorder
             stage_recorders.resize(std::max(iterations_prevues, size_t(1)));
 
             for (int i = 0; i < NO_STAGES; ++i) {
-                stage_col_widths[i] = std::max(MIN_COL_WIDTH, COL_PADDING+int(strlen(stage_names[i])));
+                stage_col_widths[i] = std::max(MIN_COL_WIDTH, COL_PADDING + int(strlen(stage_names[i])));
             }
         }
 
@@ -115,10 +116,10 @@ class PerformanceRecorder
         }
 
         TIME_MEASURE_T get_total() const {
-            if (current_iteration > 0)  {
+            if (current_iteration > 0) {
                 return aggregated.get_sum();
             }
-            else if(!stage_recorders.empty()) {
+            else if (!stage_recorders.empty()) {
                 return stage_recorders[0].get_sum();
             }
             return 0.0;
@@ -157,11 +158,49 @@ class PerformanceRecorder
                 print_recorder(r);
             }
 
-            if (current_iteration > 0)  {
+            if (current_iteration > 0) {
                 std::cout << std::endl << "Aggregated:" << std::endl;
                 print_labels();
                 print_recorder(aggregated);
             }
+        }
+
+        void writeMeas() const {
+            if (current_iteration == 0) {
+                print_single_rec_wrapped();
+                return;
+            }
+            std::cout << std::endl;
+
+            print_labels();
+
+            if (stage_recorders.empty())
+                return;
+
+            for (int rep = 0; rep <= current_iteration; ++rep) {
+                const StagePerformanceRecorder& r = stage_recorders[rep];
+                print_recorder(r);
+            }
+
+            if (current_iteration > 0) {
+                std::cout << std::endl << "Aggregated:" << std::endl;
+                print_labels();
+                print_recorder(aggregated);
+            }
+        }
+
+        int write(char* OutPath, const StagePerformanceRecorder& rec) const {
+            std::ofstream outFile(OutPath, std::ios::app);
+            if (!outFile.is_open()) {
+                std::cerr << "Error opening output file!" << std::endl;
+                return 1;
+            }
+            for (int stage = 0; stage < NO_STAGES; ++stage) {
+                outFile << rec.get_all()[stage] << ";";
+            }
+            outFile << std::endl;
+            outFile.close();
+            return 0;
         }
 
     private:
@@ -171,7 +210,7 @@ class PerformanceRecorder
         std::vector<StagePerformanceRecorder> stage_recorders;
         StagePerformanceRecorder aggregated;
         size_t current_iteration;
-};
+    };
 
 }
 

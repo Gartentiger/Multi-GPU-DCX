@@ -126,6 +126,7 @@ public:
         mfetch_rank_performance_recorder.print();
 
         std::cout << "\nLoop:\n";
+        // mloop_performance_recorder
         mloop_performance_recorder.print();
 
         std::cout << "\nPrepare final merge:\n";
@@ -133,7 +134,7 @@ public:
 
         std::cout << "\n\nMain:\n";
         mmain_performance_recorder.print();
-
+        // mmain_performance_recorder.write();
         float total = mmain_performance_recorder.get_total() + mloop_performance_recorder.get_total();
         std::cout << "\n" << "Total: " << total << "\n\n";
     }
