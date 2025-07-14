@@ -20,7 +20,7 @@
 #include "gossip/multisplit.cuh"
 #include "distrib_merge/distrib_merge.hpp"
 
-static const uint NUM_GPUS = 2;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -803,16 +803,16 @@ void print_device_info()
 }
 int main(int argc, char** argv)
 {
-    if (argc != 3)
+    if (argc != 4)
     {
-        error("Usage: sa-test <ofile> <ifile>!");
+        error("Usage: sa-test <ofile> <measureFile> <ifile>!");
     }
 
     char* input = nullptr;
     cudaSetDevice(0);
     size_t realLen;
     size_t maxLength = 1024 * 1024 * 250 * NUM_GPUS;
-    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, 0);
+    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
     //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
@@ -821,8 +821,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    // const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
-    MultiGPUContext<NUM_GPUS> context;
+    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
+    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #endif
     SuffixSorter sorter(context, realLen, input);
     sorter.alloc();
@@ -834,7 +834,7 @@ int main(int argc, char** argv)
     sorter.done();
 
     sorter.print_pd_stats();
-    sorter.get_perf_measurements().print();
+    sorter.get_perf_measurements().print(argv[2]);
 
     cudaFreeHost(input);
     CUERR;
