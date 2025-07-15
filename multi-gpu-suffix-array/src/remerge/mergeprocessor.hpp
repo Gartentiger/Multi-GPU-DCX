@@ -606,19 +606,26 @@ namespace crossGPUReMerge
             t.synchronize_and_start("allgather_two_search");
             MergeNode mergeNode = mnodes[world_rank()];
             // printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
-            size_t send_size = mergeNode.scheduled_work.searches.size();
-
-            std::vector<int64_t> send_search_result(send_size);
-            send_search_result.clear();
-            for (auto s : mergeNode.scheduled_work.searches)
-            {
-                // printf("[%lu] result before communication %u\n", world_rank(), *s->h_result_ptr);
-                send_search_result.push_back(*s->h_result_ptr);
+            size_t send_size_sum = 0;
+            for (MergeNode node : mnodes) {
+                send_size_sum += node.scheduled_work.searches.size();
             }
-            // printf("[%lu] before allgather\n", world_rank());
+            if (send_size_sum > 0) {
+                size_t send_size = mergeNode.scheduled_work.searches.size();
+                std::vector<int64_t> send_search_result(send_size);
+                send_search_result.clear();
+                for (auto s : mergeNode.scheduled_work.searches)
+                {
+                    // printf("[%lu] result before communication %u\n", world_rank(), *s->h_result_ptr);
+                    send_search_result.push_back(*s->h_result_ptr);
+                }
+                // printf("[%lu] before allgather\n", world_rank());
 
-            std::vector<int64_t> recv_search_result;
-            comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result));
+                std::vector<int64_t> recv_search_result;
+
+                comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result));
+            }
+
             t.stop();
             t.synchronize_and_start("memcpys");
 
