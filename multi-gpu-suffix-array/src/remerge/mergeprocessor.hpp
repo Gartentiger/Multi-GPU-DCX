@@ -19,7 +19,8 @@
 #include <kamping/checking_casts.hpp>
 #include <kamping/p2p/send.hpp>
 #include <kamping/p2p/isend.hpp>
-
+#include "kamping/measurements/printer.hpp"
+#include "kamping/measurements/timer.hpp"
 
 #include <kamping/p2p/recv.hpp>
 
@@ -279,9 +280,11 @@ namespace crossGPUReMerge
         template <class comp_func_t>
         void do_searches(comp_func_t comp)
         {
+            auto& t = kamping::measurements::timer();
+            t.synchronize_and_start("search");
             mhost_search_temp_allocator.reset();
             mcontext.sync_all_streams();
-            printf("[%lu] do_searches\n", world_rank());
+            // printf("[%lu] do_searches\n", world_rank());
 
             std::vector<SearchGPU<NUM_GPUS, key_t, int64_t>> searchesGPU;
             searchesGPU.clear();
@@ -294,6 +297,7 @@ namespace crossGPUReMerge
             // }
             // mcontext.sync_all_streams();
             // comm_world().barrier();
+            t.synchronize_and_start("in_node_find");
 
             // check for all merges that are in one node. They can be executed normally
             for (MergeNode& node : mnodes)
@@ -310,7 +314,7 @@ namespace crossGPUReMerge
                         }
                         ms->in_node_merge &= mcontext.get_peer_status(node.info.index, r.start.node) >= 1;
                     }
-                    printf("[%lu] multi search in node: %s\n", world_rank(), ms->in_node_merge ? "true" : "false");
+                    // printf("[%lu] multi search in node: %s\n", world_rank(), ms->in_node_merge ? "true" : "false");
                     if (ms->in_node_merge && world_rank() == node.info.index) {
                         ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
                         int i = 0;
@@ -318,7 +322,7 @@ namespace crossGPUReMerge
                         {
                             ad.lengths[i] = r.end.index - r.start.index;
                             ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
-                            printf("[%lu] i: %d, node: %u, index; %u, length: %lu\n", world_rank(), i, r.start.node, r.start.index, ad.lengths[i]);
+                            // printf("[%lu] i: %d, node: %u, index; %u, length: %lu\n", world_rank(), i, r.start.node, r.start.index, ad.lengths[i]);
                             i++;
                         }
                         const size_t result_buffer_length = ms->ranges.size() + 1;
@@ -327,7 +331,7 @@ namespace crossGPUReMerge
 
                         ms->d_result_ptr = dAlloc.get<int64_t>(result_buffer_length);
                         ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
-                        printf("[%lu] ranges.size(): %ld, split_index: %ld\n", world_rank(), (int64_t)ms->ranges.size(), (int64_t)ms->split_index);
+                        // printf("[%lu] ranges.size(): %ld, split_index: %ld\n", world_rank(), (int64_t)ms->ranges.size(), (int64_t)ms->split_index);
                         multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
                             comp,
                             (int64_t*)ms->d_result_ptr,
@@ -343,8 +347,11 @@ namespace crossGPUReMerge
                     }
                 }
             }
+            t.stop();
 
-            printf("[%lu] queue\n", world_rank());
+            t.synchronize_and_start("mult_way_k_Host");
+
+            // printf("[%lu] queue\n", world_rank());
             // queue work for the gpu associated with this process
             for (MergeNode& node : mnodes)
             {
@@ -361,7 +368,7 @@ namespace crossGPUReMerge
                     const size_t result_buffer_length = ms->ranges.size() + 1;
                     ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
 
-                    printf("[%lu] not in node\n", world_rank());
+                    // printf("[%lu] not in node\n", world_rank());
                     SearchGPU<NUM_GPUS, key_t, int64_t> sgpu;
                     ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
 
@@ -382,6 +389,7 @@ namespace crossGPUReMerge
 
                     Communicator c = comm_world().create_subcommunicators(ranks);
                     // could be multi threaded
+
                     std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp, c);
                     *(reinterpret_cast<uint*>(ms->h_result_ptr + result_buffer_length - 1)) = (uint)std::get<0>(ksmallest);
 
@@ -393,7 +401,7 @@ namespace crossGPUReMerge
                     searchesGPU.push_back(sgpu);
                 }
             }
-
+            t.stop();
 
             // for (auto searches : searchesGPU) {
                 //     printf("[%lu] ksmallest: %lu, %lu, %u\n", world_rank(), std::get<0>(searches.ksmallest), std::get<1>(searches.ksmallest), std::get<2>(searches.ksmallest));
@@ -401,22 +409,23 @@ namespace crossGPUReMerge
                 //printf("[%lu] searchesGPU.size(): %lu\n", world_rank(), searchesGPU.size());
 
                 //auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
-
+            t.synchronize_and_start("not_in_node_find");
             std::vector<int64_t> resultHost(searchesGPU.size());
             if (searchesGPU.size() > 0)
             {
-                printf("[%lu] result HOst\n", world_rank());
+                // printf("[%lu] result HOst\n", world_rank());
                 auto resultPtrDevice = dAlloc.get<int64_t>(searchesGPU.size());
                 find_partition_points << <1, searchesGPU.size(), 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[world_rank()].info.keys, comp, (uint)world_rank(), resultPtrDevice, searchesGPU.data());
 
                 cudaMemcpyAsync(resultHost.data(), resultPtrDevice,
                     searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
             }
-
+            t.stop();
             // sync again for next communication
             comm_world().barrier();
-            printf("[%lu] multi partition find done\n", world_rank());
+            // printf("[%lu] multi partition find done\n", world_rank());
 
+            t.synchronize_and_start("send_data");
             for (MergeNode& node : mnodes) {
                 int msgTag = 0;
                 for (auto s : node.scheduled_work.searches)
@@ -450,7 +459,9 @@ namespace crossGPUReMerge
                     msgTag++;
                 }
             }
+            t.stop();
 
+            t.synchronize_and_start("partition_search_two");
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
@@ -482,7 +493,7 @@ namespace crossGPUReMerge
                         }
                         else
                         {
-                            printf("[%lu] receiving search, no peer access\n", world_rank());
+                            // printf("[%lu] receiving search, no peer access\n", world_rank());
                             if (s->node_1 == world_rank())
                             {
                                 start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
@@ -514,10 +525,11 @@ namespace crossGPUReMerge
                     }
                 }
             }
-
+            t.stop();
             mcontext.sync_all_streams();
-            printf("[%lu] partition search working done\n", world_rank());
+            // printf("[%lu] partition search working done\n", world_rank());
 
+            t.synchronize_and_start("allgather_splitter_multi_split");
             std::vector<std::queue<int64_t>> resultSplitted;
             std::vector<int64_t> resultSplitIdx;
             auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
@@ -529,7 +541,11 @@ namespace crossGPUReMerge
                 }
                 resultSplitted.push_back(q);
             }
-            printf("[%lu] allgatg\n", world_rank());
+            t.stop();
+
+
+            t.synchronize_and_start("bcast_result_multi_split");
+            // printf("[%lu] allgatg\n", world_rank());
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
@@ -571,7 +587,7 @@ namespace crossGPUReMerge
                         comm_world().bcast(send_recv_buf(std::span<int64_t>(ms->h_result_ptr, ms->ranges.size() + 1)), root((size_t)node.info.index));
                         continue;
                     }
-                    printf("[%lu] after bcast\n", world_rank());
+                    // printf("[%lu] after bcast\n", world_rank());
 
                     if (!ms->used) {
                         ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
@@ -585,9 +601,11 @@ namespace crossGPUReMerge
                     }
                 }
             }
+            t.stop();
 
+            t.synchronize_and_start("allgather_two_search");
             MergeNode mergeNode = mnodes[world_rank()];
-            printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
+            // printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
             size_t send_size = mergeNode.scheduled_work.searches.size();
 
             std::vector<int64_t> send_search_result(send_size);
@@ -597,10 +615,12 @@ namespace crossGPUReMerge
                 // printf("[%lu] result before communication %u\n", world_rank(), *s->h_result_ptr);
                 send_search_result.push_back(*s->h_result_ptr);
             }
-            printf("[%lu] before allgather\n", world_rank());
+            // printf("[%lu] before allgather\n", world_rank());
 
             std::vector<int64_t> recv_search_result;
             comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result));
+            t.stop();
+            t.synchronize_and_start("memcpys");
 
             // printf("Allgather %lu\n", world_rank());
             int enumer = 0;
@@ -616,7 +636,7 @@ namespace crossGPUReMerge
                     enumer++;
                 }
             }
-            printf("[%lu] after allgather\n", world_rank());
+            // printf("[%lu] after allgather\n", world_rank());
             //}
             // printf("Searches done %lu\n", world_rank());
 
@@ -673,22 +693,31 @@ namespace crossGPUReMerge
                 for (auto s : node.scheduled_work.searches)
                 {
                     s->result = *s->h_result_ptr;
-                    printf("[%lu] search result: %ld\n", world_rank(), s->result);
+                    // printf("[%lu] search result: %ld\n", world_rank(), s->result);
                 }
 
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
                     ms->results.resize(ms->ranges.size());
                     memcpy(ms->results.data(), ms->h_result_ptr, ms->ranges.size() * sizeof(int64_t));
-                    for (int i = 0; i < ms->ranges.size(); i++) {
-                        printf("[%lu] results[%d] 2: %ld\n", world_rank(), i, ms->results[i]);
-                    }
+                    // for (int i = 0; i < ms->ranges.size(); i++) {
+                        // printf("[%lu] results[%d] 2: %ld\n", world_rank(), i, ms->results[i]);
+                    // }
 
                     ms->range_to_take_one_more = ms->h_result_ptr[ms->ranges.size()] & 0xffffffff;
-                    printf("[%lu] range_to_take_one_more: %ld\n", world_rank(), ms->range_to_take_one_more);
+                    // printf("[%lu] range_to_take_one_more: %ld\n", world_rank(), ms->range_to_take_one_more);
 
                 }
             }
+            t.stop();
+            t.stop();
+            t.aggregate_and_print(
+                kamping::measurements::SimpleJsonPrinter{ std::cout, {} }
+            );
+            std::cout << std::endl;
+            t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+            std::cout << std::endl;
+            exit(0);
         }
 
         void
