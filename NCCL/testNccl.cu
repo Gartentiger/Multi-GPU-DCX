@@ -22,10 +22,8 @@
 #include <kamping/p2p/isend.hpp>
 #include <kamping/request_pool.hpp>
 
-
-#ifdef
 #include "mpi-ext.h" /* Needed for CUDA-aware check */
-#endif
+
 
 static const size_t SEND_SIZE = 1024;
 static const size_t SEND_TIMES = 1024;
@@ -281,4 +279,4 @@ int main(int argc, char** argv)
     // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
     // std::cout << std::endl;
     return 0;
-}
+    }
