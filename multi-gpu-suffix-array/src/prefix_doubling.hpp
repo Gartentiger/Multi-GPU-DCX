@@ -706,22 +706,24 @@ private:
 
         mcontext.sync_default_streams();
         t.stop();
+
+        TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
+        TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
+
+        std::vector<crossGPUReMerge::MergeRange> ranges;
+        ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
+        t.synchronize_and_start("merge");
+        merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
+        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
+        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values, merge_nodes_info[world_rank()].num_elements, world_rank());
+        mcontext.sync_default_streams();
+        t.stop();
         t.aggregate_and_print(
             kamping::measurements::SimpleJsonPrinter{ std::cout }
         );
         std::cout << std::endl;
         t.aggregate_and_print(kamping::measurements::FlatPrinter{});
         std::cout << std::endl;
-        TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
-        TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
-
-        std::vector<crossGPUReMerge::MergeRange> ranges;
-        ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
-
-        merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
-        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
-        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values, merge_nodes_info[world_rank()].num_elements, world_rank());
-        mcontext.sync_default_streams();
         exit(0);
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
