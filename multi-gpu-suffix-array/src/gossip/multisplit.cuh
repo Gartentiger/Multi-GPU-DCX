@@ -103,11 +103,11 @@ public:
         }
         // this sync is mandatory
         context.sync_default_streams();
-        for (int i = 0; i < num_gpus; i++) {
-            for (int j = 0; j < num_gpus; j++) {
-                // printf("h_offsets[%d][%d]: %u\n", i, j, h_offsets[i][j]);
-            }
-        }
+        // for (int i = 0; i < num_gpus; i++) {
+        //     for (int j = 0; j < num_gpus; j++) {
+        //         // printf("h_offsets[%d][%d]: %u\n", i, j, h_offsets[i][j]);
+        //     }
+        // }
         // recover the partition table from accumulated counters
         for (uint gpu = 0; gpu < num_gpus; ++gpu) {
             for (uint64_t part = 0; part < num_gpus; ++part) {
@@ -120,5 +120,4 @@ public:
 
         return true;
     }
-
 };
