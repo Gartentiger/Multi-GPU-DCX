@@ -701,7 +701,7 @@ private:
             // else {
             //     std::span<uint64_t> recB(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
             //     comm_world().recv(recv_buf(recB), tag(i), recv_count(mgpus[i].working_len));
-            // }
+            // }    
         // }
 
         mcontext.sync_default_streams();
@@ -724,8 +724,9 @@ private:
         std::cout << std::endl;
         t.aggregate_and_print(kamping::measurements::FlatPrinter{});
         std::cout << std::endl;
-        exit(0);
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
+
+        exit(0);
     }
 
     void write_initial_ranks()

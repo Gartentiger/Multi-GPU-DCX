@@ -197,7 +197,7 @@ __global__  void multi_find_partition_points(ArrayDescriptor<MAX_GPUS, key_t, in
         k_index = std::get<1>(ksmallest);
         k_value = std::get<2>(ksmallest);
         *Safe_list = k_list_index;
-        printf("[%u] klist %u, kindex: %ld, kvalue: %u\n", thidx, k_list_index, k_index, k_value);
+        // printf("[%u] klist %u, kindex: %ld, kvalue: %u\n", thidx, k_list_index, k_index, k_value);
     }
 
     // TODO: optimize this
