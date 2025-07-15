@@ -562,7 +562,8 @@ private:
     // Sorting Sa_rank to Old_Ranks, Isa to Sa_index
     void initial_sort_64()
     {
-
+        auto& t = kamping::measurements::timer();
+        t.synchronize_and_start("initial_sort");
         const size_t SORT_DOWN_TO = 16;
         const size_t SORT_DOWN_TO_LAST = 13;
 
@@ -704,7 +705,13 @@ private:
         // }
 
         mcontext.sync_default_streams();
-
+        t.stop();
+        t.aggregate_and_print(
+            kamping::measurements::SimpleJsonPrinter{ std::cout }
+        );
+        std::cout << std::endl;
+        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        std::cout << std::endl;
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
         TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
 
@@ -715,7 +722,7 @@ private:
         //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
         //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values, merge_nodes_info[world_rank()].num_elements, world_rank());
         mcontext.sync_default_streams();
-
+        exit(0);
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 

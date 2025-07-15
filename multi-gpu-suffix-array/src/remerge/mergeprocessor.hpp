@@ -717,7 +717,7 @@ namespace crossGPUReMerge
             std::cout << std::endl;
             t.aggregate_and_print(kamping::measurements::FlatPrinter{});
             std::cout << std::endl;
-            exit(0);
+
         }
 
         void
