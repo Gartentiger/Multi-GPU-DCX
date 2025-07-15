@@ -610,6 +610,7 @@ namespace crossGPUReMerge
             for (MergeNode node : mnodes) {
                 send_size_sum += node.scheduled_work.searches.size();
             }
+            std::vector<int64_t> recv_search_result;
             if (send_size_sum > 0) {
                 size_t send_size = mergeNode.scheduled_work.searches.size();
                 std::vector<int64_t> send_search_result(send_size);
@@ -621,7 +622,6 @@ namespace crossGPUReMerge
                 }
                 // printf("[%lu] before allgather\n", world_rank());
 
-                std::vector<int64_t> recv_search_result;
 
                 comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result));
             }
