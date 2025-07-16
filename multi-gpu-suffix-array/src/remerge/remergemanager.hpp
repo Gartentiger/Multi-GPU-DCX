@@ -49,7 +49,7 @@ namespace crossGPUReMerge
             t.stop();
             //printf("init %lu\n", world_rank());
             t.synchronize_and_start("schedule_merges");
-            int it = 0;
+            int i = 0;
             while (schedule_micro_merges() > 0)
             {
                 t.synchronize_and_start("iteration:" + std::to_string(i));
