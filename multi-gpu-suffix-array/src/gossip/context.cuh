@@ -53,27 +53,12 @@ public:
     MultiGPUContext(const MultiGPUContext&) = delete;
     MultiGPUContext& operator=(const MultiGPUContext&) = delete;
 
-    MultiGPUContext(const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr, uint num_node = 4)
+    MultiGPUContext(ncclComm_t comm, const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr, uint num_node = 4)
     {
         num_per_node = num_node;
         node_id = uint(world_rank() / num_per_node);
-        ncclComm_t nccl_comm2;
-        ncclUniqueId Id;
-        printf("[%lu] Activating NCCL\n", world_rank());
-        if (world_rank() == 0) {
-            NCCLCHECK(ncclGetUniqueId(&Id));
-            printf("[%lu] Sending\n", world_rank());
-            comm_world().bcast_single(send_recv_buf(Id));
-        }
-        else {
-            printf("[%lu] Receiving\n", world_rank());
-            Id = comm_world().bcast_single<ncclUniqueId>();
-            printf("[%lu] Received\n", world_rank());
-        }
 
-        NCCLCHECK(ncclCommInitRank(&nccl_comm2, world_size(), Id, world_rank()));
-        printf("[%lu] Active nccl comm\n", world_rank());
-        nccl_comm = nccl_comm2;
+        nccl_comm = comm;
         // Copy num_gpus many device identifiers
 
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)

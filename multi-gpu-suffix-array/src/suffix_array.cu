@@ -957,7 +957,22 @@ int main(int argc, char** argv)
     using namespace kamping;
     kamping::Environment e;
     Communicator comm;
+    ncclComm_t nccl_comm;
+    ncclUniqueId Id;
+    printf("[%lu] Activating NCCL\n", world_rank());
+    if (world_rank() == 0) {
+        NCCLCHECK(ncclGetUniqueId(&Id));
+        printf("[%lu] Sending\n", world_rank());
+        comm_world().bcast_single(send_recv_buf(Id));
+    }
+    else {
+        printf("[%lu] Receiving\n", world_rank());
+        Id = comm_world().bcast_single<ncclUniqueId>();
+        printf("[%lu] Received\n", world_rank());
+    }
 
+    NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
+    printf("[%lu] Active nccl comm\n", world_rank());
 
     if (argc != 3)
     {
@@ -989,7 +1004,7 @@ int main(int argc, char** argv)
 #else
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
 
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids2, NUM_PER_NODE);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, NUM_PER_NODE);
 
 #endif
     SuffixSorter sorter(context, realLen, input);
