@@ -22,8 +22,6 @@
 #include <kamping/p2p/isend.hpp>
 #include <kamping/request_pool.hpp>
 
-#include "mpi-ext.h" /* Needed for CUDA-aware check */
-
 
 static const size_t SEND_SIZE = 1024;
 static const size_t SEND_TIMES = 1024;
@@ -50,33 +48,12 @@ static const size_t SEND_TIMES = 1024;
 
 int main(int argc, char** argv)
 {
-    printf("Compile time check:\n");
-#if defined(MPIX_CUDA_AWARE_SUPPORT) && MPIX_CUDA_AWARE_SUPPORT
-    printf("This MPI library has CUDA-aware support.\n", MPIX_CUDA_AWARE_SUPPORT);
-#elif defined(MPIX_CUDA_AWARE_SUPPORT) && !MPIX_CUDA_AWARE_SUPPORT
-    printf("This MPI library does not have CUDA-aware support.\n");
-#else
-    printf("This MPI library cannot determine if there is CUDA-aware support.\n");
-#endif /* MPIX_CUDA_AWARE_SUPPORT */
-
-    printf("Run time check:\n");
-#if defined(MPIX_CUDA_AWARE_SUPPORT)
-    if (1 == MPIX_Query_cuda_support()) {
-        printf("This MPI library has CUDA-aware support.\n");
-    }
-    else {
-        printf("This MPI library does not have CUDA-aware support.\n");
-    }
-#else /* !defined(MPIX_CUDA_AWARE_SUPPORT) */
-    printf("This MPI library cannot determine if there is CUDA-aware support.\n");
-#endif /* MPIX_CUDA_AWARE_SUPPORT */
-	return 0;
-	using namespace kamping;
+    using namespace kamping;
     kamping::Environment e;
     Communicator comm;
     int deviceCount;
     CUDACHECK(cudaGetDeviceCount(&deviceCount));
-    int deviceId = world_rank() % deviceCount;
+    int deviceId = world_rank() % (size_t)deviceCount;
     std::cout << "Device Id: " << deviceId << std::endl;
     CUDACHECK(cudaSetDevice(deviceId));
 #ifdef USE_NCCL
@@ -275,4 +252,4 @@ int main(int argc, char** argv)
     // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
     // std::cout << std::endl;
     return 0;
-    }
+}
