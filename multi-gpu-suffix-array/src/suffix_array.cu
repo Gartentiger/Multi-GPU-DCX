@@ -1,3 +1,4 @@
+#pragma once
 #include <cuda_runtime.h> // For syntax completion
 
 #include <cstdio>
@@ -41,6 +42,7 @@
 #include <kamping/communicator.hpp>
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
+
 
 static const uint NUM_GPUS = 4;
 static const uint NUM_PER_NODE = 4;
@@ -911,7 +913,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 };
 
@@ -951,90 +953,4 @@ void print_device_info()
         printf("  Unified addressing: %d\n",
             prop.unifiedAddressing);
     }
-}
-int main(int argc, char** argv)
-{
-    using namespace kamping;
-    kamping::Environment e;
-    Communicator comm;
-    ncclComm_t nccl_comm;
-    ncclUniqueId Id;
-    printf("[%lu] Activating NCCL\n", world_rank());
-    if (world_rank() == 0) {
-        NCCLCHECK(ncclGetUniqueId(&Id));
-        printf("[%lu] Sending\n", world_rank());
-        comm_world().bcast_single(send_recv_buf(Id));
-    }
-    else {
-        printf("[%lu] Receiving\n", world_rank());
-        Id = comm_world().bcast_single<ncclUniqueId>();
-        printf("[%lu] Received\n", world_rank());
-    }
-
-    NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
-    printf("[%lu] Active nccl comm\n", world_rank());
-
-    if (argc != 3)
-    {
-        error("Usage: sa-test <ofile> <ifile> !");
-    }
-
-    char* input = nullptr;
-    int devices;
-    cudaGetDeviceCount(&devices);
-    printf("[%lu] device count: %d\n", world_rank(), devices);
-    if (devices == 0) {
-        printf("[%lu] No GPU found\n", world_rank());
-        return 0;
-    }
-    cudaSetDevice(world_rank() % (size_t)devices);
-    CUERR;
-    size_t realLen;
-    size_t maxLength = 1024 * 1024 * 250 * NUM_GPUS;
-    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
-    comm.barrier();
-    CUERR;
-#ifdef DGX1_TOPOLOGY
-    //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
-    //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
-    //    const std::array<uint, NUM_GPUS> gpu_ids { 3, 2, 1, 0,    4, 5, 6, 7 };
-    const std::array<uint, NUM_GPUS> gpu_ids{ 3, 2, 1, 0, 4, 7, 6, 5 };
-
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
-#else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
-
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, NUM_PER_NODE);
-
-#endif
-    SuffixSorter sorter(context, realLen, input);
-
-    sorter.alloc();
-    // auto stringPath = ((std::string)argv[3]);
-    // int pos = stringPath.find_last_of("/\\");
-    // auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
-
-    // auto& t = kamping::measurements::timer();
-    // t.synchronize_and_start(fileName);
-    sorter.do_sa();
-    // t.stop();
-    // if (world_rank() == 0)
-    //     write_array(argv[2], sorter.get_result(), realLen);
-
-    sorter.done();
-
-    if (world_rank() == 0) {
-        sorter.print_pd_stats();
-        sorter.get_perf_measurements().print(argv[1]);
-    }
-
-    cudaFreeHost(input);
-    CUERR;
-    // std::ofstream outFile(argv[1], std::ios::app);
-    // t.aggregate_and_print(
-    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    // std::cout << std::endl;
-    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    // std::cout << std::endl;
-    return 0;
 }

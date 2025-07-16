@@ -11,7 +11,8 @@ set(CMAKE_CUDA_STANDARD 20)
 
 find_package(NVHPC REQUIRED COMPONENTS NCCL)
 
-add_executable(suffix_array 
+add_executable(suffix_array
+		src/main.cu 
                 src/util.h
                 src/util.cpp
                 src/suffix_types.h
