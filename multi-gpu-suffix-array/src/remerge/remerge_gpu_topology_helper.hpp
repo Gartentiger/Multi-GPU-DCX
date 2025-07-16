@@ -255,10 +255,10 @@ namespace crossGPUReMerge {
                         //     c.len * sizeof(typename mtypes::value_t),
                         //     mcontext.get_streams(node)[c.dest_node]);CUERR;
                     }
-                    t.stop_and_append();
+                    t.stop();
                     i += 2;
                 }
-                stop_and_append();
+                stop();
             }
             pool.wait_all();
             t.stop();
