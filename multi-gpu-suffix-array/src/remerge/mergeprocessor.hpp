@@ -850,12 +850,7 @@ namespace crossGPUReMerge
             mcontext.sync_all_streams();
             t.stop();
             t.stop();
-            t.aggregate_and_print(
-                kamping::measurements::SimpleJsonPrinter{ std::cout, {} }
-            );
-            std::cout << std::endl;
-            t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-            std::cout << std::endl;
+
         }
 
         void init_nodes(const std::array<MergeNodeInfo<mtypes>, NUM_GPUS>& merge_node_info)
