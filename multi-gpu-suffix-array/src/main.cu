@@ -19,7 +19,7 @@ int main(int argc, char** argv)
     ncclUniqueId Id;
     printf("[%lu] Activating NCCL\n", world_rank());
     if (world_rank() == 0) {
-        NCCLCHECK(ncclGetUniqueId(&Id));
+        ncclGetUniqueId(&Id);
         printf("[%lu] Sending\n", world_rank());
         comm_world().bcast_single(send_recv_buf(Id));
     }
@@ -29,7 +29,7 @@ int main(int argc, char** argv)
         printf("[%lu] Received\n", world_rank());
     }
 
-    NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
+    ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank());
     printf("[%lu] Active nccl comm\n", world_rank());
     return 0;
 }
