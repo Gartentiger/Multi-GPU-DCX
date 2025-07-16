@@ -171,7 +171,6 @@ int main(int argc, char** argv)
     }
 
 #else 
-    // Loop From https://github.com/olcf-tutorials/MPI_ping_pong/blob/master/cuda_staged/ping_pong_cuda_staged.cu
     for (int i = 0; i <= 27; i++) {
 
         long int N = 1 << i;
@@ -192,20 +191,16 @@ int main(int argc, char** argv)
         int tag2 = 20;
 
         int loop_count = 50;
-        MPI_Status stat;
+
         // Warm-up loop
         for (int i = 1; i <= 5; i++) {
             if (world_rank() == 0) {
-                CUDACHECK(cudaMemcpy(A, d_A, N * sizeof(double), cudaMemcpyDeviceToHost));
-                MPI_Send(A, N, MPI_DOUBLE, 1, tag1, MPI_COMM_WORLD);
-                MPI_Recv(A, N, MPI_DOUBLE, 1, tag2, MPI_COMM_WORLD, &stat);
-                CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
+                comm_world().send(send_buf(std::span<double>(d_A, N)), send_count(N), destination(1), tag(tag1));
+                comm_world().recv(recv_buf(std::span<double>(d_A, N)), recv_count(N), source(1), tag(tag2));
             }
             else if (world_rank() == 1) {
-                MPI_Recv(A, N, MPI_DOUBLE, 0, tag1, MPI_COMM_WORLD, &stat);
-                CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
-                CUDACHECK(cudaMemcpy(A, d_A, N * sizeof(double), cudaMemcpyDeviceToHost));
-                MPI_Send(A, N, MPI_DOUBLE, 0, tag2, MPI_COMM_WORLD);
+                comm_world().recv(recv_buf(std::span<double>(d_A, N)), recv_count(N), source(0), tag(tag1));
+                comm_world().send(send_buf(std::span<double>(d_A, N)), send_count(N), destination(0), tag(tag2));
             }
         }
 
@@ -215,16 +210,12 @@ int main(int argc, char** argv)
 
         for (int i = 1; i <= loop_count; i++) {
             if (world_rank() == 0) {
-                CUDACHECK(cudaMemcpy(A, d_A, N * sizeof(double), cudaMemcpyDeviceToHost));
-                MPI_Send(A, N, MPI_DOUBLE, 1, tag1, MPI_COMM_WORLD);
-                MPI_Recv(A, N, MPI_DOUBLE, 1, tag2, MPI_COMM_WORLD, &stat);
-                CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
+                comm_world().send(send_buf(std::span<double>(d_A, N)), send_count(N), destination(1), tag(tag1));
+                comm_world().recv(recv_buf(std::span<double>(d_A, N)), recv_count(N), source(1), tag(tag2));
             }
             else if (world_rank() == 1) {
-                MPI_Recv(A, N, MPI_DOUBLE, 0, tag1, MPI_COMM_WORLD, &stat);
-                CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
-                CUDACHECK(cudaMemcpy(A, d_A, N * sizeof(double), cudaMemcpyDeviceToHost));
-                MPI_Send(A, N, MPI_DOUBLE, 0, tag2, MPI_COMM_WORLD);
+                comm_world().recv(recv_buf(std::span<double>(d_A, N)), recv_count(N), source(0), tag(tag1));
+                comm_world().send(send_buf(std::span<double>(d_A, N)), send_count(N), destination(0), tag(tag2));
             }
         }
 
