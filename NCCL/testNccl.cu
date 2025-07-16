@@ -18,8 +18,8 @@
 #include <kamping/measurements/timer.hpp>
 #include <kamping/named_parameters.hpp>
 #include <kamping/communicator.hpp>
-#include <kamping/p2p/recv.hpp>
-#include <kamping/p2p/send.hpp>
+#include <kamping/p2p/irecv.hpp>
+#include <kamping/p2p/isend.hpp>
 #include <kamping/request_pool.hpp>
 
 
@@ -207,18 +207,18 @@ int main(int argc, char** argv)
         // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
         double start_time, stop_time, elapsed_time;
         start_time = MPI_Wtime();
-
+        RequestPool pool;
         for (int i = 1; i <= loop_count; i++) {
             if (world_rank() == 0) {
-                comm_world().send(send_buf(std::span<double>(d_A, N)), send_count(N), destination(1), tag(tag1));
-                comm_world().recv(recv_buf(std::span<double>(d_A, N)), recv_count(N), source(1), tag(tag2));
+                comm_world().isend(send_buf(std::span<double>(d_A, N)), send_count(N), destination(1), tag(tag1), request(pool.get_request()));
+                comm_world().irecv(recv_buf(std::span<double>(d_A, N)), recv_count(N), source(1), tag(tag2), request(pool.get_request()));
             }
             else if (world_rank() == 1) {
-                comm_world().recv(recv_buf(std::span<double>(d_A, N)), recv_count(N), source(0), tag(tag1));
-                comm_world().send(send_buf(std::span<double>(d_A, N)), send_count(N), destination(0), tag(tag2));
+                comm_world().isend(send_buf(std::span<double>(d_A, N)), send_count(N), destination(0), tag(tag2), request(pool.get_request()));
+                comm_world().irecv(recv_buf(std::span<double>(d_A, N)), recv_count(N), source(0), tag(tag1), request(pool.get_request()));
             }
         }
-
+        pool.wait_all();
         stop_time = MPI_Wtime();
         elapsed_time = stop_time - start_time;
 
