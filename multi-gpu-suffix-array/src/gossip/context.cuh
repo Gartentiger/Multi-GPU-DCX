@@ -60,7 +60,7 @@ public:
         ncclUniqueId Id;
         if (world_rank() == 0) {
             std::span<ncclUniqueId> unique(&Id, 1);
-            NCCLCHECK(ncclGetUniqueId(&Id));
+            ncclGetUniqueId(&Id);
             comm_world().bcast_single(send_recv_buf(Id));
         }
         else {
