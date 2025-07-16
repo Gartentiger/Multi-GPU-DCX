@@ -106,5 +106,5 @@ set(GEN_CODE_OPTIONS "--relocatable-device-code=false -gencode arch=compute_60,c
 
 set(CMAKE_CUDA_FLAGS "--expt-extended-lambda --expt-relaxed-constexpr -Wno-deprecated-declarations -g -O3 ${GEN_CODE_OPTIONS}")
 
-target_include_directories(suffix_array PRIVATE deps src build/_deps/kamping-src/include build/_deps/kassert-src/include build/_deps/pfr-src/include)
+#target_include_directories(suffix_array PRIVATE deps src build/_deps/kamping-src/include build/_deps/kassert-src/include build/_deps/pfr-src/include)
 

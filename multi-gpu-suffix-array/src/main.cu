@@ -17,6 +17,11 @@ int main(int argc, char** argv)
     Communicator comm;
     ncclComm_t nccl_comm;
     ncclUniqueId Id;
+    int device_count;
+    cudaGetDeviceCount(&device_count);
+    size_t dId = world_rank() % (size_t)device_count;
+    printf("[%lu] dId: %lu\n", world_rank(), dId);
+    cudaSetDevice(dId);
     printf("[%lu] Activating NCCL\n", world_rank());
     if (world_rank() == 0) {
         ncclGetUniqueId(&Id);
@@ -29,7 +34,7 @@ int main(int argc, char** argv)
         printf("[%lu] Received\n", world_rank());
     }
 
-    ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank());
+    ncclCommInitRank(&nccl_comm, world_size(), Id, dId);
     printf("[%lu] Active nccl comm\n", world_rank());
     return 0;
 }
