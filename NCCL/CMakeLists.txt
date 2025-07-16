@@ -1,29 +1,29 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(nccl LANGUAGES CXX CUDA)
 
-option(USE_NCCL "Use NCCL" ON)
+#option(USE_NCCL "Use NCCL" ON)
 
-set(CMAKE_CUDA_ARCHITECTURES 60)
+#set(CMAKE_CUDA_ARCHITECTURES 60)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CUDA_STANDARD 20)
+#set(CMAKE_CUDA_STANDARD 20)
 
-add_executable(nccl testNccl.cu)
+add_executable(nccl cuda_staged.cu)
 
-include(FetchContent)
-FetchContent_Declare(
-  kamping
-  GIT_REPOSITORY https://github.com/kamping-site/kamping.git
-  GIT_TAG v0.1.2
-)
+#include(FetchContent)
+#FetchContent_Declare(
+#  kamping
+#  GIT_REPOSITORY https://github.com/kamping-site/kamping.git
+#  GIT_TAG v0.1.2
+#)
 
-FetchContent_MakeAvailable(kamping)
-target_link_libraries(nccl PRIVATE kamping)
+#FetchContent_MakeAvailable(kamping)
+#target_link_libraries(nccl PRIVATE kamping)
 
 
-target_compile_options(kamping INTERFACE
-   $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-std=gnu++2a>)
+#target_compile_options(kamping INTERFACE
+#   $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-std=gnu++2a>)
 
 
 find_package(MPI REQUIRED)
@@ -41,5 +41,5 @@ endif()
 
 target_link_libraries(nccl PUBLIC MPI::MPI_CXX)
 
-target_include_directories(nccl PRIVATE build/_deps/cereal-src/include build/_deps/kamping-src/include build/_deps/kassert-src/include build/_deps/pfr-src/include)
+#target_include_directories(nccl PRIVATE build/_deps/cereal-src/include build/_deps/kamping-src/include build/_deps/kassert-src/include build/_deps/pfr-src/include)
 
