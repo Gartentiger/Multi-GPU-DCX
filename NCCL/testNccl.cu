@@ -18,8 +18,8 @@
 #include <kamping/measurements/timer.hpp>
 #include <kamping/named_parameters.hpp>
 #include <kamping/communicator.hpp>
-#include <kamping/p2p/irecv.hpp>
-#include <kamping/p2p/isend.hpp>
+#include <kamping/p2p/recv.hpp>
+#include <kamping/p2p/send.hpp>
 #include <kamping/request_pool.hpp>
 
 
