@@ -10,6 +10,7 @@
 #include <kamping/collectives/bcast.hpp>
 #include <kamping/environment.hpp>
 #include <span>
+#include <nccl.h>
 
 #include "../my_mgpu_context.hxx"
 
@@ -44,6 +45,7 @@ private:
     std::array<std::array<mgpu::my_mpgu_context_t*, NUM_GPUS>, NUM_GPUS> mpgu_contexts;
     std::array<QDAllocator, NUM_GPUS> mdevice_temp_allocators;
     uint node_id;
+    ncclComm_t nccl_comm;
 
 public:
     static const uint num_gpus = NUM_GPUS;
@@ -55,6 +57,17 @@ public:
     {
         num_per_node = num_node;
         node_id = uint(world_rank() / num_per_node);
+        ncclUniqueId Id;
+        if (world_rank() == 0) {
+            std::span<ncclUniqueId> unique(&Id, 1);
+            NCCLCHECK(ncclGetUniqueId(&Id));
+            comm_world().bcast_single(send_recv_buf(Id));
+        }
+        else {
+            Id = comm_world().bcast_single<ncclUniqueId>();
+        }
+
+        ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank());
 
         // Copy num_gpus many device identifiers
 
@@ -221,6 +234,10 @@ public:
             }
         }
         CUERR
+    }
+
+    ncclComm_t get_nccl() {
+        return nccl_comm;
     }
 
     uint get_node_id() {

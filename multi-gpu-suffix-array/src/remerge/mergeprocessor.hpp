@@ -718,13 +718,6 @@ namespace crossGPUReMerge
             }
             t.stop();
             t.stop();
-            t.aggregate_and_print(
-                kamping::measurements::SimpleJsonPrinter{ std::cout, {} }
-            );
-            std::cout << std::endl;
-            t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-            std::cout << std::endl;
-
         }
 
         void
