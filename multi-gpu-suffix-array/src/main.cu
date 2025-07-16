@@ -10,7 +10,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nccl.h>
 #include "cuda_helpers.h"
-#include "context.cuh"
+#include "gossip/context.cuh"
 #include "suffix_array.cu"
 
 static const uint NUM_GPUS = 4;

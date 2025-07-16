@@ -1,4 +1,3 @@
-#pragma once
 #include <cuda_runtime.h> // For syntax completion
 
 #include <cstdio>
@@ -913,7 +912,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 };
 
