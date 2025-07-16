@@ -50,17 +50,6 @@ static const size_t SEND_TIMES = 1024;
 
 int main(int argc, char** argv)
 {
-    using namespace kamping;
-    kamping::Environment e;
-    Communicator comm;
-    int deviceCount;
-    CUDACHECK(cudaGetDeviceCount(&deviceCount));
-    int deviceId = world_rank() % deviceCount;
-    std::cout << "Device Id: " << deviceId << std::endl;
-    CUDACHECK(cudaSetDevice(deviceId));
-
-
-
     printf("Compile time check:\n");
 #if defined(MPIX_CUDA_AWARE_SUPPORT) && MPIX_CUDA_AWARE_SUPPORT
     printf("This MPI library has CUDA-aware support.\n", MPIX_CUDA_AWARE_SUPPORT);
@@ -81,8 +70,15 @@ int main(int argc, char** argv)
 #else /* !defined(MPIX_CUDA_AWARE_SUPPORT) */
     printf("This MPI library cannot determine if there is CUDA-aware support.\n");
 #endif /* MPIX_CUDA_AWARE_SUPPORT */
-
-
+	return 0;
+	using namespace kamping;
+    kamping::Environment e;
+    Communicator comm;
+    int deviceCount;
+    CUDACHECK(cudaGetDeviceCount(&deviceCount));
+    int deviceId = world_rank() % deviceCount;
+    std::cout << "Device Id: " << deviceId << std::endl;
+    CUDACHECK(cudaSetDevice(deviceId));
 #ifdef USE_NCCL
     ncclComm_t nccl_comm;
     ncclUniqueId Id;
