@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(suffix_array LANGUAGES CXX CUDA)
 
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
 option(DGX1_TOPOLOGY "Handle DGX-1 topology" OFF)
 
 set(CMAKE_CUDA_ARCHITECTURES 60)
@@ -64,8 +66,15 @@ if(DGX1_TOPOLOGY)
     target_compile_definitions(suffix_array PRIVATE DGX1_TOPOLOGY)
 endif(DGX1_TOPOLOGY)
 
-set(NCCL_LIBRARY "/usr/lib/x86_64-linux-gnu/libnccl.so")
-target_link_libraries(suffix_array PRIVATE ${NCCL_LIBRARY})
+
+find_package(NCCL REQUIRED)
+if (NCCL_FOUND)
+    add_definitions(-DUSE_NCCL)
+    include_directories(SYSTEM ${NCCL_INCLUDE_DIR})
+endif ()
+
+#set(NCCL_LIBRARY "/usr/lib/x86_64-linux-gnu/libnccl.so")
+#target_link_libraries(suffix_array PRIVATE ${NCCL_LIBRARY})
 
 include(FetchContent)
 FetchContent_Declare(
