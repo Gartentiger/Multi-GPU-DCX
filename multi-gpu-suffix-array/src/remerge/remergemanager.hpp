@@ -76,9 +76,17 @@ namespace crossGPUReMerge
                 t.stop();
                 //                std::cerr << "\n\nNew iteration... ---------------------------------------------\n";
             }
+            mmerges.clear();
+            t.stop();
+
+            t.aggregate_and_print(
+                kamping::measurements::SimpleJsonPrinter{ std::cout }
+            );
+            std::cout << std::endl;
+            t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+            std::cout << std::endl;
             //            std::cerr << "\n\nFinished...\n";
             //            debug_print();
-            mmerges.clear();
         }
 
         void debug_print() const
