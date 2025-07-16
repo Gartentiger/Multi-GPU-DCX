@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <mpi.h>
-
+#include <chrono>
 // Macro for checking errors in CUDA API calls
 #define cudaErrorCheck(call)                                                              \
 do{                                                                                       \
@@ -12,110 +11,147 @@ do{                                                                             
 	}                                                                                     \
 }while(0)
 
+class Timer {
+private:
+	std::chrono::time_point<std::chrono::high_resolution_clock> start_time, end_time;
+	bool running = false;
 
-int main(int argc, char *argv[])
-{
-	/* -------------------------------------------------------------------------------------------
-		MPI Initialization 
-	--------------------------------------------------------------------------------------------*/
-	MPI_Init(&argc, &argv);
-
-	int size;
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-	MPI_Status stat;
-
-	if(size != 2){
-		if(rank == 0){
-			printf("This program requires exactly 2 MPI ranks, but you are attempting to use %d! Exiting...\n", size);
-		}
-		MPI_Finalize();
-		exit(0);
+public:
+	void start() {
+		start_time = std::chrono::high_resolution_clock::now();
+		running = true;
 	}
 
-    // Map MPI ranks to GPUs
-    int num_devices = 0;
-    cudaErrorCheck( cudaGetDeviceCount(&num_devices) );
-    cudaErrorCheck( cudaSetDevice(rank % num_devices) );
+	void stop() {
+		end_time = std::chrono::high_resolution_clock::now();
+		running = false;
+	}
+
+	double elapsedMilliseconds() const {
+		std::chrono::time_point<std::chrono::high_resolution_clock> end;
+		if (running) {
+			end = std::chrono::high_resolution_clock::now();
+		}
+		else {
+			end = end_time;
+		}
+		return std::chrono::duration<double, std::milli>(end - start_time).count();
+	}
+
+	double elapsedSeconds() const {
+		return elapsedMilliseconds() / 1000.0;
+	}
+};
+
+
+int main(int argc, char* argv[])
+{
+	cudaErrorCheck(cudaSetDevice(0));
+	cudaStream_t stream0;
+	cudaErrorCheck(cudaStreamCreate(&stream0));
+
+	cudaErrorCheck(cudaSetDevice(1));
+	cudaStream_t stream1;
+	cudaErrorCheck(cudaStreamCreate(&stream1));
+
+
+	cudaErrorCheck(cudaSetDevice(0));
+	int canAccess;
+	cudaErrorCheck(cudaDeviceCanAccessPeer(&canAccess, 0, 1));
+	if (canAccess) {
+		cudaErrorCheck(cudaDeviceEnablePeerAccess(1, 0));
+		printf("[0] peer to peer enabled\n");
+	}
+
+	cudaErrorCheck(cudaSetDevice(1));
+	cudaErrorCheck(cudaDeviceCanAccessPeer(&canAccess, 1, 0));
+	if (canAccess) {
+		cudaErrorCheck(cudaDeviceEnablePeerAccess(0, 0));
+		printf("[1] peer to peer enabled\n");
+	}
+
+
 
 	/* -------------------------------------------------------------------------------------------
 		Loop from 8 B to 1 GB
 	--------------------------------------------------------------------------------------------*/
 
-	for(int i=0; i<=27; i++){
+	for (int i = 0; i <= 27; i++) {
+		cudaErrorCheck(cudaSetDevice(1));
+		cudaErrorCheck(cudaStreamSynchronize(stream1));
+		cudaErrorCheck(cudaSetDevice(0));
+		cudaErrorCheck(cudaStreamSynchronize(stream0));
 
 		long int N = 1 << i;
-	
+
 		// Allocate memory for A on CPU
-		double *A = (double*)malloc(N*sizeof(double));
+		double* A;
+		cudaErrorCheck(cudaMallocHost(&A, N * sizeof(double)));
 
-        // Initialize all elements of A to random values
-        for(int i=0; i<N; i++){
-            A[i] = (double)rand()/(double)RAND_MAX;
-        }
+		// Allocate memory for A on CPU
+		cudaErrorCheck(cudaSetDevice(1));
+		double* B;
+		cudaErrorCheck(cudaMallocHost(&B, N * sizeof(double)));
 
-		double *d_A;
-		cudaErrorCheck( cudaMalloc(&d_A, N*sizeof(double)) );
-		cudaErrorCheck( cudaMemcpy(d_A, A, N*sizeof(double), cudaMemcpyHostToDevice) );
-	
+		// Initialize all elements of A to random values
+		for (int i = 0; i < N; i++) {
+			A[i] = (double)rand() / (double)RAND_MAX;
+			B[i] = (double)rand() / (double)RAND_MAX;
+		}
+
+		double* d_A;
+		double* d_B;
+		cudaErrorCheck(cudaSetDevice(0));
+		cudaErrorCheck(cudaMallocAsync(&d_A, N * sizeof(double), stream0));
+		cudaErrorCheck(cudaMemcpyAsync(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice, stream0));
+
+
+		cudaErrorCheck(cudaSetDevice(1));
+		cudaErrorCheck(cudaMallocAsync(&d_B, N * sizeof(double), stream1));
+		cudaErrorCheck(cudaMemcpyAsync(d_B, B, N * sizeof(double), cudaMemcpyHostToDevice, stream1));
+
+		cudaErrorCheck(cudaStreamSynchronize(stream1));
+		cudaErrorCheck(cudaSetDevice(0));
+		cudaErrorCheck(cudaStreamSynchronize(stream0));
 		int tag1 = 10;
 		int tag2 = 20;
-	
-		int loop_count = 50;
 
+		int loop_count = 50;
 		// Warm-up loop
-		for(int i=1; i<=5; i++){
-			if(rank == 0){
-				cudaErrorCheck( cudaMemcpy(A, d_A, N*sizeof(double), cudaMemcpyDeviceToHost) );
-				MPI_Send(A, N, MPI_DOUBLE, 1, tag1, MPI_COMM_WORLD);
-				MPI_Recv(A, N, MPI_DOUBLE, 1, tag2, MPI_COMM_WORLD, &stat);
-				cudaErrorCheck( cudaMemcpy(d_A, A, N*sizeof(double), cudaMemcpyHostToDevice) );
-			}
-			else if(rank == 1){
-				MPI_Recv(A, N, MPI_DOUBLE, 0, tag1, MPI_COMM_WORLD, &stat);
-				cudaErrorCheck( cudaMemcpy(d_A, A, N*sizeof(double), cudaMemcpyHostToDevice) );
-				cudaErrorCheck( cudaMemcpy(A, d_A, N*sizeof(double), cudaMemcpyDeviceToHost) );
-				MPI_Send(A, N, MPI_DOUBLE, 0, tag2, MPI_COMM_WORLD);
-			}
+		for (int i = 1; i <= 5; i++) {
+			cudaErrorCheck(cudaSetDevice(0));
+			cudaErrorCheck(cudaMemcpyPeer(d_B, 1, d_A, 0, N));
+			cudaErrorCheck(cudaSetDevice(1));
+			cudaErrorCheck(cudaMemcpyPeer(d_A, 0, d_B, 1, N));
 		}
 
 		// Time ping-pong for loop_count iterations of data transfer size 8*N bytes
 		double start_time, stop_time, elapsed_time;
-		start_time = MPI_Wtime();
-	
-		for(int i=1; i<=loop_count; i++){
-			if(rank == 0){
-				cudaErrorCheck( cudaMemcpy(A, d_A, N*sizeof(double), cudaMemcpyDeviceToHost) );
-				MPI_Send(A, N, MPI_DOUBLE, 1, tag1, MPI_COMM_WORLD);
-				MPI_Recv(A, N, MPI_DOUBLE, 1, tag2, MPI_COMM_WORLD, &stat);
-				cudaErrorCheck( cudaMemcpy(d_A, A, N*sizeof(double), cudaMemcpyHostToDevice) );
-			}
-			else if(rank == 1){
-				MPI_Recv(A, N, MPI_DOUBLE, 0, tag1, MPI_COMM_WORLD, &stat);
-				cudaErrorCheck( cudaMemcpy(d_A, A, N*sizeof(double), cudaMemcpyHostToDevice) );
-				cudaErrorCheck( cudaMemcpy(A, d_A, N*sizeof(double), cudaMemcpyDeviceToHost) );
-				MPI_Send(A, N, MPI_DOUBLE, 0, tag2, MPI_COMM_WORLD);
-			}
+		Timer t;
+		t.start();
+		for (int i = 1; i <= loop_count; i++) {
+			cudaErrorCheck(cudaSetDevice(0));
+			cudaErrorCheck(cudaMemcpyPeer(d_B, 1, d_A, 0, N));
+			cudaErrorCheck(cudaSetDevice(1));
+			cudaErrorCheck(cudaMemcpyPeer(d_A, 0, d_B, 1, N));
 		}
+		t.stop();
+		elapsed_time = t.elapsedMilliseconds();
 
-		stop_time = MPI_Wtime();
-		elapsed_time = stop_time - start_time;
-
-		long int num_B = 8*N;
+		long int num_B = 8 * N;
 		long int B_in_GB = 1 << 30;
 		double num_GB = (double)num_B / (double)B_in_GB;
-		double avg_time_per_transfer = elapsed_time / (2.0*(double)loop_count);
+		double avg_time_per_transfer = elapsed_time / (2.0 * (double)loop_count);
 
-		if(rank == 0) printf("Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", num_B, avg_time_per_transfer, num_GB/avg_time_per_transfer );
+		printf("Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", num_B, avg_time_per_transfer, num_GB / avg_time_per_transfer);
 
-		cudaErrorCheck( cudaFree(d_A) );
-		free(A);
+		cudaErrorCheck(cudaSetDevice(0));
+		cudaErrorCheck(cudaFreeAsync(d_A, stream0));
+		cudaErrorCheck(cudaFreeHost(A));
+		cudaErrorCheck(cudaSetDevice(1));
+		cudaErrorCheck(cudaFreeAsync(d_B, stream1));
+		cudaErrorCheck(cudaFreeHost(B));
 	}
-
-	MPI_Finalize();
 
 	return 0;
 }
