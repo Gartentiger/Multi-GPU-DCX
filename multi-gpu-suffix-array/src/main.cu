@@ -13,9 +13,6 @@
 #include "gossip/context.cuh"
 #include "suffix_array.cu"
 
-static const uint NUM_GPUS = 4;
-static const uint NUM_PER_NODE = 4;
-
 int main(int argc, char** argv)
 {
     using namespace kamping;
