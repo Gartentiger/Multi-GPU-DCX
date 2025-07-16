@@ -965,9 +965,11 @@ int main(int argc, char** argv)
     }
 
     char* input = nullptr;
-
-    cudaSetDevice(world_rank() % NUM_PER_NODE);
-
+    int devices;
+    printf("[%lu] device count: %d, device id: %lu\n", world_rank(), devices, world_rank() % (size_t)devices);
+    cudaGetDeviceCount(&devices);
+    cudaSetDevice(world_rank() % (size_t)devices);
+    CUERR;
     size_t realLen;
     size_t maxLength = 1024 * 1024 * 250 * NUM_GPUS;
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
