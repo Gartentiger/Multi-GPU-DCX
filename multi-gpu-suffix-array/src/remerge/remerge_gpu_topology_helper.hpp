@@ -197,12 +197,12 @@ namespace crossGPUReMerge {
         }
 
         void do_copies_async(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,
-            auto& t = kamping::measurements::timer();
-        t.synchronize_and_start("copie");
-        const std::array<size_t, NUM_GPUS>& detour_buffer_sizes,
+            const std::array<size_t, NUM_GPUS>& detour_buffer_sizes,
             bool do_values) const {
             using key_t = typename mtypes::key_t;
             using value_t = typename mtypes::value_t;
+            auto& t = kamping::measurements::timer();
+            t.synchronize_and_start("copie");
             // make sure computations are done before copying
             mcontext.sync_all_streams();
             // ncclComm_t nccl_comm = mcontext.get_nccl();
