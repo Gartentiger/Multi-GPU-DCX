@@ -64,6 +64,9 @@ if(DGX1_TOPOLOGY)
     target_compile_definitions(suffix_array PRIVATE DGX1_TOPOLOGY)
 endif(DGX1_TOPOLOGY)
 
+set(NCCL_LIBRARY "/usr/lib/x86_64-linux-gnu/libnccl.so")
+target_link_libraries(suffix_array PRIVATE ${NCCL_LIBRARY})
+
 include(FetchContent)
 FetchContent_Declare(
   kamping
