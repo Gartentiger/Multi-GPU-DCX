@@ -966,8 +966,12 @@ int main(int argc, char** argv)
 
     char* input = nullptr;
     int devices;
-    printf("[%lu] device count: %d, device id: %lu\n", world_rank(), devices, world_rank() % (size_t)devices);
     cudaGetDeviceCount(&devices);
+    printf("[%lu] device count: %d\n", world_rank(), devices);
+    if (devices == 0) {
+        printf("[%lu] No GPU found\n", world_rank());
+        return 0;
+    }
     cudaSetDevice(world_rank() % (size_t)devices);
     CUERR;
     size_t realLen;
