@@ -20,6 +20,8 @@
 #include <kamping/communicator.hpp>
 #include <kamping/p2p/irecv.hpp>
 #include <kamping/p2p/isend.hpp>
+#include <kamping/p2p/recv.hpp>
+#include <kamping/p2p/send.hpp>
 #include <kamping/request_pool.hpp>
 
 
@@ -168,7 +170,7 @@ int main(int argc, char** argv)
 
         CUDACHECK(cudaFree(d_A));
         free(A);
-    }
+}
 
 #else 
     for (int i = 0; i <= 27; i++) {
