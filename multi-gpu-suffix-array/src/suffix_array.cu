@@ -977,7 +977,8 @@ int main(int argc, char** argv)
     size_t realLen;
     size_t maxLength = 1024 * 1024 * 250 * NUM_GPUS;
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
-
+    comm.barrier();
+    CUERR;
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
     //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
