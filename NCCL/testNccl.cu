@@ -58,12 +58,13 @@ int main(int argc, char** argv)
     int deviceId = world_rank() % (size_t)deviceCount;
     std::cout << "Device Id: " << deviceId << std::endl;
     CUDACHECK(cudaSetDevice(deviceId));
+
 #ifdef USE_NCCL
     ncclComm_t nccl_comm;
     ncclUniqueId Id;
     if (world_rank() == 0) {
         std::span<ncclUniqueId> unique(&Id, 1);
-        ncclGetUniqueId(&Id);
+        NCCLCHECK(ncclGetUniqueId(&Id));
         comm_world().bcast_single(send_recv_buf(Id));
     }
     else {
@@ -124,40 +125,34 @@ int main(int argc, char** argv)
 
         int loop_count = 50;
         // Warm-up loop
+        ncclGroupStart();
         for (int i = 1; i <= 5; i++) {
+
             if (world_rank() == 0) {
-                CUDACHECK(cudaMemcpy(A, d_A, N * sizeof(double), cudaMemcpyDeviceToHost));
-                ncclSend(A, N, ncclDouble, 1, nccl_comm, stream);
-                ncclRecv(A, N, ncclDouble, 1, nccl_comm, stream);
-                CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
+                NCCLCHECK(ncclSend(d_A, N, ncclDouble, 1, nccl_comm, stream));
+                NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 1, nccl_comm, stream));
             }
             else if (world_rank() == 1) {
-                ncclRecv(A, N, ncclDouble, 0, nccl_comm, stream);
-                CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
-                CUDACHECK(cudaMemcpy(A, d_A, N * sizeof(double), cudaMemcpyDeviceToHost));
-                ncclSend(A, N, ncclDouble, 0, nccl_comm, stream);
+                NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 0, nccl_comm, stream));
+                NCCLCHECK(ncclSend(d_A, N, ncclDouble, 0, nccl_comm, stream));
             }
         }
-
+        ncclGroupEnd();
         // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
         double start_time, stop_time, elapsed_time;
         start_time = MPI_Wtime();
-
+        ncclGroupStart();
         for (int i = 1; i <= loop_count; i++) {
             if (world_rank() == 0) {
-                CUDACHECK(cudaMemcpy(A, d_A, N * sizeof(double), cudaMemcpyDeviceToHost));
-                ncclSend(A, N, ncclDouble, 1, nccl_comm, stream);
-                ncclRecv(A, N, ncclDouble, 1, nccl_comm, stream);
-                CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
+                NCCLCHECK(ncclSend(d_A, N, ncclDouble, 1, nccl_comm, stream));
+                NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 1, nccl_comm, stream));
             }
             else if (world_rank() == 1) {
-                ncclRecv(A, N, ncclDouble, 0, nccl_comm, stream);
-                CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
-                CUDACHECK(cudaMemcpy(A, d_A, N * sizeof(double), cudaMemcpyDeviceToHost));
-                ncclSend(A, N, ncclDouble, 0, nccl_comm, stream);
+                NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 0, nccl_comm, stream));
+                NCCLCHECK(ncclSend(d_A, N, ncclDouble, 0, nccl_comm, stream));
             }
         }
-
+        ncclGroupEnd();
         stop_time = MPI_Wtime();
         elapsed_time = stop_time - start_time;
 
@@ -170,7 +165,7 @@ int main(int argc, char** argv)
 
         CUDACHECK(cudaFree(d_A));
         free(A);
-}
+    }
 
 #else 
     for (int i = 0; i <= 27; i++) {

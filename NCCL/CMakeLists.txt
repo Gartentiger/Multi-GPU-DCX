@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(nccl LANGUAGES CXX CUDA)
 
-option(USE_NCCL "Use NCCL" OFF)
+option(USE_NCCL "Use NCCL" ON)
 
 #set(CMAKE_CUDA_ARCHITECTURES 60)
 set(CMAKE_CXX_STANDARD 20)
