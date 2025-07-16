@@ -197,7 +197,9 @@ namespace crossGPUReMerge {
         }
 
         void do_copies_async(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,
-            const std::array<size_t, NUM_GPUS>& detour_buffer_sizes,
+            auto& t = kamping::measurements::timer();
+        t.synchronize_and_start("copie");
+        const std::array<size_t, NUM_GPUS>& detour_buffer_sizes,
             bool do_values) const {
             using key_t = typename mtypes::key_t;
             using value_t = typename mtypes::value_t;
@@ -210,9 +212,10 @@ namespace crossGPUReMerge {
             (void)detour_buffer_sizes;
             int i = 0;
             for (uint node = 0; node < NUM_GPUS; ++node) {
-
+                t.start("copies_node");
                 //(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
+                    t.start("copie");
                     ASSERT(c.src_node == node);
                     //printf("[%lu] node: %u, c.src_node: %u, c.dest_node: %u, c.src_index %u, c.dest_index: %u, c.len: %lu\n", world_rank(), node, c.src_node, c.dest_node, c.src_index, c.dest_index, c.len);
                     // cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
@@ -252,10 +255,19 @@ namespace crossGPUReMerge {
                         //     c.len * sizeof(typename mtypes::value_t),
                         //     mcontext.get_streams(node)[c.dest_node]);CUERR;
                     }
+                    t.stop_and_append();
                     i += 2;
                 }
+                stop_and_append();
             }
             pool.wait_all();
+            t.stop();
+            t.aggregate_and_print(
+                kamping::measurements::SimpleJsonPrinter{ std::cout, {} }
+            );
+            std::cout << std::endl;
+            t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+            std::cout << std::endl;
             // ncclGroupEnd();
         }
     };
