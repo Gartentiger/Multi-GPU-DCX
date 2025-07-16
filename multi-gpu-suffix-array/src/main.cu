@@ -9,9 +9,6 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 #include <nccl.h>
-#include "cuda_helpers.h"
-#include "gossip/context.cuh"
-#include "suffix_array.cu"
 
 int main(int argc, char** argv)
 {
