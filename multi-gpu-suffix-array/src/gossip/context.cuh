@@ -57,18 +57,22 @@ public:
     {
         num_per_node = num_node;
         node_id = uint(world_rank() / num_per_node);
+        ncclComm_t nccl_comm2;
         ncclUniqueId Id;
+        printf("[%lu] Activating NCCL\n", world_rank());
         if (world_rank() == 0) {
-            std::span<ncclUniqueId> unique(&Id, 1);
-            ncclGetUniqueId(&Id);
+            NCCLCHECK(ncclGetUniqueId(&Id));
+            std::cout << "[" << world_rank() << "]" << " unique rank:" << Id << std::endl;
             comm_world().bcast_single(send_recv_buf(Id));
         }
         else {
             Id = comm_world().bcast_single<ncclUniqueId>();
+            std::cout << "[" << world_rank() << "]" << " unique rank:" << Id << std::endl;
         }
 
-        ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank());
-
+        NCCLCHECK(ncclCommInitRank(&nccl_comm2, world_size(), Id, world_rank()));
+        std::cout << "[" << world_rank() << "]" << " nccl active" << std::endl;
+        nccl_comm = nccl_comm2;
         // Copy num_gpus many device identifiers
 
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)

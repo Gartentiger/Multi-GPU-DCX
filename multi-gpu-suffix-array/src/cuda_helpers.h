@@ -18,6 +18,17 @@
     }                                                                        \
 }
 
+
+#define NCCLCHECK(cmd) do {                         \
+  ncclResult_t res = cmd;                           \
+  if (res != ncclSuccess) {                         \
+    printf("Failed, NCCL error %s:%d '%s'\n",       \
+        __FILE__,__LINE__,ncclGetErrorString(res)); \
+    exit(EXIT_FAILURE);                             \
+  }                                                 \
+} while(0)
+
+
 #define CUERR_CHECK(err) { \
     if ((err) != cudaSuccess) {                                              \
          error("CUDA error (%s, %d): %s", __FILE__, __LINE__, cudaGetErrorString(err)); \
