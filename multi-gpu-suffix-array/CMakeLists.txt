@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 project(suffix_array LANGUAGES CXX CUDA)
 
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-
 option(DGX1_TOPOLOGY "Handle DGX-1 topology" OFF)
 
 set(CMAKE_CUDA_ARCHITECTURES 60)
@@ -10,6 +8,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CUDA_STANDARD 20)
+
+find_package(NVHPC REQUIRED COMPONENTS NCCL)
 
 add_executable(suffix_array 
                 src/util.h
@@ -66,12 +66,7 @@ if(DGX1_TOPOLOGY)
     target_compile_definitions(suffix_array PRIVATE DGX1_TOPOLOGY)
 endif(DGX1_TOPOLOGY)
 
-
-find_package(NCCL REQUIRED)
-if (NCCL_FOUND)
-    add_definitions(-DUSE_NCCL)
-    include_directories(SYSTEM ${NCCL_INCLUDE_DIR})
-endif ()
+target_link_libraries(suffix_array PRIVATE NVHPC::NCCL)
 
 #set(NCCL_LIBRARY "/usr/lib/x86_64-linux-gnu/libnccl.so")
 #target_link_libraries(suffix_array PRIVATE ${NCCL_LIBRARY})
