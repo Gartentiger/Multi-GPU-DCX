@@ -62,16 +62,17 @@ public:
         printf("[%lu] Activating NCCL\n", world_rank());
         if (world_rank() == 0) {
             NCCLCHECK(ncclGetUniqueId(&Id));
-            std::cout << "[" << world_rank() << "]" << " unique rank:" << Id << std::endl;
+            printf("[%lu] Sending\n", world_rank());
             comm_world().bcast_single(send_recv_buf(Id));
         }
         else {
+            printf("[%lu] Receiving\n", world_rank());
             Id = comm_world().bcast_single<ncclUniqueId>();
-            std::cout << "[" << world_rank() << "]" << " unique rank:" << Id << std::endl;
+            printf("[%lu] Received\n", world_rank());
         }
 
         NCCLCHECK(ncclCommInitRank(&nccl_comm2, world_size(), Id, world_rank()));
-        std::cout << "[" << world_rank() << "]" << " nccl active" << std::endl;
+        printf("[%lu] Active nccl comm\n", world_rank());
         nccl_comm = nccl_comm2;
         // Copy num_gpus many device identifiers
 
