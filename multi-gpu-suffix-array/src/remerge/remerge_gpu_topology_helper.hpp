@@ -284,12 +284,12 @@ namespace crossGPUReMerge {
             }
             pool.wait_all();
             t.stop();
-            t.aggregate_and_print(
-                kamping::measurements::SimpleJsonPrinter{ std::cout, {} }
-            );
-            std::cout << std::endl;
-            t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-            std::cout << std::endl;
+            // t.aggregate_and_print(
+            //     kamping::measurements::SimpleJsonPrinter{ std::cout, {} }
+            // );
+            // std::cout << std::endl;
+            // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+            // std::cout << std::endl;
             //size_t world_ran = world_rank();
             // std::cout << "[" << world_ran << "]" << std::endl;
             // size_t j = 0;

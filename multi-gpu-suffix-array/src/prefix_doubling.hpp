@@ -727,7 +727,7 @@ private:
         std::cout << std::endl;
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
         comm_world().barrier();
-        exit(0);
+        //exit(0);
     }
 
     void write_initial_ranks()
@@ -1824,7 +1824,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
