@@ -224,44 +224,44 @@ namespace crossGPUReMerge {
                     //printf("[%lu] node: %u, c.src_node: %u, c.dest_node: %u, c.src_index %u, c.dest_index: %u, c.len: %lu\n", world_rank(), node, c.src_node, c.dest_node, c.src_index, c.dest_index, c.len);
 
                     if (c.src_node == world_rank()) {
-                        // if (mcontext.get_peer_status(c.src_node, c.dest_node) >= 1) {
-                        //     printf("[%lu] sending with memcpy\n", world_rank());
-                        //     key_t* src_k_buff = mnodes[c.src_node].info.keys;
-                        //     key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer;
-                        //     cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                        //         src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                        //         c.len * sizeof(typename mtypes::key_t),
-                        //         mcontext.get_streams(node)[c.dest_node]);CUERR;
-                        //     if (do_values) {
-                        //         value_t* src_v_buff = mnodes[c.src_node].info.values;
-                        //         value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer;
-                        //         cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                        //             src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                        //             c.len * sizeof(typename mtypes::value_t),
-                        //             mcontext.get_streams(node)[c.dest_node]);CUERR;
-                        //     }
-                        // }
-                        //else {
-                            //const
-                        send_counts.push_back(c.len * sizeof(key_t));
-                        key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
-                        // std::span<key_t> sb(src_k_buff, c.len);
-
-                        ncclSend(src_k_buff, sizeof(key_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
-                        // comm_world().isend(send_buf(sb), send_count(c.len), tag(i), destination((size_t)c.dest_node), request(pool.get_request()));
-                        if (do_values) {
-                            send_counts.push_back(c.len * sizeof(key_t));
-                            //const
-                            value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
-                            // std::span<value_t> sb(src_v_buff, c.len);
-                            ncclSend(src_v_buff, sizeof(value_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
-
-                            // comm_world().isend(send_buf(sb), send_count(c.len), tag(i + 1), destination((size_t)c.dest_node), request(pool.get_request()));
+                        if (mcontext.get_peer_status(c.src_node, c.dest_node) >= 1) {
+                            printf("[%lu] sending with memcpy\n", world_rank());
+                            key_t* src_k_buff = mnodes[c.src_node].info.keys;
+                            key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer;
+                            cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                                src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                                c.len * sizeof(typename mtypes::key_t),
+                                mcontext.get_streams(node)[c.dest_node]);CUERR;
+                            if (do_values) {
+                                value_t* src_v_buff = mnodes[c.src_node].info.values;
+                                value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer;
+                                cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                                    src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                                    c.len * sizeof(typename mtypes::value_t),
+                                    mcontext.get_streams(node)[c.dest_node]);CUERR;
+                            }
                         }
-                        //}
+                        else {
+                            //const
+                            send_counts.push_back(c.len * sizeof(key_t));
+                            key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
+                            // std::span<key_t> sb(src_k_buff, c.len);
+
+                            ncclSend(src_k_buff, sizeof(key_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+                            // comm_world().isend(send_buf(sb), send_count(c.len), tag(i), destination((size_t)c.dest_node), request(pool.get_request()));
+                            if (do_values) {
+                                send_counts.push_back(c.len * sizeof(key_t));
+                                //const
+                                value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
+                                // std::span<value_t> sb(src_v_buff, c.len);
+                                ncclSend(src_v_buff, sizeof(value_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+
+                                // comm_world().isend(send_buf(sb), send_count(c.len), tag(i + 1), destination((size_t)c.dest_node), request(pool.get_request()));
+                            }
+                        }
                     }
 
-                    if (c.dest_node == world_rank()) {
+                    if (c.dest_node == world_rank() && mcontext.get_peer_status(c.src_node, c.dest_node) < 1) {
                         key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
                         // std::span<key_t> rb(dest_k_buff, c.len);
                         ncclRecv(dest_k_buff, c.len * (sizeof(key_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(c.dest_node)[c.src_node]);
