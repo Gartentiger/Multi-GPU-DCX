@@ -111,6 +111,7 @@ int main(int argc, char** argv)
     double* other_d_A = reinterpret_cast<double*>(rawothersd_A);
     printf("[%lu] opened handle\n", world_rank());
     printArray << <1, 1 >> > (other_d_A, N, world_rank());
+    comm_world().barrier();
     if (world_rank() == 0) {
         cudaMemcpyPeer(other_d_A, 1, d_A, 0, N * sizeof(double));
     }
