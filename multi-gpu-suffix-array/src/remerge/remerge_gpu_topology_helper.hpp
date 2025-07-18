@@ -211,10 +211,14 @@ namespace crossGPUReMerge {
             //printf("[%lu] do values: %s\n", world_rank(), do_values ? "true" : "false");
             (void)detour_buffer_sizes;
             int i = 0;
+            std::vector<size_t> send_counts;
             for (uint node = 0; node < NUM_GPUS; ++node) {
                 t.start("copies_node");
                 //(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
+                    if (world_rank() == 0)
+                        printf("[%lu] src: %u, dst: %u\n", world_rank(), c.src_node, c.dest_node);
+
                     t.start("copie");
                     ASSERT(c.src_node == node);
                     //printf("[%lu] node: %u, c.src_node: %u, c.dest_node: %u, c.src_index %u, c.dest_index: %u, c.len: %lu\n", world_rank(), node, c.src_node, c.dest_node, c.src_index, c.dest_index, c.len);
@@ -224,12 +228,14 @@ namespace crossGPUReMerge {
                     //     mcontext.get_streams(node)[c.dest_node]);CUERR;
                     if (c.src_node == world_rank()) {
                         //const
+                        send_counts.push_back(c.len * sizeof(key_t));
                         key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
                         std::span<key_t> sb(src_k_buff, c.len);
 
                         // ncclSend(src_k_buff, sizeof(typename mtypes::key_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
                         comm_world().isend(send_buf(sb), send_count(c.len), tag(i), destination((size_t)c.dest_node), request(pool.get_request()));
                         if (do_values) {
+                            send_counts.push_back(c.len * sizeof(key_t));
                             //const
                             value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
                             std::span<value_t> sb(src_v_buff, c.len);
@@ -262,6 +268,12 @@ namespace crossGPUReMerge {
             }
             pool.wait_all();
             t.stop();
+            size_t j = 0;
+            for (size_t s : send_counts) {
+                printf("[%lu] send size: %lu\n", world_rank(), s);
+                j += s;
+            }
+            printf("[%lu] aggregated send size: %lu\n", world_rank(), j);
             t.aggregate_and_print(
                 kamping::measurements::SimpleJsonPrinter{ std::cout, {} }
             );
