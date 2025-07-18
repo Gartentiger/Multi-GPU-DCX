@@ -727,7 +727,7 @@ private:
         std::cout << std::endl;
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
         comm_world().barrier();
-        //exit(0);
+        exit(0);
     }
 
     void write_initial_ranks()
