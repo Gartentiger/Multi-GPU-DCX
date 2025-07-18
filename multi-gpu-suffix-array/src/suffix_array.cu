@@ -768,12 +768,13 @@ private:
             cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
         mcontext.sync_gpu_default_stream(gpu_index);
+
         MPI_File outputFile;
         MPI_File_open(MPI_COMM_WORLD, "outputData",
             MPI_MODE_CREATE | MPI_MODE_WRONLY,
             MPI_INFO_NULL, &outputFile);
-
-        MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        MPI_File_write_at_all(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        // MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
 
         MPI_File_close(&outputFile);
 
