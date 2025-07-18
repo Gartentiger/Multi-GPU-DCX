@@ -40,7 +40,8 @@ namespace distrib_merge {
             const DistributedArray& a, const DistributedArray& b,
             DistributedArray& out,
             bool do_values) const {
-            RequestPool pool;
+            // RequestPool pool;
+            ncclGroupStart();
             int msgTag = 0;
             for (uint node = 0; node < NUM_GPUS; ++node) {
                 //(mcontext.get_device_id(node));CUERR;
@@ -51,26 +52,31 @@ namespace distrib_merge {
                         //const
                         key_t* src_k_buff = c.extra ? b[c.src_node].keys : a[c.src_node].keys;
                         //key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
-                        std::span<key_t> sb(src_k_buff + c.src_index, c.len);
-                        comm_world().isend(send_buf(sb), send_count(c.len), tag(msgTag), destination((size_t)c.dest_node), request(pool.get_request()));
+                        // std::span<key_t> sb(src_k_buff + c.src_index, c.len);
+                        ncclSend(src_k_buff, sizeof(key_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+                        // comm_world().isend(send_buf(sb), send_count(c.len), tag(msgTag), destination((size_t)c.dest_node), request(pool.get_request()));
                         if (do_values) {
                             value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
                             //value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
-                            std::span<value_t> sb(src_v_buff + c.src_index, c.len);
-                            comm_world().isend(send_buf(sb), send_count(c.len), tag(msgTag + 1), destination((size_t)c.dest_node), request(pool.get_request()));
+                            // std::span<value_t> sb(src_v_buff + c.src_index, c.len);
+                            ncclSend(src_k_buff, sizeof(value_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+
+                            // comm_world().isend(send_buf(sb), send_count(c.len), tag(msgTag + 1), destination((size_t)c.dest_node), request(pool.get_request()));
 
                         }
                     }
                     if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = out[c.dest_node].keys_buffer + c.dest_index;
                         //key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
-                        std::span<key_t> rb(dest_k_buff, c.len);
-                        comm_world().irecv(recv_buf(rb), tag(msgTag), recv_count(c.len), request(pool.get_request()));
+                        // std::span<key_t> rb(dest_k_buff, c.len);
+                        // comm_world().irecv(recv_buf(rb), tag(msgTag), recv_count(c.len), request(pool.get_request()));
+                        ncclRecv(dest_k_buff, c.len * (sizeof(key_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
                         if (do_values) {
                             value_t* dest_v_buff = out[c.dest_node].values_buffer + c.dest_index;
                             //value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer + c.dest_index;
-                            std::span<value_t> rb(dest_v_buff, c.len);
-                            comm_world().irecv(recv_buf(rb), tag(msgTag + 1), recv_count(c.len), request(pool.get_request()));
+                            // std::span<value_t> rb(dest_v_buff, c.len);
+                            ncclRecv(dest_v_buff, c.len * (sizeof(value_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+                            // comm_world().irecv(recv_buf(rb), tag(msgTag + 1), recv_count(c.len), request(pool.get_request()));
                         }
                     }
                     msgTag += 2;
@@ -93,7 +99,8 @@ namespace distrib_merge {
                 // }
                 }
             }
-            pool.wait_all();
+            // pool.wait_all();
+            ncclGroupEnd();
         }
     };
 
