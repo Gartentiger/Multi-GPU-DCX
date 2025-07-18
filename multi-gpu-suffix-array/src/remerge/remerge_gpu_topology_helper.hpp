@@ -202,7 +202,7 @@ namespace crossGPUReMerge {
             using key_t = typename mtypes::key_t;
             using value_t = typename mtypes::value_t;
             auto& t = kamping::measurements::timer();
-            t.synchronize_and_start("copie");
+            t.synchronize_and_start("copies_async");
             // make sure computations are done before copying
             mcontext.sync_all_streams();
             // ncclComm_t nccl_comm = mcontext.get_nccl();
@@ -268,18 +268,21 @@ namespace crossGPUReMerge {
             }
             pool.wait_all();
             t.stop();
-            size_t j = 0;
-            for (size_t s : send_counts) {
-                printf("[%lu] send size: %lu\n", world_rank(), s);
-                j += s;
-            }
-            printf("[%lu] aggregated send size: %lu\n", world_rank(), j);
             t.aggregate_and_print(
                 kamping::measurements::SimpleJsonPrinter{ std::cout, {} }
             );
             std::cout << std::endl;
             t.aggregate_and_print(kamping::measurements::FlatPrinter{});
             std::cout << std::endl;
+            size_t world_ran = world_rank();
+            std::cout << "[" << world_ran << "]" << std::endl;
+            size_t j = 0;
+            for (size_t s : send_counts) {
+                printf("[%lu] send size: %lu\n", world_rank(), s);
+                j += s;
+            }
+            printf("[%lu] aggregated send size: %lu\n", world_rank(), j);
+
             // ncclGroupEnd();
         }
     };
