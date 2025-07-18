@@ -464,21 +464,22 @@ namespace crossGPUReMerge
                         if (s->node_1 == world_rank())
                         {
                             int64_t size_2 = s->node2_range.end - s->node2_range.start;
-                            cudaMallocAsync(&(mnodes[s->node_2].info.keys + s->node2_range.start), sizeof(key_t) * size_2, mcontext.get_streams(s->node_1)[s->node_2]);
+
+                            cudaMallocAsync(&(mnodes[s->node_2].info.keys), sizeof(key_t) * size_2, mcontext.get_streams(s->node_1)[s->node_2]);
 
                             // std::span<key_t> rb(start_2, size_2);
                             // comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_2));
-                            ncclRecv(mnodes[s->node_2].info.keys + s->node2_range.start, size_2 * sizeof(key_t), ncclChar, s->node_2, mcontext.get_nccl(), mcontext.get_streams(s->node_1)[s->node_2]);
+                            ncclRecv(mnodes[s->node_2].info.keys, size_2 * sizeof(key_t), ncclChar, s->node_2, mcontext.get_nccl(), mcontext.get_streams(s->node_1)[s->node_2]);
 
                         }
                         else {
                             int64_t size_1 = s->node1_range.end - s->node1_range.start;
 
-                            cudaMallocAsync(&(mnodes[s->node_1].info.keys + s->node1_range.start), sizeof(key_t) * size_1, mcontext.get_streams(s->node_2)[s->node_1]);
+                            cudaMallocAsync(&(mnodes[s->node_1].info.keys), sizeof(key_t) * size_1, mcontext.get_streams(s->node_2)[s->node_1]);
 
                             // std::span<key_t> rb(start_1, size_1);
                             // comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_1));
-                            ncclRecv(mnodes[s->node_1].info.keys + s->node1_range.start, size_1 * sizeof(key_t), ncclChar, s->node_1, mcontext.get_nccl(), mcontext.get_streams(s->node_2)[s->node_1]);
+                            ncclRecv(mnodes[s->node_1].info.keys, size_1 * sizeof(key_t), ncclChar, s->node_1, mcontext.get_nccl(), mcontext.get_streams(s->node_2)[s->node_1]);
                         }
                         // std::span<key_t> rb(otherKey, otherSize);
                     }
@@ -512,18 +513,19 @@ namespace crossGPUReMerge
                         key_t* start_2;
                         key_t* tempRef = nullptr;
 
-                        start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
-                        start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
 
                         if (other == node.info.index || mcontext.get_peer_status(world_rank(), other) >= 1)
                         {
+                            start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
+                            start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                         }
                         else
                         {
                             // printf("[%lu] receiving search, no peer access\n", world_rank());
                             if (s->node_1 == world_rank())
                             {
-                                // start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
+                                start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
+                                start_2 = mnodes[s->node_2].info.keys;
                                 tempRef = start_2;
                                 // cudaMalloc(&start_2, sizeof(key_t) * size_2);
                                 // tempRef = start_2;
@@ -532,13 +534,14 @@ namespace crossGPUReMerge
                             }
                             else
                             {
+                                start_1 = mnodes[s->node_1].info.keys;
+                                start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                                 tempRef = start_1;
                                 // cudaMalloc(&start_1, sizeof(key_t) * size_1);
                                 // tempRef = start_1;
                                 // std::span<key_t> rb(start_1, size_1);
                                 // comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_1));
 
-                                // start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                             }
                         }
 
