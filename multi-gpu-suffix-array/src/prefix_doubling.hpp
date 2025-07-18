@@ -717,17 +717,17 @@ private:
         //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
         //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values, merge_nodes_info[world_rank()].num_elements, world_rank());
         mcontext.sync_default_streams();
-        comm_world().barrier();
+        // comm_world().barrier();
         t.stop();
-        t.aggregate_and_print(
-            kamping::measurements::SimpleJsonPrinter{ std::cout }
-        );
-        std::cout << std::endl;
-        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        std::cout << std::endl;
+        // t.aggregate_and_print(
+        //     kamping::measurements::SimpleJsonPrinter{ std::cout }
+        // );
+        // std::cout << std::endl;
+        // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        // std::cout << std::endl;
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
-        comm_world().barrier();
-        exit(0);
+        // comm_world().barrier();
+        // exit(0);
     }
 
     void write_initial_ranks()
