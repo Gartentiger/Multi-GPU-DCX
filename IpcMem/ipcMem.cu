@@ -79,7 +79,7 @@ int main(int argc, char** argv)
             }
         }
     }
-    long int N = 1 << 10;
+    long int N = 1 << 5;
 
     // Allocate memory for A on CPU
     double* A = (double*)malloc(N * sizeof(double));
@@ -111,6 +111,16 @@ int main(int argc, char** argv)
     double* other_d_A = reinterpret_cast<double*>(rawothersd_A);
     printf("[%lu] opened handle\n", world_rank());
     printArray << <1, 1 >> > (other_d_A, N, world_rank());
+    if (world_rank() == 0) {
+        cudaMemcpyPeer(other_d_A, 1, d_A, 0, N * sizeof(double));
+    }
+    comm_world().barrier();
+    if (world_rank() == 0) {
+        printArray << <1, 1 >> > (other_d_A, N, world_rank());
+    }
+    else {
+        printArray << <1, 1 >> > (d_A, N, world_rank());
+    }
     cudaIpcCloseMemHandle(other_d_A);
     comm_world().barrier();
     cudaFree(d_A);
