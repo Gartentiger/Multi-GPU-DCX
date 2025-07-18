@@ -40,6 +40,7 @@ namespace distrib_merge {
             const DistributedArray& a, const DistributedArray& b,
             DistributedArray& out,
             bool do_values) const {
+            ncclComm_t nccl_comm = mcontext.get_nccl();
             // RequestPool pool;
             ncclGroupStart();
             int msgTag = 0;
