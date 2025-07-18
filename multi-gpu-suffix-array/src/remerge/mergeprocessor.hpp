@@ -422,17 +422,19 @@ namespace crossGPUReMerge
             }
             t.stop();
             // sync again for next communication
-            comm_world().barrier();
+            // comm_world().barrier();
             // printf("[%lu] multi partition find done\n", world_rank());
 
             t.synchronize_and_start("send_data");
+            ncclGroupStart();
             for (MergeNode& node : mnodes) {
                 int msgTag = 0;
                 for (auto s : node.scheduled_work.searches)
                 {
+                    assert(node.info.index == s->node_1 || node.info.index == s->node_2);
+
                     if (node.info.index != world_rank())
                     {
-                        assert(node.info.index == s->node_1 || node.info.index == s->node_2);
                         // we have peer access no need to send data
                         if (mcontext.get_peer_status(world_rank(), node.info.index) >= 1) {
                             msgTag++;
@@ -442,19 +444,43 @@ namespace crossGPUReMerge
                         if (s->node_1 == world_rank())
                         {
                             key_t* start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
-                            int64_t size_1 = s->node1_range.end - s->node1_range.start;
 
-                            std::span<key_t> sb(start_1, size_1);
-                            comm_world().isend(send_buf(sb), tag(msgTag), send_count(size_1), destination((size_t)node.info.index));
+                            int64_t size_1 = s->node1_range.end - s->node1_range.start;
+                            // std::span<key_t> sb(start_1, size_1);
+                            ncclSend(start_1, size_1 * sizeof(key_t), ncclChar, s->node_2, mcontext.get_nccl(), mcontext.get_streams(s->node_1)[s->node_2]);
+
+                            // comm_world().isend(send_buf(sb), tag(msgTag), send_count(size_1), destination((size_t)node.info.index));
                         }
                         else if (s->node_2 == world_rank())
                         {
                             key_t* start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                             int64_t size_2 = s->node2_range.end - s->node2_range.start;
-
-                            std::span<key_t> sb(start_2, size_2);
-                            comm_world().isend(send_buf(sb), tag(msgTag), send_count(size_2), destination((size_t)node.info.index));
+                            ncclSend(start_2, size_2 * sizeof(key_t), ncclChar, s->node_1, mcontext.get_nccl(), mcontext.get_streams(s->node_2)[s->node_1]);
+                            // std::span<key_t> sb(start_2, size_2);
+                            // comm_world().isend(send_buf(sb), tag(msgTag), send_count(size_2), destination((size_t)node.info.index));
                         }
+                    }
+                    else {
+                        if (s->node_1 == world_rank())
+                        {
+                            int64_t size_2 = s->node2_range.end - s->node2_range.start;
+                            cudaMallocAsync(&(mnodes[s->node_2].info.keys + s->node2_range.start), sizeof(key_t) * size_2, mcontext.get_streams(s->node_1)[s->node_2]);
+
+                            // std::span<key_t> rb(start_2, size_2);
+                            // comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_2));
+                            ncclRecv(mnodes[s->node_2].info.keys + s->node2_range.start, size_2 * sizeof(key_t), ncclChar, s->node_2, mcontext.get_nccl(), mcontext.get_streams(s->node_1)[s->node_2]);
+
+                        }
+                        else {
+                            int64_t size_1 = s->node1_range.end - s->node1_range.start;
+
+                            cudaMallocAsync(&(mnodes[s->node_1].info.keys + s->node1_range.start), sizeof(key_t) * size_1, mcontext.get_streams(s->node_2)[s->node_1]);
+
+                            // std::span<key_t> rb(start_1, size_1);
+                            // comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_1));
+                            ncclRecv(mnodes[s->node_1].info.keys + s->node1_range.start, size_1 * sizeof(key_t), ncclChar, s->node_1, mcontext.get_nccl(), mcontext.get_streams(s->node_2)[s->node_1]);
+                        }
+                        // std::span<key_t> rb(otherKey, otherSize);
                     }
                     msgTag++;
                 }
@@ -486,31 +512,33 @@ namespace crossGPUReMerge
                         key_t* start_2;
                         key_t* tempRef = nullptr;
 
+                        start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
+                        start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
+
                         if (other == node.info.index || mcontext.get_peer_status(world_rank(), other) >= 1)
                         {
-                            start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
-                            start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                         }
                         else
                         {
                             // printf("[%lu] receiving search, no peer access\n", world_rank());
                             if (s->node_1 == world_rank())
                             {
-                                start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
-
-                                cudaMalloc(&start_2, sizeof(key_t) * size_2);
+                                // start_1 = mnodes[s->node_1].info.keys + s->node1_range.start;
                                 tempRef = start_2;
-                                std::span<key_t> rb(start_2, size_2);
-                                comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_2));
+                                // cudaMalloc(&start_2, sizeof(key_t) * size_2);
+                                // tempRef = start_2;
+                                // std::span<key_t> rb(start_2, size_2);
+                                // comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_2));
                             }
                             else
                             {
-                                cudaMalloc(&start_1, sizeof(key_t) * size_1);
                                 tempRef = start_1;
-                                std::span<key_t> rb(start_1, size_1);
-                                comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_1));
+                                // cudaMalloc(&start_1, sizeof(key_t) * size_1);
+                                // tempRef = start_1;
+                                // std::span<key_t> rb(start_1, size_1);
+                                // comm_world().recv(recv_buf(rb), tag(msgTag++), recv_count(size_1));
 
-                                start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
+                                // start_2 = mnodes[s->node_2].info.keys + s->node2_range.start;
                             }
                         }
 
@@ -525,6 +553,7 @@ namespace crossGPUReMerge
                     }
                 }
             }
+            ncclGroupEnd();
             t.stop();
             mcontext.sync_all_streams();
             // printf("[%lu] partition search working done\n", world_rank());
@@ -760,6 +789,8 @@ namespace crossGPUReMerge
                     }
                 }
             }
+            t.stop();
+            t.synchronize_and_start("sync_do_copies_async");
             mcontext.sync_all_streams();
             t.stop();
             //            if (dbg_func)

@@ -236,7 +236,7 @@ namespace distrib_merge {
                 }
             }
 
-            comm_world().barrier();
+            // comm_world().barrier();
 
             int offset = 0;
 

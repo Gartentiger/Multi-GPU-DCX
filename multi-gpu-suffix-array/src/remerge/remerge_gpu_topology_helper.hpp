@@ -245,7 +245,7 @@ namespace crossGPUReMerge {
                             //const
                         send_counts.push_back(c.len * sizeof(key_t));
                         key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
-                        std::span<key_t> sb(src_k_buff, c.len);
+                        // std::span<key_t> sb(src_k_buff, c.len);
 
                         ncclSend(src_k_buff, sizeof(key_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
                         // comm_world().isend(send_buf(sb), send_count(c.len), tag(i), destination((size_t)c.dest_node), request(pool.get_request()));
@@ -253,7 +253,7 @@ namespace crossGPUReMerge {
                             send_counts.push_back(c.len * sizeof(key_t));
                             //const
                             value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
-                            std::span<value_t> sb(src_v_buff, c.len);
+                            // std::span<value_t> sb(src_v_buff, c.len);
                             ncclSend(src_v_buff, sizeof(value_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
 
                             // comm_world().isend(send_buf(sb), send_count(c.len), tag(i + 1), destination((size_t)c.dest_node), request(pool.get_request()));
@@ -263,12 +263,12 @@ namespace crossGPUReMerge {
 
                     if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
-                        std::span<key_t> rb(dest_k_buff, c.len);
+                        // std::span<key_t> rb(dest_k_buff, c.len);
                         ncclRecv(dest_k_buff, c.len * (sizeof(key_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
                         //comm_world().irecv(recv_buf(rb), tag(i), recv_count(c.len), request(pool.get_request()));
                         if (do_values) {
                             value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer + c.dest_index;
-                            std::span<value_t> rb(dest_v_buff, c.len);
+                            // std::span<value_t> rb(dest_v_buff, c.len);
                             ncclRecv(dest_v_buff, c.len * (sizeof(value_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
                             //comm_world().irecv(recv_buf(rb), tag(i + 1), recv_count(c.len), request(pool.get_request()));
                         }
