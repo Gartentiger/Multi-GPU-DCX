@@ -42,7 +42,7 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 8;
 static const uint NUM_PER_NODE = 4;
 
 #ifdef DGX1_TOPOLOGY
