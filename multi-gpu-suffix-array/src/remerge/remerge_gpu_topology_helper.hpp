@@ -264,12 +264,12 @@ namespace crossGPUReMerge {
                     if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
                         // std::span<key_t> rb(dest_k_buff, c.len);
-                        ncclRecv(dest_k_buff, c.len * (sizeof(key_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+                        ncclRecv(dest_k_buff, c.len * (sizeof(key_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(c.dest_node)[c.src_node]);
                         //comm_world().irecv(recv_buf(rb), tag(i), recv_count(c.len), request(pool.get_request()));
                         if (do_values) {
                             value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer + c.dest_index;
                             // std::span<value_t> rb(dest_v_buff, c.len);
-                            ncclRecv(dest_v_buff, c.len * (sizeof(value_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+                            ncclRecv(dest_v_buff, c.len * (sizeof(value_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(c.dest_node)[c.src_node]);
                             //comm_world().irecv(recv_buf(rb), tag(i + 1), recv_count(c.len), request(pool.get_request()));
                         }
                         // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),

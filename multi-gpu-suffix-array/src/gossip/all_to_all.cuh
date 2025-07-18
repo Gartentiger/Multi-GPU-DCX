@@ -62,7 +62,7 @@ namespace gossip {
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         // std::span<key_t> rb(to_k, len);
 
-                        ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+                        ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
 
                         // comm_world().irecv(recv_buf(rb), recv_count(len), tag(msgTag), request(pool.get_request()));
                     }
@@ -122,10 +122,10 @@ namespace gossip {
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
                         // std::span<key_t> rb(to_k, len);
-                        ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+                        ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
 
                         // comm_world().irecv(recv_buf(rb), tag(i), recv_count(len), request(pool.get_request()));
-                        ncclRecv(to_v, sizeof(value_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+                        ncclRecv(to_v, sizeof(value_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
                         // std::span<value_t> rbValue(to_v, len);
                         // comm_world().irecv(recv_buf(rbValue), tag(i + 1), recv_count(len), request(pool.get_request()));
                     }
