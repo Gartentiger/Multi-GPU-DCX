@@ -486,6 +486,8 @@ namespace crossGPUReMerge
                     msgTag++;
                 }
             }
+            ncclGroupEnd();
+
             t.stop();
 
             t.synchronize_and_start("partition_search_two");
@@ -556,7 +558,6 @@ namespace crossGPUReMerge
                     }
                 }
             }
-            ncclGroupEnd();
             t.stop();
             mcontext.sync_all_streams();
             // printf("[%lu] partition search working done\n", world_rank());
