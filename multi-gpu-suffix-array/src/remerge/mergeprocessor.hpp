@@ -765,8 +765,8 @@ namespace crossGPUReMerge
         template <class comp_fun_t>
         void do_copy_and_merge(comp_fun_t comp, std::function<void()> dbg_func)
         {
-            // auto& t = kamping::measurements::timer();
-            // t.synchronize_and_start("do_copy_and_merge");
+            auto& t = kamping::measurements::timer();
+            t.start("do_copy_and_merge");
             (void)dbg_func;
             std::array<std::vector<InterNodeCopy>, NUM_GPUS> copies = partitions_to_copies<NUM_GPUS, mtypes>(mnodes);
             std::array<size_t, NUM_GPUS> detour_sizes;
@@ -777,7 +777,7 @@ namespace crossGPUReMerge
             // t.synchronize_and_start("bcast_do_values");
             comm_world().bcast_single(send_recv_buf(do_values), root(0));
             // t.stop();
-            // t.synchronize_and_start("do_copies_async");
+            t.start("do_copies_async");
             mtopology_helper.do_copies_async(copies, detour_sizes, do_values);
             // t.stop();
             // t.synchronize_and_start("multi_mergers");
@@ -796,7 +796,7 @@ namespace crossGPUReMerge
             // t.stop();
             // t.synchronize_and_start("sync_do_copies_async");
             mcontext.sync_all_streams();
-            // t.stop();
+            t.stop_and_append();
             //            if (dbg_func)
             //                dbg_func();
             // t.synchronize_and_start("mgpu::merge");
@@ -883,7 +883,7 @@ namespace crossGPUReMerge
                 }
             }
             mcontext.sync_all_streams();
-            // t.stop();
+            t.stop_and_append();
             // t.stop();
 
         }

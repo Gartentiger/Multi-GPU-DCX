@@ -233,7 +233,12 @@ public:
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(4);
-
+        auto& t = kamping::measurements::timer();
+        t.aggregate_and_print(
+            kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
+        std::cout << std::endl;
+        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        std::cout << std::endl;
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
