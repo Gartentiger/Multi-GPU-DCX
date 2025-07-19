@@ -1181,10 +1181,10 @@ private:
             multi_split_node_info[gpu_index].dest_values = gpu.Temp2;
             multi_split_node_info[gpu_index].dest_len = gpu.working_len;
 
-            // if (gpu_index == world_rank()) {
+            if (gpu_index == world_rank()) {
                 //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
-            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
-            // }
+                mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
+            }
         }
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
@@ -1215,10 +1215,12 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-        // comm_world().barrier();
+        comm_world().barrier();
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
         printf("[%lu] mall2all isa stage\n", world_rank());
+        comm_world().barrier();
+
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::Sort);
@@ -1347,8 +1349,8 @@ private:
             multi_split_node_info[gpu_index].dest_keys = gpu.Temp3;
             multi_split_node_info[gpu_index].dest_values = gpu.Temp4;
             multi_split_node_info[gpu_index].dest_len = gpu.isa_len; // FIXME
-            // if (world_rank() == gpu_index)
-            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Sa_rank, mreserved_len * sizeof(sa_index_t));
+            if (world_rank() == gpu_index)
+                mcontext.get_device_temp_allocator(gpu_index).init(gpu.Sa_rank, mreserved_len * sizeof(sa_index_t));
         }
         //            PartioningFunctorFilteringZeroes<uint> f(misa_divisor, NUM_GPUS-1);
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
