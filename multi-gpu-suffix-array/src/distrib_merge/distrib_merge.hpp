@@ -450,6 +450,7 @@ namespace distrib_merge {
             int i = 0;
             for (uint node = 0; node < NUM_NODES; ++node) {
                 for (Search* s : searches_on_nodes[node]) {
+                    printf("[%lu] hResult[%d]: %ld\n", world_rank(), i, hResultsOut[i]);
                     s->result = hResultsOut[i++];
                 }
             }

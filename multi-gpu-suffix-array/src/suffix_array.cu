@@ -680,6 +680,7 @@ private:
         merge_manager.merge(ranges, S0Comparator());
 
         mcontext.sync_all_streams();
+        comm_world().barrier();
         printf("[%lu] after merge s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
 
