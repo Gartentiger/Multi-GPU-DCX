@@ -1181,10 +1181,10 @@ private:
             multi_split_node_info[gpu_index].dest_values = gpu.Temp2;
             multi_split_node_info[gpu_index].dest_len = gpu.working_len;
 
-            if (gpu_index == world_rank()) {
+            // if (gpu_index == world_rank()) {
                 //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
-                mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
-            }
+            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
+            // }
         }
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
@@ -1347,8 +1347,8 @@ private:
             multi_split_node_info[gpu_index].dest_keys = gpu.Temp3;
             multi_split_node_info[gpu_index].dest_values = gpu.Temp4;
             multi_split_node_info[gpu_index].dest_len = gpu.isa_len; // FIXME
-            if (world_rank() == gpu_index)
-                mcontext.get_device_temp_allocator(gpu_index).init(gpu.Sa_rank, mreserved_len * sizeof(sa_index_t));
+            // if (world_rank() == gpu_index)
+            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Sa_rank, mreserved_len * sizeof(sa_index_t));
         }
         //            PartioningFunctorFilteringZeroes<uint> f(misa_divisor, NUM_GPUS-1);
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);

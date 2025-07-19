@@ -145,28 +145,28 @@ namespace gossip {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
 
-                        // if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
-                        //     const table_t dest_index = v_table[src_gpu][dest_gpu];
-                        //     key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
-                        //     value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
-                        //     cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
-                        //         from_k, context.get_device_id(src_gpu),
-                        //         len * sizeof(key_t),
-                        //         context.get_streams(src_gpu)[dest_gpu]);
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
+                            const table_t dest_index = v_table[src_gpu][dest_gpu];
+                            key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
+                            value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
+                            cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
+                                from_k, context.get_device_id(src_gpu),
+                                len * sizeof(key_t),
+                                context.get_streams(src_gpu)[dest_gpu]);
 
-                        //     cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
-                        //         from_v, context.get_device_id(src_gpu),
-                        //         len * sizeof(value_t),
-                        //         context.get_streams(src_gpu)[dest_gpu]);
-                        // }
-                        // else {
+                            cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
+                                from_v, context.get_device_id(src_gpu),
+                                len * sizeof(value_t),
+                                context.get_streams(src_gpu)[dest_gpu]);
+                        }
+                        else {
 
-                        ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+                            ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
 
-                        ncclSend(from_v, sizeof(value_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
-                        // }
+                            ncclSend(from_v, sizeof(value_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+                        }
                     }
-                    if (dest_gpu == world_rank()) {
+                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
                         const table_t dest_index = v_table[src_gpu][dest_gpu];
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
