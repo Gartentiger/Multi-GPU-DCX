@@ -78,6 +78,7 @@ namespace gossip {
 
             return check_tables(node_info, h_table, v_table);
         }
+        template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsyncInNode(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
             // compute prefix sums over the partition table
@@ -89,14 +90,14 @@ namespace gossip {
 
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
-                    h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
-                    v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
-
-                    const table_t src_index = h_table[src_gpu][dest_gpu];
-                    const table_t dest_index = v_table[src_gpu][dest_gpu];
-                    const table_t len = table[src_gpu][dest_gpu];
-
                     if (src_gpu == world_rank()) {
+                        h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
+                        v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
+
+                        const table_t src_index = h_table[src_gpu][dest_gpu];
+                        const table_t dest_index = v_table[src_gpu][dest_gpu];
+                        const table_t len = table[src_gpu][dest_gpu];
+
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
@@ -188,12 +189,12 @@ namespace gossip {
 
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
-                    h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
-                    v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
-
-                    const table_t len = table[src_gpu][dest_gpu];
-
                     if (src_gpu == world_rank()) {
+                        h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
+                        v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
+
+                        const table_t len = table[src_gpu][dest_gpu];
+
                         const table_t src_index = h_table[src_gpu][dest_gpu];
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
