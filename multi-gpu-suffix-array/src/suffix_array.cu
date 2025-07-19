@@ -244,7 +244,7 @@ public:
         prepare_S12_for_merge();
         //
         // mcontext.sync_all_streams();
-        // printf("[%lu] prepare s12 for merge done\n", world_rank());
+        printf("[%lu] prepare s12 for merge done\n", world_rank());
         // comm_world().barrier();
         //
 
@@ -253,7 +253,7 @@ public:
         prepare_S0_for_merge();
         //
         // mcontext.sync_all_streams();
-        // printf("[%lu] prepare s0 for merge done\n", world_rank());
+        printf("[%lu] prepare s0 for merge done\n", world_rank());
         // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
@@ -261,7 +261,7 @@ public:
         final_merge();
         //
         // mcontext.sync_all_streams();
-        // printf("[%lu] final merge done\n", world_rank());
+        printf("[%lu] final merge done\n", world_rank());
         // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
@@ -464,12 +464,15 @@ private:
             multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
         }
         S12PartitioningFunctor f(mpd_per_gpu, NUM_GPUS - 1);
+
         //
         mcontext.sync_default_streams();
         //
+        printf("[%lu] after write indices s12\n", world_rank());
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
+        printf("[%lu] after execKVAsync s12\n", world_rank());
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
 
@@ -527,6 +530,7 @@ private:
             all2all_node_info[gpu_index].temp_len = mpd_reserved_len; // not sure...
         }
         mcontext.sync_default_streams();
+        printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
         //
         mcontext.get_device_temp_allocator(world_rank()).reset();
         //
@@ -681,7 +685,7 @@ private:
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)(mgpus.back().num_elements - mgpus.back().pd_elements) });
 
         mcontext.sync_default_streams();
-
+        printf("[%lu] after S0_Write_Out_And_Sort s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Write_Out_And_Sort);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
