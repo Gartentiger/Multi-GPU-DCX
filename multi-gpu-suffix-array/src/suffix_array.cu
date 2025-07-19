@@ -1010,7 +1010,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen;
-    size_t maxLength = 1024 * 1024 * 250 * NUM_GPUS;
+    size_t maxLength = 1024 * 1024 * 450 * NUM_GPUS;
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
