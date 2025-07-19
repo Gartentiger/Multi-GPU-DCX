@@ -1000,6 +1000,7 @@ int main(int argc, char** argv)
         error("Usage: sa-test <ofile> <ifile> !");
     }
 
+    for(int i = 0; i < 5; i++) {
     char* input = nullptr;
 
     size_t realLen;
@@ -1007,49 +1008,52 @@ int main(int argc, char** argv)
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
-#ifdef DGX1_TOPOLOGY
+
+    #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
     //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
     //    const std::array<uint, NUM_GPUS> gpu_ids { 3, 2, 1, 0,    4, 5, 6, 7 };
     const std::array<uint, NUM_GPUS> gpu_ids{ 3, 2, 1, 0, 4, 7, 6, 5 };
-
+    
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
-#else
+    #else
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
-
+    
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, NUM_PER_NODE);
-
-#endif
+    
+    #endif
     SuffixSorter sorter(context, realLen, input);
-
+    
     sorter.alloc();
     // auto stringPath = ((std::string)argv[3]);
     // int pos = stringPath.find_last_of("/\\");
     // auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
-
+    
     // auto& t = kamping::measurements::timer();
     // t.synchronize_and_start(fileName);
     sorter.do_sa();
     // t.stop();
     // if (world_rank() == 0)
     //     write_array(argv[2], sorter.get_result(), realLen);
-
+    
     sorter.done();
-
-
-
+    
+    
+    
     if (world_rank() == 0) {
         sorter.print_pd_stats();
         sorter.get_perf_measurements().print(argv[1]);
     }
-
+    
     cudaFreeHost(input);
     CUERR;
+    }
     // std::ofstream outFile(argv[1], std::ios::app);
     // t.aggregate_and_print(
-    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    // std::cout << std::endl;
-    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    // std::cout << std::endl;
+        //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+        // std::cout << std::endl;
+        // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        // std::cout << std::endl;
     return 0;
 }
+    
