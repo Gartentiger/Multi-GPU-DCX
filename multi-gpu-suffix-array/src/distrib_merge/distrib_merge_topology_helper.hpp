@@ -44,6 +44,7 @@ namespace distrib_merge {
 
             if (mcontext.is_in_node()) {
                 do_copies_async_in_node(copies, a, b, out, do_values);
+                printf("[%lu] do_copies_async in node \n", world_rank());
                 return;
             }
             ncclComm_t nccl_comm = mcontext.get_nccl();
