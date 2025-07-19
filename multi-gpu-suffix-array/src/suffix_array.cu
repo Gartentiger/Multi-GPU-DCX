@@ -575,7 +575,7 @@ private:
                 CUERR_CHECK(err);
             }
             
-            mcontext.sync_default_streams();
+            // mcontext.sync_default_streams();
             //comm_world().barrier();
             printf("[%lu] S12_Write_Into_Place\n", world_rank());
 
