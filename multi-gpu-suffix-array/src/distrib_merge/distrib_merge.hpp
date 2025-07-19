@@ -216,6 +216,7 @@ namespace distrib_merge {
             mtopology_helper.do_copies_async(copies, minp_a, minp_b, mout, do_values);
 
             mcontext.sync_all_streams();
+            comm_world().barrier();
             printf("[%lu] before execute_merges_async\n", world_rank());
 
             execute_merges_async(partitions, comp, do_values);
@@ -236,7 +237,7 @@ namespace distrib_merge {
                 }
             }
 
-            // comm_world().barrier();
+            comm_world().barrier();
 
             int offset = 0;
 

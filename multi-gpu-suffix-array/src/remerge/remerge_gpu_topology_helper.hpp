@@ -209,7 +209,7 @@ namespace crossGPUReMerge {
             // auto& t = kamping::measurements::timer();
             // t.synchronize_and_start("copies_async");
             // make sure computations are done before copying
-            mcontext.sync_all_streams();
+            // mcontext.sync_all_streams();
             ncclComm_t nccl_comm = mcontext.get_nccl();
             ncclGroupStart();
             // RequestPool pool;

@@ -562,8 +562,8 @@ private:
     // Sorting Sa_rank to Old_Ranks, Isa to Sa_index
     void initial_sort_64()
     {
-        auto& t = kamping::measurements::timer();
-        t.synchronize_and_start("initial_sort");
+        // auto& t = kamping::measurements::timer();
+        // t.synchronize_and_start("initial_sort");
         const size_t SORT_DOWN_TO = 16;
         const size_t SORT_DOWN_TO_LAST = 13;
 
@@ -705,20 +705,21 @@ private:
         // }
 
         mcontext.sync_default_streams();
-        t.stop();
+        // t.stop();
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
         TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
 
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
-        t.synchronize_and_start("merge");
+        // t.synchronize_and_start("merge");
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
         //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
         //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values, merge_nodes_info[world_rank()].num_elements, world_rank());
         mcontext.sync_default_streams();
         // comm_world().barrier();
-        t.stop();
+
+        // t.stop();
         // t.aggregate_and_print(
         //     kamping::measurements::SimpleJsonPrinter{ std::cout }
         // );
@@ -1168,7 +1169,6 @@ private:
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
-
         // Can be initialized upfront.
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -1187,6 +1187,8 @@ private:
             }
         }
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
+
+
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
@@ -1215,11 +1217,11 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-        // comm_world().barrier();
+        comm_world().barrier();
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
         printf("[%lu] mall2all isa stage\n", world_rank());
-        // comm_world().barrier();
+        comm_world().barrier();
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
 
@@ -1355,7 +1357,7 @@ private:
         //            PartioningFunctorFilteringZeroes<uint> f(misa_divisor, NUM_GPUS-1);
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
 
-        mcontext.sync_default_streams(); // NOT NEEDED
+        // mcontext.sync_default_streams(); // NOT NEEDED
         // printf("[%lu] write sa index adding h\n", world_rank());
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Prepare_Indices);
 
@@ -1384,10 +1386,10 @@ private:
         //            print_split_table(split_table);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
+        comm_world().barrier();
         mall2all.execAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-
-
+        comm_world().barrier();
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
 
         //            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
@@ -1429,8 +1431,10 @@ private:
         // printf("[%lu] before exec Async isa fetching\n", world_rank());
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
+        comm_world().barrier();
         mall2all.execAsync(all2all_node_info, split_table_back);
         mcontext.sync_all_streams();
+        comm_world().barrier();
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::WriteRanks);
@@ -1565,6 +1569,7 @@ private:
         //            dump("Before merge");
         TIMER_START_LOOP_STAGE(LoopStages::Merge);
         mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>());
+        comm_world().barrier(); // because of copie_async
         //            dump("After merge");
         TIMER_STOP_LOOP_STAGE(LoopStages::Merge);
     }
@@ -1719,10 +1724,10 @@ public: // Needs to be public because lamda wouldn't work otherwise...
             all2all_node_info[gpu_index].temp_values = gpu.Old_ranks;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-
+        comm_world().barrier();
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-
+        comm_world().barrier();
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];

@@ -459,7 +459,9 @@ private:
             multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
         }
         S12PartitioningFunctor f(mpd_per_gpu, NUM_GPUS - 1);
-
+        //
+        mcontext.sync_default_streams();
+        //
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
@@ -527,9 +529,10 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
         //            dump_prepare_s12("After split");
-
+        comm_world().barrier();
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
+        comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
         //            dump_prepare_s12("After all2all");
@@ -1003,7 +1006,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3,0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3, 0, 1, 2, 3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, NUM_PER_NODE);
 

@@ -289,7 +289,7 @@ namespace crossGPUReMerge
             std::vector<SearchGPU<NUM_GPUS, key_t, int64_t>> searchesGPU;
             searchesGPU.clear();
             QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
-            // needed for ipc shared mem
+            // needed for ipc shared mem if we have merges in the same node
             comm_world().barrier();
 
             // for (int i = 0; i < 4; i++) {
@@ -853,7 +853,7 @@ namespace crossGPUReMerge
             //     printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(mnode.info.index) >> > (mnode.info.value_buffer, mnode.info.values, mnode.info.num_elements, mnode.info.index);
             //     mcontext.sync_gpu_default_stream(mnode.info.index);
             // }
-            mcontext.sync_all_streams();
+            // mcontext.sync_all_streams();
             // t.stop();
             // t.synchronize_and_start("do_merge_step");
             // printf("[%lu] before multi merge\n", world_rank());
