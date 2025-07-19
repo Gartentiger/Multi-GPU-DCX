@@ -576,7 +576,7 @@ private:
             }
             
             mcontext.sync_default_streams();
-            comm_world().barrier();
+            //comm_world().barrier();
             printf("[%lu] S12_Write_Into_Place\n", world_rank());
 
             //                kernels::combine_S12_kv_non_coalesced _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
@@ -591,7 +591,7 @@ private:
         }
         
         mcontext.sync_default_streams();
-        comm_world().barrier();
+        //comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
         //            dump_prepare_s12("After preparing S12");
