@@ -31,7 +31,8 @@ namespace gossip {
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
             if (context.is_in_node()) {
-                return execAsyncInNode(node_info, table);
+                printf("[%lu] in node async\n", world_rank());
+                // return execAsyncInNode(node_info, table);
             }
 
             // compute prefix sums over the partition table
@@ -116,7 +117,8 @@ namespace gossip {
             const split_table_tt<table_t, NUM_GPUS>& table) const {  // [src_gpu, partition]
 
             if (context.is_in_node()) {
-                return execKVAsyncInNode(node_info, table);
+                printf("[%lu] in node kv async\n", world_rank());
+                //return execKVAsyncInNode(node_info, table);
             }
 
             // compute prefix sums over the partition table
