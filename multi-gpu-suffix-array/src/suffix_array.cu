@@ -543,7 +543,8 @@ private:
         mcontext.sync_all_streams();
         comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
-
+        printf("[%lu] all2all s12\n", world_rank());
+        
         //            dump_prepare_s12("After all2all");
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
@@ -573,6 +574,10 @@ private:
                     mcontext.get_gpu_default_stream(gpu_index));
                 CUERR_CHECK(err);
             }
+            
+            mcontext.sync_default_streams();
+            comm_world().barrier();
+            printf("[%lu] S12_Write_Into_Place\n", world_rank());
 
             //                kernels::combine_S12_kv_non_coalesced _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
             //                        (reinterpret_cast<MergeStageSuffixS12HalfKey*> (gpu.prepare_S12_ptr.S12_buffer2),
@@ -584,8 +589,9 @@ private:
                 gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
             CUERR;
         }
-
+        
         mcontext.sync_default_streams();
+        comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
         //            dump_prepare_s12("After preparing S12");
