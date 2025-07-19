@@ -32,7 +32,7 @@ namespace gossip {
             const split_table_tt<table_t, NUM_GPUS>& table) const {
             if (context.is_in_node()) {
                 printf("[%lu] in node async\n", world_rank());
-                // return execAsyncInNode(node_info, table);
+                //return execAsyncInNode(node_info, table);
             }
 
             // compute prefix sums over the partition table
@@ -41,7 +41,7 @@ namespace gossip {
 
             ncclComm_t nccl_comm = context.get_nccl();
             // necessary sync because we cant use the stream for communication 
-            context.sync_all_streams();
+            //context.sync_all_streams();
 
             ncclGroupStart();
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
@@ -117,8 +117,8 @@ namespace gossip {
             const split_table_tt<table_t, NUM_GPUS>& table) const {  // [src_gpu, partition]
 
             if (context.is_in_node()) {
+                return execKVAsyncInNode(node_info, table);
                 printf("[%lu] in node kv async\n", world_rank());
-                //return execKVAsyncInNode(node_info, table);
             }
 
             // compute prefix sums over the partition table
