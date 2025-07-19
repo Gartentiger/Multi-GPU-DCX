@@ -36,72 +36,92 @@ namespace distrib_merge {
         }
 
 
+
         void do_copies_async(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,
             const DistributedArray& a, const DistributedArray& b,
             DistributedArray& out,
             bool do_values) const {
+
+            if (mcontext.is_in_node()) {
+                do_copies_async_in_node(copies, a, b, out, do_values);
+                return;
+            }
             ncclComm_t nccl_comm = mcontext.get_nccl();
-            // RequestPool pool;
             ncclGroupStart();
-            int msgTag = 0;
+
             for (uint node = 0; node < NUM_GPUS; ++node) {
-                //(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
                     ASSERT(c.src_node == node);
 
                     if (c.src_node == world_rank()) {
                         //const
                         key_t* src_k_buff = c.extra ? b[c.src_node].keys : a[c.src_node].keys;
-                        //key_t* src_k_buff = mnodes[c.src_node].info.keys + c.src_index;
-                        // std::span<key_t> sb(src_k_buff + c.src_index, c.len);
-                        ncclSend(src_k_buff, sizeof(key_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
-                        // comm_world().isend(send_buf(sb), send_count(c.len), tag(msgTag), destination((size_t)c.dest_node), request(pool.get_request()));
-                        if (do_values) {
-                            value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
-                            //value_t* src_v_buff = mnodes[c.src_node].info.values + c.src_index;
-                            // std::span<value_t> sb(src_v_buff + c.src_index, c.len);
-                            ncclSend(src_k_buff, sizeof(value_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+                        if (mcontext.get_peer_status(c.src_node, c.dest_node) >= 1) {
+                            key_t* dest_k_buff = out[c.dest_node].keys_buffer;
+                            cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                                src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                                c.len * sizeof(key_t),
+                                mcontext.get_streams(node)[c.dest_node]);CUERR;
+                            if (do_values) {
+                                value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
+                                value_t* dest_v_buff = out[c.dest_node].values_buffer;
+                                cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                                    src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                                    c.len * sizeof(value_t),
+                                    mcontext.get_streams(node)[c.dest_node]);CUERR;
+                            }
+                        }
+                        else {
+                            ncclSend(src_k_buff, sizeof(key_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+                            if (do_values) {
+                                value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
+                                src_v_buff += c.src_index;
+                                ncclSend(src_k_buff, sizeof(value_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
 
-                            // comm_world().isend(send_buf(sb), send_count(c.len), tag(msgTag + 1), destination((size_t)c.dest_node), request(pool.get_request()));
-
+                            }
                         }
                     }
-                    if (c.dest_node == world_rank()) {
+                    if (c.dest_node == world_rank() && mcontext.get_peer_status(c.src_node, c.dest_node) < 1) {
                         key_t* dest_k_buff = out[c.dest_node].keys_buffer + c.dest_index;
-                        //key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
-                        // std::span<key_t> rb(dest_k_buff, c.len);
-                        // comm_world().irecv(recv_buf(rb), tag(msgTag), recv_count(c.len), request(pool.get_request()));
+
                         ncclRecv(dest_k_buff, c.len * (sizeof(key_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(c.dest_node)[c.src_node]);
                         if (do_values) {
                             value_t* dest_v_buff = out[c.dest_node].values_buffer + c.dest_index;
-                            //value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer + c.dest_index;
-                            // std::span<value_t> rb(dest_v_buff, c.len);
                             ncclRecv(dest_v_buff, c.len * (sizeof(value_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(c.dest_node)[c.src_node]);
-                            // comm_world().irecv(recv_buf(rb), tag(msgTag + 1), recv_count(c.len), request(pool.get_request()));
                         }
                     }
-                    msgTag += 2;
-
-
-                    // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                    //     src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                    //     c.len * sizeof(typename mtypes::value_t),
-                    //     mcontext.get_streams(node)[c.dest_node]);CUERR;
-
-                // cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                //     src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                //     c.len * sizeof(key_t),
-                //     mcontext.get_streams(node)[c.dest_node]);CUERR;
-                // if (do_values) {
-                    // cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                    //     src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                    //     c.len * sizeof(value_t),
-                    //     mcontext.get_streams(node)[c.dest_node]);CUERR;
-                // }
                 }
             }
-            // pool.wait_all();
             ncclGroupEnd();
+        }
+
+        void do_copies_async_in_node(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,
+            const DistributedArray& a, const DistributedArray& b,
+            DistributedArray& out,
+            bool do_values) const {
+            for (uint node = 0; node < NUM_GPUS; ++node) {
+                for (const InterNodeCopy& c : copies[node]) {
+                    ASSERT(c.src_node == node);
+
+                    if (world_rank() == c.src_node) {
+                        const key_t* src_k_buff = c.extra ? b[c.src_node].keys : a[c.src_node].keys;
+                        key_t* dest_k_buff = out[c.dest_node].keys_buffer;
+
+                        cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                            src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                            c.len * sizeof(key_t),
+                            mcontext.get_streams(node)[c.dest_node]);CUERR;
+                        if (do_values) {
+                            const value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
+                            value_t* dest_v_buff = out[c.dest_node].values_buffer;
+                            cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                                src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                                c.len * sizeof(value_t),
+                                mcontext.get_streams(node)[c.dest_node]);CUERR;
+                        }
+                    }
+                }
+            }
         }
     };
 

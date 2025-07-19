@@ -199,6 +199,11 @@ namespace crossGPUReMerge {
         void do_copies_async(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,
             const std::array<size_t, NUM_GPUS>& detour_buffer_sizes,
             bool do_values) const {
+            if (mcontext.is_in_node()) {
+                do_copies_async_in_node(copies, detour_buffer_sizes, do_values);
+                return;
+            }
+
             using key_t = typename mtypes::key_t;
             using value_t = typename mtypes::value_t;
             auto& t = kamping::measurements::timer();
@@ -303,6 +308,40 @@ namespace crossGPUReMerge {
             // printf("[%lu] aggregated send size: %lu\n", world_rank(), j);
 
         }
+
+        void do_copies_async_in_node(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,
+            const std::array<size_t, NUM_GPUS>& detour_buffer_sizes,
+            bool do_values) const {
+            using key_t = typename mtypes::key_t;
+            using value_t = typename mtypes::value_t;
+
+            (void)detour_buffer_sizes;
+
+            for (uint node = 0; node < NUM_GPUS; ++node) {
+                for (const InterNodeCopy& c : copies[node]) {
+                    ASSERT(c.src_node == node);
+                    if (world_rank() == c.src_node) {
+
+                        const key_t* src_k_buff = mnodes[c.src_node].info.keys;
+                        key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer;
+
+                        cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                            src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                            c.len * sizeof(typename mtypes::key_t),
+                            mcontext.get_streams(node)[c.dest_node]);CUERR;
+                        if (do_values) {
+                            const value_t* src_v_buff = mnodes[c.src_node].info.values;
+                            value_t* dest_v_buff = mnodes[c.dest_node].info.value_buffer;
+                            cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
+                                src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
+                                c.len * sizeof(typename mtypes::value_t),
+                                mcontext.get_streams(node)[c.dest_node]);CUERR;
+                        }
+                    }
+                }
+            }
+        }
+
     };
 }
 

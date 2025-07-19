@@ -45,6 +45,7 @@ private:
     std::array<std::array<mgpu::my_mpgu_context_t*, NUM_GPUS>, NUM_GPUS> mpgu_contexts;
     std::array<QDAllocator, NUM_GPUS> mdevice_temp_allocators;
     uint node_id;
+    bool in_node;
     ncclComm_t nccl_comm;
 
 public:
@@ -117,7 +118,6 @@ public:
         }
 
 
-
         CUERR;
 
         //for (uint src_gpu = 0; src_gpu < NUM_PER_NODE; ++src_gpu)
@@ -169,6 +169,23 @@ public:
         {
             std::span<uint> srb(&peer_status[src_gpu][0], num_gpus);
             comm_world().bcast(send_recv_buf(srb), send_recv_count(num_gpus), root(src_gpu));
+        }
+
+        std::array<bool, num_gpus> in_node;
+        for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
+            for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
+                if (peer_status[src_gpu][dest_gpu] >= PEER_STATUS_FAST) {
+                    in_node[src_gpu] = true;
+                }
+                else {
+                    in_node[src_gpu] = false;
+                    break;
+                }
+            }
+        }
+        in_node = true;
+        for (auto b : in_node) {
+            in_node &= b;
         }
     }
 
@@ -224,6 +241,10 @@ public:
             }
         }
         CUERR
+    }
+
+    bool is_in_node() {
+        return in_node;
     }
 
     ncclComm_t get_nccl() {

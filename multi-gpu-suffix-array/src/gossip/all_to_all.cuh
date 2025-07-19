@@ -30,15 +30,19 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
+            if (context.is_in_node()) {
+                return execAsyncInNode(node_info, table);
+            }
+
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
+
             ncclComm_t nccl_comm = context.get_nccl();
             // necessary sync because we cant use the stream for communication 
             context.sync_all_streams();
-            // RequestPool pool;
+
             ncclGroupStart();
-            int msgTag = 0;
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
@@ -52,102 +56,163 @@ namespace gossip {
 
                     if (src_gpu == world_rank()) {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
-                        // std::span<key_t> sb(from_k, len);
-
-                        ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
-
-                        // comm_world().isend(send_buf(sb), send_count(len), tag(msgTag), destination((size_t)dest_gpu), request(pool.get_request()));
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
+                            key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
+                            cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
+                                from_k, context.get_device_id(src_gpu),
+                                len * sizeof(key_t),
+                                context.get_streams(src_gpu)[dest_gpu]);
+                        }
+                        else {
+                            ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+                        }
                     }
-                    if (dest_gpu == world_rank()) {
+                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
-                        // std::span<key_t> rb(to_k, len);
 
                         ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
-
-                        // comm_world().irecv(recv_buf(rb), recv_count(len), tag(msgTag), request(pool.get_request()));
                     }
-                    // cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
-                    // from_k, context.get_device_id(src_gpu),
-                    // len * sizeof(key_t),
-                    //     context.get_streams(src_gpu)[dest_gpu]);
-                    msgTag++;
                 } CUERR;
             }
             ncclGroupEnd();
-            // pool.wait_all();
+
+            return check_tables(node_info, h_table, v_table);
+        }
+        bool execAsyncInNode(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
+            const split_table_tt<table_t, NUM_GPUS>& table) const {
+            // compute prefix sums over the partition table
+            std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
+            std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
+
+            // necessary sync because we cant use the stream for communication 
+            context.sync_all_streams();
+
+            for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
+                for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
+                    h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
+                    v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
+
+                    const table_t src_index = h_table[src_gpu][dest_gpu];
+                    const table_t dest_index = v_table[src_gpu][dest_gpu];
+                    const table_t len = table[src_gpu][dest_gpu];
+
+                    if (src_gpu == world_rank()) {
+                        key_t* from_k = node_info[src_gpu].src_keys + src_index;
+                        key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
+                        cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
+                            from_k, context.get_device_id(src_gpu),
+                            len * sizeof(key_t),
+                            context.get_streams(src_gpu)[dest_gpu]);
+                    }
+                } CUERR;
+            }
+            return check_tables(node_info, h_table, v_table);
+        }
+
+
+        template <typename key_t, typename value_t, typename index_t, typename table_t>
+        bool execKVAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
+            const split_table_tt<table_t, NUM_GPUS>& table) const {  // [src_gpu, partition]
+
+            if (context.is_in_node()) {
+                return execKVAsyncInNode(node_info, table);
+            }
+
+            // compute prefix sums over the partition table
+            std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
+            std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
+            // necessary sync because we cant use the stream for communication 
+            // context.sync_gpu_default_stream(world_rank());
+
+
+
+            ncclComm_t nccl_comm = context.get_nccl();
+
+            ncclGroupStart();
+            // RequestPool pool;
+            for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
+                for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
+                    h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
+                    v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
+
+                    const table_t len = table[src_gpu][dest_gpu];
+
+                    if (src_gpu == world_rank()) {
+                        const table_t src_index = h_table[src_gpu][dest_gpu];
+                        key_t* from_k = node_info[src_gpu].src_keys + src_index;
+                        value_t* from_v = node_info[src_gpu].src_values + src_index;
+
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
+                            const table_t dest_index = v_table[src_gpu][dest_gpu];
+                            key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
+                            value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
+                            cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
+                                from_k, context.get_device_id(src_gpu),
+                                len * sizeof(key_t),
+                                context.get_streams(src_gpu)[dest_gpu]);
+
+                            cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
+                                from_v, context.get_device_id(src_gpu),
+                                len * sizeof(value_t),
+                                context.get_streams(src_gpu)[dest_gpu]);
+                        }
+                        else {
+
+                            ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+
+                            ncclSend(from_v, sizeof(value_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+                        }
+                    }
+                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
+                        const table_t dest_index = v_table[src_gpu][dest_gpu];
+                        key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
+                        value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
+                        ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
+
+                        ncclRecv(to_v, sizeof(value_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
+                    }
+                } CUERR;
+            }
+            ncclGroupEnd();
             return check_tables(node_info, h_table, v_table);
         }
 
         template <typename key_t, typename value_t, typename index_t, typename table_t>
-        bool execKVAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
+        bool execKVAsyncInNode(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {  // [src_gpu, partition]
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
             // necessary sync because we cant use the stream for communication 
             // context.sync_gpu_default_stream(world_rank());
-            ncclComm_t nccl_comm = context.get_nccl();
-            ncclGroupStart();
-            // RequestPool pool;
-            int i = 0;
+
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
                     v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
 
-                    // printf("[%lu]: table[%u][%u]: %u, v_table: %u, next v_table: %u\n", world_rank(), src_gpu, dest_gpu, table[src_gpu][dest_gpu], v_table[src_gpu][dest_gpu], v_table[src_gpu + 1][dest_gpu]);
-
                     const table_t len = table[src_gpu][dest_gpu];
 
-
-
-                    // printf("src[%u] to dst[%u], rank %lu\n", src_gpu, dest_gpu, world_rank());
                     if (src_gpu == world_rank()) {
-
                         const table_t src_index = h_table[src_gpu][dest_gpu];
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
-                        // std::span<key_t> sb(from_k, len);
-
-                        ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
-                        // comm_world().isend(send_buf(sb), send_count(len), tag(i), destination((size_t)dest_gpu), request(pool.get_request()));
-
-                        // std::span<value_t> sbValue(from_v, len);
-                        ncclSend(from_v, sizeof(value_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
-                        // comm_world().isend(send_buf(sbValue), send_count(len), tag(i + 1), destination((size_t)dest_gpu), request(pool.get_request()));
-
-                    }
-                    if (dest_gpu == world_rank()) {
                         const table_t dest_index = v_table[src_gpu][dest_gpu];
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
-                        // std::span<key_t> rb(to_k, len);
-                        ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
-
-                        // comm_world().irecv(recv_buf(rb), tag(i), recv_count(len), request(pool.get_request()));
-                        ncclRecv(to_v, sizeof(value_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
-                        // std::span<value_t> rbValue(to_v, len);
-                        // comm_world().irecv(recv_buf(rbValue), tag(i + 1), recv_count(len), request(pool.get_request()));
+                        cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
+                            from_k, context.get_device_id(src_gpu),
+                            len * sizeof(key_t),
+                            context.get_streams(src_gpu)[dest_gpu]);
+                        cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
+                            from_v, context.get_device_id(src_gpu),
+                            len * sizeof(value_t),
+                            context.get_streams(src_gpu)[dest_gpu]);
                     }
-                    i += 2;
-                    // cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
-                    //     from_k, context.get_device_id(src_gpu),
-                    //     len * sizeof(key_t),
-                    //     context.get_streams(src_gpu)[dest_gpu]);
-
-
-
-                    // cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
-                    //     from_v, context.get_device_id(src_gpu),
-                    //     len * sizeof(value_t),
-                    //     context.get_streams(src_gpu)[dest_gpu]);
                 } CUERR;
             }
-            // pool.wait_all();
-            ncclGroupEnd();
             return check_tables(node_info, h_table, v_table);
         }
-
 
         void print_connectivity_matrix() const noexcept {
             context.print_connectivity_matrix();
