@@ -210,7 +210,7 @@ public:
     {
         TIMERSTART(Total);
 
-        TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
+        // TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
         //
         // mcontext.sync_all_streams();
@@ -218,7 +218,7 @@ public:
         // comm_world().barrier();
         //
 
-        TIMER_STOP_MAIN_STAGE(MainStages::Copy_Input);
+        // TIMER_STOP_MAIN_STAGE(MainStages::Copy_Input);
 
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
         produce_kmers();
@@ -234,13 +234,6 @@ public:
 
         mtook_pd_iterations = mpd_sorter.sort(4);
 
-        auto& t = kamping::measurements::timer();
-        t.aggregate_and_print(
-            kamping::measurements::SimpleJsonPrinter{ std::cout }
-        );
-        std::cout << std::endl;
-        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        std::cout << std::endl;
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
@@ -267,17 +260,18 @@ public:
         // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
-        TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
+        // TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
+        TIMERSTOP(Total);
+        mperf_measure.done();
+
         copy_result_to_host();
         //
         // mcontext.sync_all_streams();
         // printf("[%lu] complete\n", world_rank());
         // comm_world().barrier();
         //
-        TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
-        TIMERSTOP(Total);
+        // TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
 
-        mperf_measure.done();
     }
 
     const sa_index_t* get_result() const
@@ -919,7 +913,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 };
 

@@ -281,7 +281,7 @@ namespace crossGPUReMerge
         void do_searches(comp_func_t comp)
         {
             auto& t = kamping::measurements::timer();
-            t.synchronize_and_start("search");
+            // t.synchronize_and_start("search");
             mhost_search_temp_allocator.reset();
             mcontext.sync_all_streams();
             // printf("[%lu] do_searches\n", world_rank());
@@ -297,7 +297,7 @@ namespace crossGPUReMerge
             // }
             // mcontext.sync_all_streams();
             // comm_world().barrier();
-            t.synchronize_and_start("in_node_find");
+            // t.synchronize_and_start("in_node_find");
 
             // check for all merges that are in one node. They can be executed normally
             for (MergeNode& node : mnodes)
@@ -347,9 +347,9 @@ namespace crossGPUReMerge
                     }
                 }
             }
-            t.stop();
+            // t.stop();
 
-            t.synchronize_and_start("mult_way_k_Host");
+            // t.synchronize_and_start("mult_way_k_Host");
 
             // printf("[%lu] queue\n", world_rank());
             // queue work for the gpu associated with this process
@@ -401,7 +401,7 @@ namespace crossGPUReMerge
                     searchesGPU.push_back(sgpu);
                 }
             }
-            t.stop();
+            // t.stop();
 
             // for (auto searches : searchesGPU) {
                 //     printf("[%lu] ksmallest: %lu, %lu, %u\n", world_rank(), std::get<0>(searches.ksmallest), std::get<1>(searches.ksmallest), std::get<2>(searches.ksmallest));
@@ -409,7 +409,7 @@ namespace crossGPUReMerge
                 //printf("[%lu] searchesGPU.size(): %lu\n", world_rank(), searchesGPU.size());
 
                 //auto resultPtrHost = mhost_search_temp_allocator.get<int64_t>(searchesGPU.size());
-            t.synchronize_and_start("not_in_node_find");
+            // t.synchronize_and_start("not_in_node_find");
             std::vector<int64_t> resultHost(searchesGPU.size());
             if (searchesGPU.size() > 0)
             {
@@ -420,12 +420,12 @@ namespace crossGPUReMerge
                 cudaMemcpyAsync(resultHost.data(), resultPtrDevice,
                     searchesGPU.size() * sizeof(int64_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
             }
-            t.stop();
+            // t.stop();
             // sync again for next communication
             // comm_world().barrier();
             // printf("[%lu] multi partition find done\n", world_rank());
 
-            t.synchronize_and_start("send_data");
+            // t.synchronize_and_start("send_data");
             ncclGroupStart();
             for (MergeNode& node : mnodes) {
                 int msgTag = 0;
@@ -488,9 +488,9 @@ namespace crossGPUReMerge
             }
             ncclGroupEnd();
 
-            t.stop();
+            // t.stop();
 
-            t.synchronize_and_start("partition_search_two");
+            // t.synchronize_and_start("partition_search_two");
             for (MergeNode& node : mnodes)
             {
                 const uint node_index = node.info.index;
@@ -558,11 +558,11 @@ namespace crossGPUReMerge
                     }
                 }
             }
-            t.stop();
+            // t.stop();
             mcontext.sync_all_streams();
             // printf("[%lu] partition search working done\n", world_rank());
 
-            t.synchronize_and_start("allgather_splitter_multi_split");
+            // t.synchronize_and_start("allgather_splitter_multi_split");
             std::vector<std::queue<int64_t>> resultSplitted;
             std::vector<int64_t> resultSplitIdx;
             auto [recvCountsOut] = comm_world().allgatherv(send_buf(resultHost), recv_buf<resize_to_fit>(resultSplitIdx), recv_counts_out());
@@ -574,10 +574,10 @@ namespace crossGPUReMerge
                 }
                 resultSplitted.push_back(q);
             }
-            t.stop();
+            // t.stop();
 
 
-            t.synchronize_and_start("bcast_result_multi_split");
+            // t.synchronize_and_start("bcast_result_multi_split");
             // printf("[%lu] allgatg\n", world_rank());
             for (MergeNode& node : mnodes)
             {
@@ -634,9 +634,9 @@ namespace crossGPUReMerge
                     }
                 }
             }
-            t.stop();
+            // t.stop();
 
-            t.synchronize_and_start("allgather_two_search");
+            // t.synchronize_and_start("allgather_two_search");
             MergeNode mergeNode = mnodes[world_rank()];
             // printf("[%lu] do search kernel phase done, size multi: %lu\n", world_rank(), mergeNode.scheduled_work.multi_searches.size());
             size_t send_size_sum = 0;
@@ -659,8 +659,8 @@ namespace crossGPUReMerge
                 comm_world().allgatherv(send_buf(send_search_result), recv_buf<resize_to_fit>(recv_search_result));
             }
 
-            t.stop();
-            t.synchronize_and_start("memcpys");
+            // t.stop();
+            // t.synchronize_and_start("memcpys");
 
             // printf("Allgather %lu\n", world_rank());
             int enumer = 0;
@@ -749,8 +749,8 @@ namespace crossGPUReMerge
 
                 }
             }
-            t.stop();
-            t.stop();
+            // t.stop();
+            // t.stop();
         }
 
         void
@@ -765,8 +765,8 @@ namespace crossGPUReMerge
         template <class comp_fun_t>
         void do_copy_and_merge(comp_fun_t comp, std::function<void()> dbg_func)
         {
-            auto& t = kamping::measurements::timer();
-            t.synchronize_and_start("do_copy_and_merge");
+            // auto& t = kamping::measurements::timer();
+            // t.synchronize_and_start("do_copy_and_merge");
             (void)dbg_func;
             std::array<std::vector<InterNodeCopy>, NUM_GPUS> copies = partitions_to_copies<NUM_GPUS, mtypes>(mnodes);
             std::array<size_t, NUM_GPUS> detour_sizes;
@@ -774,13 +774,13 @@ namespace crossGPUReMerge
                 detour_sizes[i] = mnodes[i].info.detour_buffer_size;
 
             bool do_values = mnodes[0].info.values != nullptr;
-            t.synchronize_and_start("bcast_do_values");
+            // t.synchronize_and_start("bcast_do_values");
             comm_world().bcast_single(send_recv_buf(do_values), root(0));
-            t.stop();
-            t.synchronize_and_start("do_copies_async");
+            // t.stop();
+            // t.synchronize_and_start("do_copies_async");
             mtopology_helper.do_copies_async(copies, detour_sizes, do_values);
-            t.stop();
-            t.synchronize_and_start("multi_mergers");
+            // t.stop();
+            // t.synchronize_and_start("multi_mergers");
             std::vector<NodeMultiMerger<NUM_GPUS, mtypes, comp_fun_t>> multi_mergers;
             multi_mergers.reserve(mnodes.size() * mnodes.size()); // Essential because of pointer-init. in c'tor.
             for (const MergeNode& node : mnodes)
@@ -793,13 +793,13 @@ namespace crossGPUReMerge
                     }
                 }
             }
-            t.stop();
-            t.synchronize_and_start("sync_do_copies_async");
+            // t.stop();
+            // t.synchronize_and_start("sync_do_copies_async");
             mcontext.sync_all_streams();
-            t.stop();
+            // t.stop();
             //            if (dbg_func)
             //                dbg_func();
-            t.synchronize_and_start("mgpu::merge");
+            // t.synchronize_and_start("mgpu::merge");
             for (const MergeNode& node : mnodes)
             {
                 // //(mcontext.get_device_id(node.info.index));
@@ -854,8 +854,8 @@ namespace crossGPUReMerge
             //     mcontext.sync_gpu_default_stream(mnode.info.index);
             // }
             mcontext.sync_all_streams();
-            t.stop();
-            t.synchronize_and_start("do_merge_step");
+            // t.stop();
+            // t.synchronize_and_start("do_merge_step");
             // printf("[%lu] before multi merge\n", world_rank());
             if (!multi_mergers.empty())
             {
@@ -883,8 +883,8 @@ namespace crossGPUReMerge
                 }
             }
             mcontext.sync_all_streams();
-            t.stop();
-            t.stop();
+            // t.stop();
+            // t.stop();
 
         }
 

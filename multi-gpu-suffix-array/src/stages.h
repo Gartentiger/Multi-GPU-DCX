@@ -4,18 +4,18 @@
 namespace perf_rec {
 
 #define MAIN_STAGES(decl_main_stage)       \
-    decl_main_stage(Copy_Input)            \
-    decl_main_stage(Produce_KMers)         \
-    decl_main_stage(Initial_Sort)          \
-    decl_main_stage(Initial_Merge)         \
-    decl_main_stage(Initial_Ranking)       \
-    decl_main_stage(Initial_Write_To_ISA)  \
-    decl_main_stage(Initial_Compacting)    \
-    decl_main_stage(Final_Transpose)       \
-    decl_main_stage(Prepare_S12_for_Merge) \
-    decl_main_stage(Prepare_S0_for_Merge)  \
-    decl_main_stage(Final_Merge)           \
-    decl_main_stage(Copy_Results)
+decl_main_stage(Produce_KMers)         \
+decl_main_stage(Initial_Sort)          \
+decl_main_stage(Initial_Merge)         \
+decl_main_stage(Initial_Ranking)       \
+decl_main_stage(Initial_Write_To_ISA)  \
+decl_main_stage(Initial_Compacting)    \
+decl_main_stage(Final_Transpose)       \
+decl_main_stage(Prepare_S12_for_Merge) \
+decl_main_stage(Prepare_S0_for_Merge)  \
+decl_main_stage(Final_Merge)           
+// decl_main_stage(Copy_Input)          
+//decl_main_stage(Copy_Results)
 
 #define LOOP_STAGES(decl_loop_stage) \
     decl_loop_stage(Fetch_Rank)      \
@@ -54,53 +54,53 @@ namespace perf_rec {
 
 #define CREATE_STAGE_STRINGS(name) #name,
 
-enum class MainStages {
-    MAIN_STAGES(CREATE_STAGE_ENUM)
-    NO_STAGES
-};
+    enum class MainStages {
+        MAIN_STAGES(CREATE_STAGE_ENUM)
+        NO_STAGES
+    };
 
-const std::array<const char*, size_t(MainStages::NO_STAGES)> main_stage_names = {
-    MAIN_STAGES(CREATE_STAGE_STRINGS)
-};
-
-
-enum class LoopStages {
-    LOOP_STAGES(CREATE_STAGE_ENUM)
-    NO_STAGES
-};
-
-const std::array<const char*, size_t(LoopStages::NO_STAGES)> loop_stage_names = {
-    LOOP_STAGES(CREATE_STAGE_STRINGS)
-};
+    const std::array<const char*, size_t(MainStages::NO_STAGES)> main_stage_names = {
+        MAIN_STAGES(CREATE_STAGE_STRINGS)
+    };
 
 
-enum class WriteISAStages {
-    WRITE_ISA_STAGES(CREATE_STAGE_ENUM)
-    NO_STAGES
-};
+    enum class LoopStages {
+        LOOP_STAGES(CREATE_STAGE_ENUM)
+        NO_STAGES
+    };
 
-const std::array<const char*, size_t(WriteISAStages::NO_STAGES)> write_isa_stage_names = {
-    WRITE_ISA_STAGES(CREATE_STAGE_STRINGS)
-};
+    const std::array<const char*, size_t(LoopStages::NO_STAGES)> loop_stage_names = {
+        LOOP_STAGES(CREATE_STAGE_STRINGS)
+    };
 
 
-enum class FetchRankStages {
-    FETCH_RANK_STAGES(CREATE_STAGE_ENUM)
-    NO_STAGES
-};
+    enum class WriteISAStages {
+        WRITE_ISA_STAGES(CREATE_STAGE_ENUM)
+        NO_STAGES
+    };
 
-const std::array<const char*, size_t(FetchRankStages::NO_STAGES)> fetch_rank_stage_names = {
-    FETCH_RANK_STAGES(CREATE_STAGE_STRINGS)
-};
+    const std::array<const char*, size_t(WriteISAStages::NO_STAGES)> write_isa_stage_names = {
+        WRITE_ISA_STAGES(CREATE_STAGE_STRINGS)
+    };
 
-enum class PrepareFinalMergeStages {
-    PREPARE_FINAL_MERGE_STAGES(CREATE_STAGE_ENUM)
-    NO_STAGES
-};
 
-const std::array<const char*, size_t(PrepareFinalMergeStages::NO_STAGES)> prepare_final_merge_stages_names = {
-    PREPARE_FINAL_MERGE_STAGES(CREATE_STAGE_STRINGS)
-};
+    enum class FetchRankStages {
+        FETCH_RANK_STAGES(CREATE_STAGE_ENUM)
+        NO_STAGES
+    };
+
+    const std::array<const char*, size_t(FetchRankStages::NO_STAGES)> fetch_rank_stage_names = {
+        FETCH_RANK_STAGES(CREATE_STAGE_STRINGS)
+    };
+
+    enum class PrepareFinalMergeStages {
+        PREPARE_FINAL_MERGE_STAGES(CREATE_STAGE_ENUM)
+        NO_STAGES
+    };
+
+    const std::array<const char*, size_t(PrepareFinalMergeStages::NO_STAGES)> prepare_final_merge_stages_names = {
+        PREPARE_FINAL_MERGE_STAGES(CREATE_STAGE_STRINGS)
+    };
 
 
 }

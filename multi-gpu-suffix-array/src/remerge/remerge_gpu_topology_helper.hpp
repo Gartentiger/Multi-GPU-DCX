@@ -206,8 +206,8 @@ namespace crossGPUReMerge {
 
             using key_t = typename mtypes::key_t;
             using value_t = typename mtypes::value_t;
-            auto& t = kamping::measurements::timer();
-            t.synchronize_and_start("copies_async");
+            // auto& t = kamping::measurements::timer();
+            // t.synchronize_and_start("copies_async");
             // make sure computations are done before copying
             mcontext.sync_all_streams();
             ncclComm_t nccl_comm = mcontext.get_nccl();
@@ -218,13 +218,13 @@ namespace crossGPUReMerge {
             int i = 0;
             std::vector<size_t> send_counts;
             for (uint node = 0; node < NUM_GPUS; ++node) {
-                t.start("copies_node");
+                // t.start("copies_node");
                 //(mcontext.get_device_id(node));CUERR;
                 for (const InterNodeCopy& c : copies[node]) {
                     if (world_rank() == 0)
                         printf("[%lu] src: %u, dst: %u\n", world_rank(), c.src_node, c.dest_node);
 
-                    t.start("copie");
+                    // t.start("copie");
                     ASSERT(c.src_node == node);
                     //printf("[%lu] node: %u, c.src_node: %u, c.dest_node: %u, c.src_index %u, c.dest_index: %u, c.len: %lu\n", world_rank(), node, c.src_node, c.dest_node, c.src_index, c.dest_index, c.len);
 
@@ -282,16 +282,16 @@ namespace crossGPUReMerge {
                         //     c.len * sizeof(typename mtypes::value_t),
                         //     mcontext.get_streams(node)[c.dest_node]);CUERR;
                     }
-                    t.stop_and_append();
+                    // t.stop_and_append();
                     i += 2;
                 }
-                t.stop_and_append();
+                // t.stop_and_append();
             }
-            t.stop();
-            t.synchronize_and_start("wait_all");
+            // t.stop();
+            // t.synchronize_and_start("wait_all");
             ncclGroupEnd();
             // pool.wait_all();
-            t.stop();
+            // t.stop();
             // t.aggregate_and_print(
             //     kamping::measurements::SimpleJsonPrinter{ std::cout, {} }
             // );
