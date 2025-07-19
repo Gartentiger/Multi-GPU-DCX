@@ -1006,7 +1006,7 @@ int main(int argc, char** argv)
         error("Usage: sa-test <ofile> <ifile> !");
     }
 
-    for(int i = 0; i < 5; i++) {
+    for(int i = 0; i < 2; i++) {
     char* input = nullptr;
 
     size_t realLen;
