@@ -30,10 +30,10 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
-            if (context.is_in_node()) {
-                // printf("[%lu] in node async\n", world_rank());
-                return execAsyncInNode(node_info, table);
-            }
+            // if (context.is_in_node()) {
+            //     // printf("[%lu] in node async\n", world_rank());
+            //     return execAsyncInNode(node_info, table);
+            // }
 
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
@@ -116,10 +116,10 @@ namespace gossip {
         bool execKVAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {  // [src_gpu, partition]
 
-            if (context.is_in_node()) {
-                return execKVAsyncInNode(node_info, table);
-                // printf("[%lu] in node kv async\n", world_rank());
-            }
+            // if (context.is_in_node()) {
+            //     return execKVAsyncInNode(node_info, table);
+            //     // printf("[%lu] in node kv async\n", world_rank());
+            // }
 
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
