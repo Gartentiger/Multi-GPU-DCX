@@ -472,6 +472,7 @@ private:
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
+        comm_world().barrier();
         printf("[%lu] after execKVAsync s12\n", world_rank());
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
@@ -575,8 +576,8 @@ private:
                 CUERR_CHECK(err);
             }
             
-            // mcontext.sync_default_streams();
-            //comm_world().barrier();
+            mcontext.sync_default_streams();
+            comm_world().barrier();
             printf("[%lu] S12_Write_Into_Place\n", world_rank());
 
             //                kernels::combine_S12_kv_non_coalesced _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
@@ -591,7 +592,7 @@ private:
         }
         
         mcontext.sync_default_streams();
-        //comm_world().barrier();
+        comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
         //            dump_prepare_s12("After preparing S12");
@@ -1010,7 +1011,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen;
-    size_t maxLength = 1024 * 1024 * 450 * NUM_GPUS;
+    size_t maxLength = 1024 * 1024 * 800 * NUM_GPUS;
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
