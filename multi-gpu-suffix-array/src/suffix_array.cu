@@ -19,8 +19,9 @@
 #include "gossip/all_to_all.cuh"
 #include "gossip/multisplit.cuh"
 #include "distrib_merge/distrib_merge.hpp"
+#include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 2;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -450,7 +451,7 @@ private:
         //            dump_prepare_s12("After all2all");
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
-
+        nvtxRangePush("My Critical Section");
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             const uint SORT_DOWN_TO_BIT = 11;
@@ -486,8 +487,8 @@ private:
                 gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
             CUERR;
         }
-
         mcontext.sync_default_streams();
+        nvtxRangePop();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
         //            dump_prepare_s12("After preparing S12");
@@ -821,8 +822,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    // const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
-    MultiGPUContext<NUM_GPUS> context;
+    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
+    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #endif
     SuffixSorter sorter(context, realLen, input);
     sorter.alloc();
