@@ -41,6 +41,7 @@
 #include <kamping/communicator.hpp>
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
+#include <nvToolsExt.h>
 
 static const uint NUM_GPUS = 4;
 static const uint NUM_PER_NODE = 4;
@@ -1007,11 +1008,11 @@ int main(int argc, char** argv)
         error("Usage: sa-test <ofile> <ifile> !");
     }
 
-    for(int i = 0; i < 2; i++) {
+    //for(int i = 0; i < 2; i++) {
     char* input = nullptr;
 
     size_t realLen;
-    size_t maxLength = 1024 * 1024 * 1100 * NUM_GPUS;
+    size_t maxLength = size_t(1024 * 1024) * size_t(1100 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
@@ -1038,7 +1039,9 @@ int main(int argc, char** argv)
     
     // auto& t = kamping::measurements::timer();
     // t.synchronize_and_start(fileName);
+    nvtxRangePush("SuffixArray");
     sorter.do_sa();
+    nvtxRangePop();
     // t.stop();
     // if (world_rank() == 0)
     //     write_array(argv[2], sorter.get_result(), realLen);
@@ -1054,7 +1057,7 @@ int main(int argc, char** argv)
     
     cudaFreeHost(input);
     CUERR;
-    }
+    //}
     // std::ofstream outFile(argv[1], std::ios::app);
     // t.aggregate_and_print(
         //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
