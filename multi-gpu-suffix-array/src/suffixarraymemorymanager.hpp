@@ -273,7 +273,7 @@ public:
             {
                 cudaFree(malloc_base[gpu]);
             }
-            else if (mcontext.get_node_id() == uint(gpu / mcontext.num_per_node)) {
+            else if (mcontext.get_peer_status(world_rank(), gpu) >= 1) {
                 cudaIpcCloseMemHandle(malloc_base[gpu]);
             }
 
