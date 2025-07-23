@@ -35,9 +35,9 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
     fseek(file, 0, SEEK_END);
 
     size_t len = ftell(file);
-
-    if (len > maxLength)
-        len = maxLength;
+    printf("Filesize: %lu, sizeof(size_t): %lu, max: %lu\n", len, sizeof(size_t), maxLength);
+    // if (len > maxLength)
+    //     len = maxLength;
 
     if (len == 0)
     {
