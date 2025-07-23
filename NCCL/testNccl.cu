@@ -23,6 +23,7 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 #include <kamping/request_pool.hpp>
+#include <nvToolsExt.h>
 
 
 static const size_t SEND_SIZE = 1024;
@@ -53,6 +54,8 @@ int main(int argc, char** argv)
     using namespace kamping;
     kamping::Environment e;
     Communicator comm;
+    nvtxRangePush("SuffixArray");
+    nvtxRangePop();
     int deviceCount;
     CUDACHECK(cudaGetDeviceCount(&deviceCount));
     int deviceId = world_rank() % (size_t)deviceCount;
@@ -228,7 +231,7 @@ int main(int argc, char** argv)
 
         CUDACHECK(cudaFree(d_A));
         free(A);
-    }
+}
 #endif
 
 
