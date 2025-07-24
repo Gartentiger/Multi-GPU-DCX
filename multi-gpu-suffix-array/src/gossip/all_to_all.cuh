@@ -34,7 +34,7 @@ namespace gossip {
             //     // printf("[%lu] in node async\n", world_rank());
             //     return execAsyncInNode(node_info, table);
             // }
-
+            nvtxRangePush("execAsyncAll2All");
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
@@ -76,6 +76,7 @@ namespace gossip {
                 } CUERR;
             }
             ncclGroupEnd();
+            nvtxRangePop();
 
             return check_tables(node_info, h_table, v_table);
         }
@@ -120,7 +121,7 @@ namespace gossip {
             //     return execKVAsyncInNode(node_info, table);
             //     // printf("[%lu] in node kv async\n", world_rank());
             // }
-
+            nvtxRangePush("execKVAsyncAll2All");
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
@@ -177,6 +178,7 @@ namespace gossip {
                 } CUERR;
             }
             ncclGroupEnd();
+            nvtxRangePop();
             return check_tables(node_info, h_table, v_table);
         }
 

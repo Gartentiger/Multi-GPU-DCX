@@ -199,8 +199,10 @@ namespace crossGPUReMerge {
         void do_copies_async(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,
             const std::array<size_t, NUM_GPUS>& detour_buffer_sizes,
             bool do_values) const {
+            nvtxRangePush("do_copies_asyncRemerge");
             if (mcontext.is_in_node()) {
                 do_copies_async_in_node(copies, detour_buffer_sizes, do_values);
+                nvtxRangePop();
                 return;
             }
 
@@ -290,6 +292,7 @@ namespace crossGPUReMerge {
             // t.stop();
             // t.synchronize_and_start("wait_all");
             ncclGroupEnd();
+            nvtxRangePop();
             // pool.wait_all();
             // t.stop();
             // t.aggregate_and_print(
