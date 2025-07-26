@@ -47,6 +47,11 @@ __global__ void printArray(double* a, size_t length, size_t rank) {
             printf("[%lu] A[%d]:%lf\n", rank, i, a[i]);
         }
     }
+    else {
+        for (int i = 0; i < length; i++) {
+            printf("[%lu] A[%d]:%lf\n", rank, i, a[i]);
+        }
+    }
 }
 
 const size_t NUM_GPUS = 4;
@@ -77,7 +82,7 @@ int main(int argc, char** argv)
         }
     }
 
-    size_t N = size_t(1 << 27);
+    size_t N = size_t(1 << 6);
 
     // Allocate memory for A on CPU
     double* A = (double*)malloc(N * sizeof(double));
@@ -116,7 +121,7 @@ int main(int argc, char** argv)
     {
         for (size_t j = 0; j < NUM_GPUS; j++)
         {
-            CUDACHECK(cudaMemcpyPeerAsync(pointer[j] + i * size_t(N / NUM_GPUS), j, pointer[i] + i * size_t(N / NUM_GPUS), i, sizeof(double) * size_t(N / NUM_GPUS), streams[j]));
+            CUDACHECK(cudaMemcpyPeerAsync(pointer[j], j, pointer[i] + i * size_t(N / NUM_GPUS), i, sizeof(double) * size_t(N / NUM_GPUS), streams[j]));
         }
     }
     for (auto stream : streams)
