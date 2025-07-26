@@ -33,8 +33,10 @@ namespace gossip {
             if (context.is_in_node()) {
 
                 nvtxRangePush("execAsyncAll2AllinNode");
+                ncclGroupStart();
                 // printf("[%lu] in node async\n", world_rank());
                 bool b = execAsyncInNode(node_info, table);
+                ncclGroupEnd();
                 nvtxRangePop();
                 return b;
             }
@@ -122,10 +124,13 @@ namespace gossip {
         bool execKVAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {  // [src_gpu, partition]
 
+            ncclComm_t nccl_comm = context.get_nccl();
 
             if (context.is_in_node()) {
                 nvtxRangePush("execKVAsyncAll2AllinNode");
+                ncclGroupStart();
                 bool b = execKVAsyncInNode(node_info, table);
+                ncclGroupEnd();
                 nvtxRangePop();
                 return b;
                 // printf("[%lu] in node kv async\n", world_rank());
@@ -139,7 +144,6 @@ namespace gossip {
 
 
 
-            ncclComm_t nccl_comm = context.get_nccl();
 
             ncclGroupStart();
             // RequestPool pool;
