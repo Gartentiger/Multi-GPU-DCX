@@ -54,8 +54,8 @@ int main(int argc, char** argv)
     using namespace kamping;
     kamping::Environment e;
     Communicator comm;
-    int deviceCount;
 
+    int deviceCount;
     CUDACHECK(cudaGetDeviceCount(&deviceCount));
     int deviceId = world_rank() % deviceCount;
     std::cout << "Device Id: " << deviceId << std::endl;
@@ -70,7 +70,7 @@ int main(int argc, char** argv)
         int canAccess;
         cudaDeviceCanAccessPeer(&canAccess, world_rank(), i);
         if (canAccess) {
-            CUDACHECK(cudaDeviceEnablePeerAccess(world_rank(), i));
+            CUDACHECK(cudaDeviceEnablePeerAccess(i, 0));
             printf("[%lu] peer to [%lu] enabled\n", world_rank(), i);
         }
     }
