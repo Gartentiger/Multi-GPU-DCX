@@ -42,8 +42,10 @@
 } while(0)
 
 __global__ void printArray(double* a, size_t length, size_t rank) {
-    for (int i = 0; i < length; i++) {
-        printf("[%lu] A[%d]:%lf\n", rank, i, a[i]);
+    if (length >= 64) {
+        for (int i = 0; i < 64; i++) {
+            printf("[%lu] A[%d]:%lf\n", rank, i, a[i]);
+        }
     }
 }
 
@@ -75,14 +77,14 @@ int main(int argc, char** argv)
         }
     }
 
-    long int N = 1 << 6;
+    size_t N = size_t(1 << 27);
 
     // Allocate memory for A on CPU
     double* A = (double*)malloc(N * sizeof(double));
 
     // Initialize all elements of A
     for (int i = 0; i < N; i++) {
-        A[i] = world_rank() * 100 + i;
+        A[i] = world_rank() * N + i;
     }
 
     double* d_A;
