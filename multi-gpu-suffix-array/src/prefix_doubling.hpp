@@ -1263,45 +1263,50 @@ private:
         {
             mcontext.sync_default_streams();
         }
+        comm_world().barrier();
         printf("[%lu] isa stage\n", world_rank());
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Sort);
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
         //printf("after sorting sync, rank %lu\n", world_rank());
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
-            if (gpu_index == world_rank())
-            {
-                //(mcontext.get_device_id(gpu_index));
-                if (dest_lens[gpu_index] > sort_threshold)
-                {
-                    if (initial)
-                    {
-                        kernels::write_to_isa_2_shared_all<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
-                            gpu.Isa, dest_lens[gpu_index]);
-                        CUERR;
-                    }
-                    else
-                    {
-                        kernels::write_to_isa_2_shared_most<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
-                            gpu.Isa, dest_lens[gpu_index]);
-                        CUERR;
 
-                        //                        kernels::write_to_isa_2 _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))
-                        //                                (sorted_buff[gpu_index].second, sorted_buff[gpu_index].first,
-                        //                                 gpu.Isa, dest_lens[gpu_index], gpu.isa_len); CUERR;
-                    }
-                }
-                else if (dest_lens[gpu_index] > 0)
+            //(mcontext.get_device_id(gpu_index));
+            if (dest_lens[gpu_index] > sort_threshold)
+            {
+                if (initial)
                 {
-                    kernels::write_to_isa_sub_offset _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Segment_heads, gpu.Old_ranks,
-                        gpu.Isa, gpu.offset, dest_lens[gpu_index], gpu.isa_len);
+                    kernels::write_to_isa_2_shared_all<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
+                        gpu.Isa, dest_lens[gpu_index]);
                     CUERR;
+                    printf("[%lu] write_to_isa_2_shared_all\n", world_rank());
+                }
+                else
+                {
+                    kernels::write_to_isa_2_shared_most<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
+                        gpu.Isa, dest_lens[gpu_index]);
+                    CUERR;
+                    printf("[%lu] write_to_isa_2_shared_most\n", world_rank());
+                    //                        kernels::write_to_isa_2 _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))
+                    //                                (sorted_buff[gpu_index].second, sorted_buff[gpu_index].first,
+                    //                                 gpu.Isa, dest_lens[gpu_index], gpu.isa_len); CUERR;
                 }
             }
+            else if (dest_lens[gpu_index] > 0)
+            {
+                kernels::write_to_isa_sub_offset _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Segment_heads, gpu.Old_ranks,
+                    gpu.Isa, gpu.offset, dest_lens[gpu_index], gpu.isa_len);
+                CUERR;
+                printf("[%lu]write_to_isa_sub_offset\n", world_rank());
+            }
         }
+
         mcontext.sync_default_streams();
+        printf("[%lu] after sync write to isa\n", world_rank());
+
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
 
     }
