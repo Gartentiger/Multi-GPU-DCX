@@ -589,6 +589,7 @@ private:
                 const size_t SORT_DOWN_TO_G = gpu_index == NUM_GPUS - 1 ? SORT_DOWN_TO_LAST : SORT_DOWN_TO;
 
 
+                // sorted kmers in old_ranks, rank of kmer in sa_index, in isa normal rank 0,1,2..., sa_rank kmers
 
                 cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
                     reinterpret_cast<uint64_t*>(gpu.Sa_rank),

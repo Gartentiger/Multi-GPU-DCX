@@ -46,6 +46,8 @@ __global__ void printArray(double* a, size_t length, size_t rank) {
     }
 }
 
+const size_t NUM_GPUS = 4;
+
 int main(int argc, char** argv)
 {
     using namespace kamping;
@@ -57,73 +59,81 @@ int main(int argc, char** argv)
     int deviceId = world_rank() % deviceCount;
     std::cout << "Device Id: " << deviceId << std::endl;
     CUDACHECK(cudaSetDevice(deviceId));
-    cudaStream_t stream;
-    CUDACHECK(cudaStreamCreate(&stream));
-
-    if (deviceCount > 1) {
-        if (world_rank() == 0) {
-            int canAccess;
-            cudaDeviceCanAccessPeer(&canAccess, world_rank(), 1);
-            if (canAccess) {
-                CUDACHECK(cudaDeviceEnablePeerAccess(1, 0));
-                printf("[%lu] peer to peer enabled\n", world_rank());
-            }
-
+    std::array<cudaStream_t, NUM_GPUS> streams;
+    for (size_t i = 0; i < deviceCount; i++)
+    {
+        CUDACHECK(cudaStreamCreate(&streams[i]));
+        if (world_rank() == i) {
+            continue;
         }
-        else if (world_rank() == 1) {
-            int canAccess;
-            cudaDeviceCanAccessPeer(&canAccess, world_rank(), 0);
-            if (canAccess) {
-                CUDACHECK(cudaDeviceEnablePeerAccess(0, 0));
-                printf("[%lu] peer to peer enabled\n", world_rank());
-            }
+        int canAccess;
+        cudaDeviceCanAccessPeer(&canAccess, world_rank(), i);
+        if (canAccess) {
+            CUDACHECK(cudaDeviceEnablePeerAccess(world_rank(), i));
+            printf("[%lu] peer to [%lu] enabled\n", world_rank(), i);
         }
     }
-    long int N = 1 << 5;
+
+    long int N = 1 << 6;
 
     // Allocate memory for A on CPU
     double* A = (double*)malloc(N * sizeof(double));
 
     // Initialize all elements of A
     for (int i = 0; i < N; i++) {
-        A[i] = world_rank();
+        A[i] = world_rank() * 100 + i;
     }
 
     double* d_A;
     CUDACHECK(cudaMalloc(&d_A, N * sizeof(double)));
     CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
 
-    cudaIpcMemHandle_t ownHandle;
-    cudaIpcMemHandle_t otherHandle;
-    CUDACHECK(cudaIpcGetMemHandle(&ownHandle, d_A));
-    if (world_rank() == 0) {
 
-        comm_world().send(send_buf(std::span<cudaIpcMemHandle_t>(&ownHandle, 1)), send_count(1), destination(1));
-        comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&otherHandle, 1)), recv_count(1));
-    }
-    else {
-        comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&otherHandle, 1)), recv_count(1));
-        comm_world().send(send_buf(std::span<cudaIpcMemHandle_t>(&ownHandle, 1)), send_count(1), destination(0));
-    }
+    cudaIpcMemHandle_t ownHandle;
+    CUDACHECK(cudaIpcGetMemHandle(&ownHandle, d_A));
+    std::array<cudaIpcMemHandle_t, NUM_GPUS> handles;
+    std::array<double*, NUM_GPUS> pointer;
+    comm_world().allgather(send_buf(std::span<cudaIpcMemHandle_t>(&ownHandle, 1)), recv_buf(handles));
     printf("[%lu] received handle\n", world_rank());
-    void* rawothersd_A;
-    cudaIpcOpenMemHandle(&rawothersd_A, otherHandle, cudaIpcMemLazyEnablePeerAccess);
-    double* other_d_A = reinterpret_cast<double*>(rawothersd_A);
-    printf("[%lu] opened handle\n", world_rank());
-    printArray << <1, 1 >> > (other_d_A, N, world_rank());
+    for (size_t i = 0; i < NUM_GPUS; i++)
+    {
+        if (world_rank() == i) {
+            pointer[i] = d_A;
+            continue;
+        }
+        void* rawothersd_A;
+        cudaIpcOpenMemHandle(&rawothersd_A, handles[i], cudaIpcMemLazyEnablePeerAccess);
+        double* other_d_A = reinterpret_cast<double*>(rawothersd_A);
+        pointer[i] = other_d_A;
+    }
+    printf("[%lu] opened handles\n", world_rank());
     comm_world().barrier();
-    if (world_rank() == 0) {
-        cudaMemcpyPeer(other_d_A, 1, d_A, 0, N * sizeof(double));
+
+    for (size_t i = 0; i < NUM_GPUS; i++)
+    {
+        for (size_t j = 0; j < NUM_GPUS; j++)
+        {
+            CUDACHECK(cudaMemcpyPeerAsync(pointer[j] + i * size_t(N / NUM_GPUS), j, pointer[i] + i * size_t(N / NUM_GPUS), i, sizeof(double) * size_t(N / NUM_GPUS), streams[j]));
+        }
+    }
+    for (auto stream : streams)
+    {
+        CUDACHECK(cudaStreamSynchronize(stream));
     }
     comm_world().barrier();
-    if (world_rank() == 0) {
-        printArray << <1, 1 >> > (other_d_A, N, world_rank());
-    }
-    else {
-        printArray << <1, 1 >> > (d_A, N, world_rank());
-    }
-    cudaIpcCloseMemHandle(other_d_A);
+    printArray << <1, 1, 0, streams[0] >> > (pointer[world_rank()], N, world_rank());
+    CUDACHECK(cudaStreamSynchronize(streams[0]));
+
+
     comm_world().barrier();
-    cudaFree(d_A);
+    for (size_t i = 0; i < NUM_GPUS; i++)
+    {
+        if (world_rank() == i) {
+            continue;
+        }
+        CUDACHECK(cudaIpcCloseMemHandle(pointer[i]));
+    }
+    comm_world().barrier();
+    CUDACHECK(cudaFree(d_A));
     return 0;
 }

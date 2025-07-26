@@ -97,8 +97,8 @@ namespace gossip {
             // context.sync_all_streams();
 
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
-                for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
-                    if (src_gpu == world_rank()) {
+                if (src_gpu == world_rank()) {
+                    for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
                         h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
                         v_table[src_gpu + 1][dest_gpu] = table[src_gpu][dest_gpu] + v_table[src_gpu][dest_gpu];
 
@@ -112,8 +112,10 @@ namespace gossip {
                             from_k, context.get_device_id(src_gpu),
                             len * sizeof(key_t),
                             context.get_streams(src_gpu)[dest_gpu]);
-                    }
-                } CUERR;
+                    } CUERR;
+                    context.sync_all_streams();
+                }
+                comm_world().barrier();
             }
 
             return check_tables(node_info, h_table, v_table);
@@ -159,7 +161,7 @@ namespace gossip {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
 
-                        if (context.get_peer_status(src_gpu, dest_gpu) >= 10) {
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
                             printf("[%lu] peer to [%u]\n", world_rank(), dest_gpu);
                             const table_t dest_index = v_table[src_gpu][dest_gpu];
                             key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
@@ -181,7 +183,7 @@ namespace gossip {
                             ncclSend(from_v, sizeof(value_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
                         }
                     }
-                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 10) {
+                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
                         const table_t dest_index = v_table[src_gpu][dest_gpu];
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
