@@ -42,12 +42,12 @@ namespace distrib_merge {
             DistributedArray& out,
             bool do_values) const {
             nvtxRangePush("do_copies_asyncDist");
-            if (mcontext.is_in_node()) {
-                do_copies_async_in_node(copies, a, b, out, do_values);
-                nvtxRangePop();
-                // printf("[%lu] do_copies_async in node \n", world_rank());
-                return;
-            }
+            // if (mcontext.is_in_node()) {
+            //     do_copies_async_in_node(copies, a, b, out, do_values);
+            //     nvtxRangePop();
+            //     // printf("[%lu] do_copies_async in node \n", world_rank());
+            //     return;
+            // }
             ncclComm_t nccl_comm = mcontext.get_nccl();
             ncclGroupStart();
 
@@ -58,7 +58,7 @@ namespace distrib_merge {
                     if (c.src_node == world_rank()) {
                         //const
                         key_t* src_k_buff = c.extra ? b[c.src_node].keys : a[c.src_node].keys;
-                        if (mcontext.get_peer_status(c.src_node, c.dest_node) >= 1) {
+                        if (mcontext.get_peer_status(c.src_node, c.dest_node) >= 10) {
                             key_t* dest_k_buff = out[c.dest_node].keys_buffer;
                             cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
                                 src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
@@ -83,7 +83,7 @@ namespace distrib_merge {
                             }
                         }
                     }
-                    if (c.dest_node == world_rank() && mcontext.get_peer_status(c.src_node, c.dest_node) < 1) {
+                    if (c.dest_node == world_rank() && mcontext.get_peer_status(c.src_node, c.dest_node) < 10) {
                         key_t* dest_k_buff = out[c.dest_node].keys_buffer + c.dest_index;
 
                         ncclRecv(dest_k_buff, c.len * (sizeof(key_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(c.dest_node)[c.src_node]);
