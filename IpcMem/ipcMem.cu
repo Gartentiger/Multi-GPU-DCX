@@ -11,6 +11,7 @@
 
 #include <kamping/checking_casts.hpp>
 #include <kamping/collectives/alltoall.hpp>
+#include <kamping/collectives/allgather.hpp>
 #include <kamping/data_buffer.hpp> 
 #include <kamping/environment.hpp>
 #include <kamping/measurements/printer.hpp>
