@@ -201,7 +201,6 @@ namespace crossGPUReMerge {
             bool do_values) const {
             nvtxRangePush("do_copies_asyncRemerge");
             if (mcontext.is_in_node()) {
-                comm_world().barrier();
                 do_copies_async_in_node(copies, detour_buffer_sizes, do_values);
                 nvtxRangePop();
                 return;

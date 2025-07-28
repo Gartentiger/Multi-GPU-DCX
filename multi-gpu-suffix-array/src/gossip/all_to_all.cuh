@@ -120,11 +120,11 @@ namespace gossip {
 
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execKVAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
-            const split_table_tt<table_t, NUM_GPUS>& table) const {  // [src_gpu, partition]
+            const split_table_tt<table_t, NUM_GPUS>& table, bool after = false) const {  // [src_gpu, partition]
 
             ncclComm_t nccl_comm = context.get_nccl();
 
-            if (context.is_in_node()) {
+            if (context.is_in_node() && !after) {
                 nvtxRangePush("execKVAsyncAll2AllinNode");
                 bool b = execKVAsyncInNode(node_info, table);
                 nvtxRangePop();

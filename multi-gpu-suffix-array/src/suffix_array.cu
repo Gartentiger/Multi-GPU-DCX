@@ -234,6 +234,7 @@ public:
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(4);
+        comm_world().barrier();
         auto& t = kamping::measurements::timer();
         t.aggregate_and_print(
             kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
@@ -541,7 +542,7 @@ private:
         //            dump_prepare_s12("After split");
         comm_world().barrier();
         printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
-        mall2all.execKVAsync(all2all_node_info, split_table);
+        mall2all.execKVAsync(all2all_node_info, split_table, false);
         mcontext.sync_all_streams();
         comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
