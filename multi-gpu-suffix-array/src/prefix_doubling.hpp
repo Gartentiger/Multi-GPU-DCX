@@ -1264,13 +1264,6 @@ private:
         {
             mcontext.sync_default_streams();
         }
-        comm_world().barrier();
-        printf("[%lu] isa stage\n", world_rank());
-        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mgpus[world_rank()].Isa, mgpus[world_rank()].Isa, mgpus[world_rank()].isa_len, world_rank());
-        mcontext.sync_default_streams();
-        printf("[%lu] access\n", world_rank());
-
-        comm_world().barrier();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Sort);
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
