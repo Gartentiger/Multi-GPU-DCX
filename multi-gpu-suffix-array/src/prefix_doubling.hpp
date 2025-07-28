@@ -1302,8 +1302,8 @@ private:
                     printf("[%lu]write_to_isa_sub_offset\n", world_rank());
                 }
             }
-            mcontext.sync_default_streams();
-            comm_world().barrier();
+            // mcontext.sync_default_streams();
+            // comm_world().barrier();
         }
 
         mcontext.sync_default_streams();
