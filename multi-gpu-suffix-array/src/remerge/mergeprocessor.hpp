@@ -796,6 +796,7 @@ namespace crossGPUReMerge
             // t.stop();
             // t.synchronize_and_start("sync_do_copies_async");
             mcontext.sync_all_streams();
+            comm_world().barrier();
             t.stop_and_append();
             //            if (dbg_func)
             //                dbg_func();
