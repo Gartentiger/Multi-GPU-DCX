@@ -30,13 +30,14 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
-            if (context.is_in_node()) {
-                nvtxRangePush("execAsyncAll2AllinNode");
-                // printf("[%lu] in node async\n", world_rank());
-                bool b = execAsyncInNode(node_info, table);
-                nvtxRangePop();
-                return b;
-            }
+            // if (context.is_in_node()) {
+
+            //     nvtxRangePush("execAsyncAll2AllinNode");
+            //     // printf("[%lu] in node async\n", world_rank());
+            //     bool b = execAsyncInNode(node_info, table);
+            //     nvtxRangePop();
+            //     return b;
+            // }
             nvtxRangePush("execAsyncAll2All");
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
@@ -60,7 +61,7 @@ namespace gossip {
 
                     if (src_gpu == world_rank()) {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
-                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 10) {
                             key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                             cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
                                 from_k, context.get_device_id(src_gpu),
@@ -71,7 +72,7 @@ namespace gossip {
                             ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
                         }
                     }
-                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
+                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 10) {
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
 
                         ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
@@ -91,8 +92,8 @@ namespace gossip {
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
 
             // necessary sync because we cant use the stream for communication 
-            context.sync_all_streams();
-            comm_world().barrier();
+            // context.sync_all_streams();
+
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 if (src_gpu == world_rank()) {
                     for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
@@ -105,11 +106,12 @@ namespace gossip {
 
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
-                        cudaMemcpyPeer(to_k, context.get_device_id(dest_gpu),
+                        cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
                             from_k, context.get_device_id(src_gpu),
-                            len * sizeof(key_t));
+                            len * sizeof(key_t),
+                            context.get_streams(src_gpu)[dest_gpu]);
                     } CUERR;
-                    // context.sync_all_streams();
+                    context.sync_all_streams();
                 }
                 comm_world().barrier();
             }
@@ -155,7 +157,7 @@ namespace gossip {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
 
-                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 10) {
                             printf("[%lu] peer to [%u]\n", world_rank(), dest_gpu);
                             const table_t dest_index = v_table[src_gpu][dest_gpu];
                             key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
@@ -177,7 +179,7 @@ namespace gossip {
                             ncclSend(from_v, sizeof(value_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
                         }
                     }
-                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
+                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 10) {
                         const table_t dest_index = v_table[src_gpu][dest_gpu];
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
@@ -200,8 +202,6 @@ namespace gossip {
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
             // necessary sync because we cant use the stream for communication 
             // context.sync_gpu_default_stream(world_rank());
-            context.sync_all_streams();
-            comm_world().barrier();
 
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 if (src_gpu == world_rank()) {
@@ -217,13 +217,16 @@ namespace gossip {
                         const table_t dest_index = v_table[src_gpu][dest_gpu];
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
-                        cudaMemcpyPeer(to_k, context.get_device_id(dest_gpu),
+                        cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
                             from_k, context.get_device_id(src_gpu),
-                            len * sizeof(key_t));
-                        cudaMemcpyPeer(to_v, context.get_device_id(dest_gpu),
+                            len * sizeof(key_t),
+                            context.get_streams(src_gpu)[dest_gpu]);
+                        cudaMemcpyPeerAsync(to_v, context.get_device_id(dest_gpu),
                             from_v, context.get_device_id(src_gpu),
-                            len * sizeof(value_t));
+                            len * sizeof(value_t),
+                            context.get_streams(src_gpu)[dest_gpu]);
                     }
+                    context.sync_all_streams();
                 } CUERR;
                 comm_world().barrier();
             }

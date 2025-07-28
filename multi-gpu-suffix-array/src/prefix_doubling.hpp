@@ -23,9 +23,9 @@ __global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t r
 {
     for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
+        // printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
 
-
+        auto r = key[i] + value[i];
     }
     printf("---------------------------------------------------------------------------\n");
 }
@@ -33,8 +33,8 @@ __global__ void printArray(uint64_t* key, uint64_t* value, size_t size, size_t r
 {
     for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
-
+        // printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
+        auto r = key[i] + value[i];
 
     }
     printf("---------------------------------------------------------------------------\n");
@@ -44,9 +44,9 @@ __global__ void printArray(key_* key, key_* value, size_t size, size_t rank)
 {
     for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
+        // printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
 
-
+        auto r = key[i] + value[i];
     }
     printf("---------------------------------------------------------------------------\n");
 }
@@ -1266,6 +1266,11 @@ private:
         }
         comm_world().barrier();
         printf("[%lu] isa stage\n", world_rank());
+        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (sorted_buff[world_rank()].first, sorted_buff[world_rank()].second, dest_lens[world_rank()], world_rank());
+        mcontext.sync_default_streams();
+        printf("[%lu] access\n", world_rank());
+
+        comm_world().barrier();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Sort);
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
@@ -1840,7 +1845,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
