@@ -124,13 +124,13 @@ namespace gossip {
 
             ncclComm_t nccl_comm = context.get_nccl();
 
-            // if (context.is_in_node()) {
-            //     nvtxRangePush("execKVAsyncAll2AllinNode");
-            //     bool b = execKVAsyncInNode(node_info, table);
-            //     nvtxRangePop();
-            //     return b;
-            //     // printf("[%lu] in node kv async\n", world_rank());
-            // }
+            if (context.is_in_node()) {
+                nvtxRangePush("execKVAsyncAll2AllinNode");
+                bool b = execKVAsyncInNode(node_info, table);
+                nvtxRangePop();
+                return b;
+                // printf("[%lu] in node kv async\n", world_rank());
+            }
             nvtxRangePush("execKVAsyncAll2All");
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan

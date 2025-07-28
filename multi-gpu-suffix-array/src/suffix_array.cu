@@ -465,9 +465,9 @@ private:
             multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
         }
         S12PartitioningFunctor f(mpd_per_gpu, NUM_GPUS - 1);
-
         //
         mcontext.sync_default_streams();
+        comm_world().barrier();
         //
         printf("[%lu] after write indices s12\n", world_rank());
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
@@ -532,15 +532,15 @@ private:
             all2all_node_info[gpu_index].temp_len = mpd_reserved_len; // not sure...
         }
         mcontext.sync_default_streams();
-        printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
         //
         mcontext.get_device_temp_allocator(world_rank()).reset();
         //
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
-
+        
         //            dump_prepare_s12("After split");
         comm_world().barrier();
+        printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
         comm_world().barrier();
