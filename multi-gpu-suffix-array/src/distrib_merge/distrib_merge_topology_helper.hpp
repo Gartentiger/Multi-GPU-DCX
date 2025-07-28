@@ -42,12 +42,12 @@ namespace distrib_merge {
             DistributedArray& out,
             bool do_values) const {
             nvtxRangePush("do_copies_asyncDist");
-            // if (mcontext.is_in_node()) {
-            //     do_copies_async_in_node(copies, a, b, out, do_values);
-            //     nvtxRangePop();
-            //     // printf("[%lu] do_copies_async in node \n", world_rank());
-            //     return;
-            // }
+            if (mcontext.is_in_node()) {
+                do_copies_async_in_node(copies, a, b, out, do_values);
+                nvtxRangePop();
+                // printf("[%lu] do_copies_async in node \n", world_rank());
+                return;
+            }
             ncclComm_t nccl_comm = mcontext.get_nccl();
             ncclGroupStart();
 

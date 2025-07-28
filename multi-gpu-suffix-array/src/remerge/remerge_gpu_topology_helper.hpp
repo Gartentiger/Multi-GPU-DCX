@@ -200,11 +200,11 @@ namespace crossGPUReMerge {
             const std::array<size_t, NUM_GPUS>& detour_buffer_sizes,
             bool do_values) const {
             nvtxRangePush("do_copies_asyncRemerge");
-            // if (mcontext.is_in_node()) {
-            //     do_copies_async_in_node(copies, detour_buffer_sizes, do_values);
-            //     nvtxRangePop();
-            //     return;
-            // }
+            if (mcontext.is_in_node()) {
+                do_copies_async_in_node(copies, detour_buffer_sizes, do_values);
+                nvtxRangePop();
+                return;
+            }
 
             using key_t = typename mtypes::key_t;
             using value_t = typename mtypes::value_t;
