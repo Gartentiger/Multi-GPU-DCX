@@ -234,7 +234,7 @@ public:
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(4);
-        comm_world().barrier();
+        // comm_world().barrier();
         auto& t = kamping::measurements::timer();
         t.aggregate_and_print(
             kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
@@ -468,13 +468,13 @@ private:
         S12PartitioningFunctor f(mpd_per_gpu, NUM_GPUS - 1);
         //
         mcontext.sync_default_streams();
-        comm_world().barrier();
+        // comm_world().barrier();
         //
         printf("[%lu] after write indices s12\n", world_rank());
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-        comm_world().barrier();
+        // comm_world().barrier();
         printf("[%lu] after execKVAsync s12\n", world_rank());
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
@@ -540,11 +540,11 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         
         //            dump_prepare_s12("After split");
-        comm_world().barrier();
+        // comm_world().barrier();
         printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
         mall2all.execKVAsync(all2all_node_info, split_table, true);
         mcontext.sync_all_streams();
-        comm_world().barrier();
+        // comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         printf("[%lu] all2all s12\n", world_rank());
         
@@ -578,8 +578,7 @@ private:
                 CUERR_CHECK(err);
             }
             
-            mcontext.sync_default_streams();
-            comm_world().barrier();
+           
             printf("[%lu] S12_Write_Into_Place\n", world_rank());
 
             //                kernels::combine_S12_kv_non_coalesced _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
@@ -594,7 +593,7 @@ private:
         }
         
         mcontext.sync_default_streams();
-        comm_world().barrier();
+    
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
         //            dump_prepare_s12("After preparing S12");
@@ -701,7 +700,7 @@ private:
         merge_manager.merge(ranges, S0Comparator());
 
         mcontext.sync_all_streams();
-        comm_world().barrier();
+        // comm_world().barrier();
         printf("[%lu] after merge s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
 
