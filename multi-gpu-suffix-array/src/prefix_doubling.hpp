@@ -1266,7 +1266,7 @@ private:
         }
         comm_world().barrier();
         printf("[%lu] isa stage\n", world_rank());
-        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (sorted_buff[world_rank()].first, sorted_buff[world_rank()].second, dest_lens[world_rank()], world_rank());
+        printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mgpus[world_rank()].Isa, mgpus[world_rank()].Isa, mgpus[world_rank()].isa_len, world_rank());
         mcontext.sync_default_streams();
         printf("[%lu] access\n", world_rank());
 
