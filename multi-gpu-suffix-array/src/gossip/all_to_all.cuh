@@ -30,14 +30,14 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
-            // if (context.is_in_node()) {
+            if (context.is_in_node()) {
+                nvtxRangePush("execAsyncAll2AllinNode");
+                // printf("[%lu] in node async\n", world_rank());
+                bool b = execAsyncInNode(node_info, table);
+                nvtxRangePop();
+                return b;
+            }
 
-            //     nvtxRangePush("execAsyncAll2AllinNode");
-            //     // printf("[%lu] in node async\n", world_rank());
-            //     bool b = execAsyncInNode(node_info, table);
-            //     nvtxRangePop();
-            //     return b;
-            // }
             nvtxRangePush("execAsyncAll2All");
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
@@ -137,9 +137,6 @@ namespace gossip {
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
             // necessary sync because we cant use the stream for communication 
             // context.sync_gpu_default_stream(world_rank());
-
-
-
 
             ncclGroupStart();
             // RequestPool pool;
