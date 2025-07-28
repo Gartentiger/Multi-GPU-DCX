@@ -1231,34 +1231,34 @@ private:
         std::array<std::pair<sa_index_t*, sa_index_t*>, NUM_GPUS> sorted_buff;
 
         bool sorting = false;
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
-            if (gpu_index == world_rank())
+
+            if (dest_lens[gpu_index] > sort_threshold)
             {
-                if (dest_lens[gpu_index] > sort_threshold)
-                {
-                    sorting = true;
-                    //(mcontext.get_device_id(gpu_index));
-                    kernels::sub_value _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Old_ranks, gpu.Temp1, gpu.offset, dest_lens[gpu_index]);
-                    CUERR;
+                sorting = true;
+                //(mcontext.get_device_id(gpu_index));
+                kernels::sub_value _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Old_ranks, gpu.Temp1, gpu.offset, dest_lens[gpu_index]);
+                CUERR;
 
-                    size_t temp_storage;
+                size_t temp_storage;
 
-                    cub::DoubleBuffer<sa_index_t> d_keys(gpu.Temp1, gpu.Old_ranks);
-                    cub::DoubleBuffer<sa_index_t> d_values(gpu.Segment_heads, gpu.Temp2);
-                    cub::DeviceRadixSort::SortPairs(nullptr, temp_storage, d_keys, d_values, dest_lens[gpu_index],
-                        low_bit, high_bit, mcontext.get_gpu_default_stream(gpu_index));
+                cub::DoubleBuffer<sa_index_t> d_keys(gpu.Temp1, gpu.Old_ranks);
+                cub::DoubleBuffer<sa_index_t> d_values(gpu.Segment_heads, gpu.Temp2);
+                cub::DeviceRadixSort::SortPairs(nullptr, temp_storage, d_keys, d_values, dest_lens[gpu_index],
+                    low_bit, high_bit, mcontext.get_gpu_default_stream(gpu_index));
 
-                    //                    printf("Write to ISA: temp storage: %zu, reserved_len*2: %zu\n", temp_storage, mreserved_len*2);
-                    ASSERT(temp_storage <= (mreserved_len * 2 + madditional_temp_storage_size) * sizeof(sa_index_t));
+                //                    printf("Write to ISA: temp storage: %zu, reserved_len*2: %zu\n", temp_storage, mreserved_len*2);
+                ASSERT(temp_storage <= (mreserved_len * 2 + madditional_temp_storage_size) * sizeof(sa_index_t));
 
-                    cub::DeviceRadixSort::SortPairs(gpu.Temp3, temp_storage, d_keys, d_values, dest_lens[gpu_index],
-                        low_bit, high_bit, mcontext.get_gpu_default_stream(gpu_index));
-                    sorted_buff[gpu_index].first = d_keys.Current();
-                    sorted_buff[gpu_index].second = d_values.Current();
-                }
+                cub::DeviceRadixSort::SortPairs(gpu.Temp3, temp_storage, d_keys, d_values, dest_lens[gpu_index],
+                    low_bit, high_bit, mcontext.get_gpu_default_stream(gpu_index));
+                sorted_buff[gpu_index].first = d_keys.Current();
+                sorted_buff[gpu_index].second = d_values.Current();
             }
+
         }
         if (sorting)
         {
@@ -1270,39 +1270,42 @@ private:
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
         //printf("after sorting sync, rank %lu\n", world_rank());
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            uint gpu_index = world_rank();
-            SaGPU& gpu = mgpus[gpu_index];
+            if (world_rank() == gpu_index) {
+                SaGPU& gpu = mgpus[gpu_index];
 
-            //(mcontext.get_device_id(gpu_index));
-            if (dest_lens[gpu_index] > sort_threshold)
-            {
-                if (initial)
+                //(mcontext.get_device_id(gpu_index));
+                if (dest_lens[gpu_index] > sort_threshold)
                 {
-                    kernels::write_to_isa_2_shared_all<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
-                        gpu.Isa, dest_lens[gpu_index]);
-                    CUERR;
-                    printf("[%lu] write_to_isa_2_shared_all\n", world_rank());
+                    if (initial)
+                    {
+                        kernels::write_to_isa_2_shared_all<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
+                            gpu.Isa, dest_lens[gpu_index]);
+                        CUERR;
+                        printf("[%lu] write_to_isa_2_shared_all\n", world_rank());
+                    }
+                    else
+                    {
+                        kernels::write_to_isa_2_shared_most<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
+                            gpu.Isa, dest_lens[gpu_index]);
+                        CUERR;
+                        printf("[%lu] write_to_isa_2_shared_most\n", world_rank());
+                        //                        kernels::write_to_isa_2 _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))
+                        //                                (sorted_buff[gpu_index].second, sorted_buff[gpu_index].first,
+                        //                                 gpu.Isa, dest_lens[gpu_index], gpu.isa_len); CUERR;
+                    }
                 }
-                else
+                else if (dest_lens[gpu_index] > 0)
                 {
-                    kernels::write_to_isa_2_shared_most<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
-                        gpu.Isa, dest_lens[gpu_index]);
+                    kernels::write_to_isa_sub_offset _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Segment_heads, gpu.Old_ranks,
+                        gpu.Isa, gpu.offset, dest_lens[gpu_index], gpu.isa_len);
                     CUERR;
-                    printf("[%lu] write_to_isa_2_shared_most\n", world_rank());
-                    //                        kernels::write_to_isa_2 _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))
-                    //                                (sorted_buff[gpu_index].second, sorted_buff[gpu_index].first,
-                    //                                 gpu.Isa, dest_lens[gpu_index], gpu.isa_len); CUERR;
+                    printf("[%lu]write_to_isa_sub_offset\n", world_rank());
                 }
             }
-            else if (dest_lens[gpu_index] > 0)
-            {
-                kernels::write_to_isa_sub_offset _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Segment_heads, gpu.Old_ranks,
-                    gpu.Isa, gpu.offset, dest_lens[gpu_index], gpu.isa_len);
-                CUERR;
-                printf("[%lu]write_to_isa_sub_offset\n", world_rank());
-            }
+            mcontext.sync_default_streams();
+            comm_world().barrier();
         }
 
         mcontext.sync_default_streams();
@@ -1837,7 +1840,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
