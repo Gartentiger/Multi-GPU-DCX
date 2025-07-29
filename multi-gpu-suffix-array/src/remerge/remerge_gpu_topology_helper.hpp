@@ -232,7 +232,7 @@ namespace crossGPUReMerge {
                     //printf("[%lu] node: %u, c.src_node: %u, c.dest_node: %u, c.src_index %u, c.dest_index: %u, c.len: %lu\n", world_rank(), node, c.src_node, c.dest_node, c.src_index, c.dest_index, c.len);
 
                     if (c.src_node == world_rank()) {
-                        if (mcontext.get_peer_status(c.src_node, c.dest_node) >= 10) {
+                        if (mcontext.get_peer_status(c.src_node, c.dest_node) >= 1) {
                             printf("[%lu] sending with memcpy\n", world_rank());
                             key_t* src_k_buff = mnodes[c.src_node].info.keys;
                             key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer;
@@ -269,7 +269,7 @@ namespace crossGPUReMerge {
                         }
                     }
 
-                    if (c.dest_node == world_rank() && mcontext.get_peer_status(c.src_node, c.dest_node) < 10) {
+                    if (c.dest_node == world_rank() && mcontext.get_peer_status(c.src_node, c.dest_node) < 1) {
                         key_t* dest_k_buff = mnodes[c.dest_node].info.key_buffer + c.dest_index;
                         // std::span<key_t> rb(dest_k_buff, c.len);
                         ncclRecv(dest_k_buff, c.len * (sizeof(key_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(c.dest_node)[c.src_node]);
