@@ -1393,10 +1393,10 @@ private:
         //            print_split_table(split_table);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
-        // comm_world().barrier();
+        comm_world().barrier();
         mall2all.execAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        // comm_world().barrier();
+        comm_world().barrier();
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllForth);
 
         //            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
@@ -1438,10 +1438,10 @@ private:
         // printf("[%lu] before exec Async isa fetching\n", world_rank());
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
-        // comm_world().barrier();
+        comm_world().barrier();
         mall2all.execAsync(all2all_node_info, split_table_back);
         mcontext.sync_all_streams();
-        // comm_world().barrier();
+        comm_world().barrier();
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::All2AllBack);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::WriteRanks);
@@ -1731,10 +1731,10 @@ public: // Needs to be public because lamda wouldn't work otherwise...
             all2all_node_info[gpu_index].temp_values = gpu.Old_ranks;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
         }
-        // comm_world().barrier();
+        comm_world().barrier();
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        // comm_world().barrier();
+        comm_world().barrier();
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
