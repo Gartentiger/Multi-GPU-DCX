@@ -540,11 +540,11 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         
         //            dump_prepare_s12("After split");
-        // comm_world().barrier();
+        comm_world().barrier();
         printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
         mall2all.execKVAsync(all2all_node_info, split_table, true);
         mcontext.sync_all_streams();
-        // comm_world().barrier();
+        comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         printf("[%lu] all2all s12\n", world_rank());
         
