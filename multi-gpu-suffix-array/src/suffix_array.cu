@@ -534,7 +534,7 @@ private:
         }
         mcontext.sync_default_streams();
         //
-        mcontext.get_device_temp_allocator(world_rank()).reset();
+        // mcontext.get_device_temp_allocator(world_rank()).reset();
         //
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
