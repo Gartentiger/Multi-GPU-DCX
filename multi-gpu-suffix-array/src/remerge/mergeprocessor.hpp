@@ -290,7 +290,7 @@ namespace crossGPUReMerge
             searchesGPU.clear();
             QDAllocator& dAlloc = mcontext.get_device_temp_allocator(world_rank());
             // needed for ipc shared mem if we have merges in the same node
-            // comm_world().barrier();
+            comm_world().barrier();
 
             // for (int i = 0; i < 4; i++) {
             //     printArrays << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (mnodes[i].info.keys, 7, world_rank(), i);
