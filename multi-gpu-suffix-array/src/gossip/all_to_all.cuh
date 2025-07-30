@@ -30,13 +30,13 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
-            // if (context.is_in_node()) {
-            //     nvtxRangePush("execAsyncAll2AllinNode");
-            //     // printf("[%lu] in node async\n", world_rank());
-            //     bool b = execAsyncInNode(node_info, table);
-            //     nvtxRangePop();
-            //     return b;
-            // }
+            if (context.is_in_node()) {
+                nvtxRangePush("execAsyncAll2AllinNode");
+                // printf("[%lu] in node async\n", world_rank());
+                bool b = execAsyncInNode(node_info, table);
+                nvtxRangePop();
+                return b;
+            }
 
             nvtxRangePush("execAsyncAll2All");
             // compute prefix sums over the partition table
@@ -61,7 +61,7 @@ namespace gossip {
 
                     if (src_gpu == world_rank()) {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
-                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1) {
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 10) {
                             key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                             cudaMemcpyPeerAsync(to_k, context.get_device_id(dest_gpu),
                                 from_k, context.get_device_id(src_gpu),
@@ -72,7 +72,7 @@ namespace gossip {
                             ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
                         }
                     }
-                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
+                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 10) {
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
 
                         ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
@@ -124,13 +124,13 @@ namespace gossip {
 
             ncclComm_t nccl_comm = context.get_nccl();
 
-            // if (context.is_in_node() && !after) {
-            //     nvtxRangePush("execKVAsyncAll2AllinNode");
-            //     bool b = execKVAsyncInNode(node_info, table);
-            //     nvtxRangePop();
-            //     return b;
-            //     // printf("[%lu] in node kv async\n", world_rank());
-            // }
+            if (context.is_in_node() && !after) {
+                nvtxRangePush("execKVAsyncAll2AllinNode");
+                bool b = execKVAsyncInNode(node_info, table);
+                nvtxRangePop();
+                return b;
+                // printf("[%lu] in node kv async\n", world_rank());
+            }
             nvtxRangePush("execKVAsyncAll2All");
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
@@ -152,7 +152,7 @@ namespace gossip {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
 
-                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1 && !after) {
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 10 && !after) {
                             printf("[%lu] peer to [%u]\n", world_rank(), dest_gpu);
                             const table_t dest_index = v_table[src_gpu][dest_gpu];
                             key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
@@ -175,7 +175,7 @@ namespace gossip {
                         }
                     }
                     if (dest_gpu == world_rank()) {
-                        if (after || context.get_peer_status(src_gpu, dest_gpu) < 1) {
+                        if (after || context.get_peer_status(src_gpu, dest_gpu) < 10) {
                             const table_t dest_index = v_table[src_gpu][dest_gpu];
                             key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                             value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
