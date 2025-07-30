@@ -174,8 +174,8 @@ namespace gossip {
                             ncclSend(from_v, sizeof(value_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
                         }
                     }
-                    if (dest_gpu == world_rank() && context.get_peer_status(src_gpu, dest_gpu) < 1) {
-                        if (after) {
+                    if (dest_gpu == world_rank()) {
+                        if (after || context.get_peer_status(src_gpu, dest_gpu) < 1) {
                             const table_t dest_index = v_table[src_gpu][dest_gpu];
                             key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                             value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
