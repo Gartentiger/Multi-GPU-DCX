@@ -549,7 +549,7 @@ private:
         //            dump_prepare_s12("After split");
         comm_world().barrier();
         printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
-        mall2all.execKVAsync(all2all_node_info, split_table, false);
+        mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams_mpi_safe();
         comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
@@ -701,14 +701,14 @@ private:
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)(mgpus.back().num_elements - mgpus.back().pd_elements) });
 
-        mcontext.sync_default_streams();
+        mcontext.sync_default_stream_mpi_safe();
         printf("[%lu] after S0_Write_Out_And_Sort s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Write_Out_And_Sort);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
         merge_manager.merge(ranges, S0Comparator());
 
-        mcontext.sync_all_streams();
+        mcontext.sync_all_streams_mpi_safe();
         comm_world().barrier();
         printf("[%lu] after merge s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
@@ -730,7 +730,7 @@ private:
             kernels::combine_S0_kv _KLC_SIMPLE_(count, mcontext.get_gpu_default_stream(gpu_index))(sorted_and_merged_keys, sorted_and_merged_values, gpu.prepare_S0_ptr.S0_result, count);
             CUERR;
         }
-        mcontext.sync_default_streams();
+        mcontext.sync_default_stream_mpi_safe();
         printf("[%lu] after s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Combine);
         //            dump_final_merge("before final merge");
@@ -1017,7 +1017,9 @@ int main(int argc, char** argv)
         error("Usage: sa-test <ofile> <ifile> !");
     }
 
-    //for(int i = 0; i < 2; i++) {
+    for(int i = 0; i < 2; i++) {
+        
+    comm_world().barrier();
     char* input = nullptr;
 
     size_t realLen;
@@ -1066,7 +1068,7 @@ int main(int argc, char** argv)
     
     cudaFreeHost(input);
     CUERR;
-    //}
+    }
     // std::ofstream outFile(argv[1], std::ios::app);
     // t.aggregate_and_print(
         //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
