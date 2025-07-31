@@ -209,8 +209,7 @@ public:
 
     void do_sa()
     {
-        TIMERSTART(Total);
-
+        
         // TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
         //
@@ -218,7 +217,8 @@ public:
         // printf("[%lu] Copy Input\n", world_rank());
         // comm_world().barrier();
         //
-
+        
+        TIMERSTART(Total);
         // TIMER_STOP_MAIN_STAGE(MainStages::Copy_Input);
 
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
