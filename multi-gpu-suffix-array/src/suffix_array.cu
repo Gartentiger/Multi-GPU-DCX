@@ -247,7 +247,7 @@ public:
         //
         // mcontext.sync_all_streams();
         printf("[%lu] prepare s12 for merge done\n", world_rank());
-        comm_world().barrier();
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
@@ -587,8 +587,8 @@ private:
             
            
             printf("[%lu] S12_Write_Into_Place\n", world_rank());
-            mcontext.sync_default_stream_mpi_safe();
-            comm_world().barrier();
+            // mcontext.sync_default_stream_mpi_safe();
+            // comm_world().barrier();
             //                kernels::combine_S12_kv_non_coalesced _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
             //                        (reinterpret_cast<MergeStageSuffixS12HalfKey*> (gpu.prepare_S12_ptr.S12_buffer2),
             //                         reinterpret_cast<MergeStageSuffixS12HalfValue*> ( gpu.prepare_S12_ptr.S12_buffer2_half),
