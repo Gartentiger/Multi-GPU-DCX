@@ -186,12 +186,12 @@ public:
 
     void do_sa()
     {
-        TIMERSTART(Total);
 
         // TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
         // TIMER_STOP_MAIN_STAGE(MainStages::Copy_Input);
 
+        TIMERSTART(Total);
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
         produce_kmers();
         TIMER_STOP_MAIN_STAGE(MainStages::Produce_KMers);
@@ -212,13 +212,13 @@ public:
 
         final_merge();
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
+        TIMERSTOP(Total);
+        mperf_measure.done();
+
         // TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
         copy_result_to_host();
-
         // TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
-        TIMERSTOP(Total);
 
-        mperf_measure.done();
     }
 
     const sa_index_t* get_result() const
