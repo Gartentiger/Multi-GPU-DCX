@@ -52,8 +52,11 @@ public:
     MultiGPUContext(const MultiGPUContext&) = delete;
     MultiGPUContext& operator=(const MultiGPUContext&) = delete;
 
-    MultiGPUContext(ncclComm_t comm, const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr)
+    MultiGPUContext(ncclComm_t comm, const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr, uint num_per_node = 4)
     {
+        uint node_id = uint(world_rank() / num_per_node);
+
+
         nccl_comm = comm;
         // Copy num_gpus many device identifiers
 
@@ -95,16 +98,18 @@ public:
                 continue;
             }
 
+            // inter node gpus are not directly connected
+            if (node_id != dst_gpu / num_per_node) {
+                peer_status[world_rank()][dst_gpu] = PEER_STATUS_SLOW;
+                continue;
+            }
 
             uint dst = get_device_id(dst_gpu);
             int status;
             cudaDeviceCanAccessPeer(&status, src, dst);
-            // if (!status) {
-            //     std::cerr << "Could not enable peer access between " << world_rank() << " and " << dst_gpu << std::endl;
-            //     exit(1);
-            // }
             if (!status) {
-                peer_status[world_rank()][dst_gpu] = PEER_STATUS_SLOW;
+                std::cerr << "Could not enable peer access between " << world_rank() << " and " << dst_gpu << std::endl;
+                exit(1);
             }
             else {
                 peer_status[world_rank()][dst_gpu] = PEER_STATUS_FAST;
@@ -118,23 +123,23 @@ public:
         //for (uint src_gpu = 0; src_gpu < NUM_PER_NODE; ++src_gpu)
         {
             uint src_gpu = world_rank();
-            // const device_id_t src = get_device_id(src_gpu);
+            const device_id_t src = get_device_id(src_gpu);
             // //(src);
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
             {
                 device_id_t dst = get_device_id(dst_gpu);
 
-                // // in node ids should be unique
-                // if (src_gpu != dst_gpu && node_id == dst_gpu / num_per_node)
-                // {
-                //     if (THROW_EXCEPTIONS)
-                //     {
-                //         if (src == dst) {
-                //             //continue;
-                //             throw std::invalid_argument("Device identifiers are not unique inside a node.");
-                //         }
-                //     }
-                // }
+                // in node ids should be unique
+                if (src_gpu != dst_gpu && node_id == dst_gpu / num_per_node)
+                {
+                    if (THROW_EXCEPTIONS)
+                    {
+                        if (src == dst) {
+                            //continue;
+                            throw std::invalid_argument("Device identifiers are not unique inside a node.");
+                        }
+                    }
+                }
 
                 if (peer_status[src_gpu][dst_gpu] == PEER_STATUS_FAST)
                 {
@@ -178,7 +183,7 @@ public:
                 }
             }
         }
-        in_node = false;
+        in_node = true;
         for (auto b : in_nodes) {
             in_node &= b;
         }
