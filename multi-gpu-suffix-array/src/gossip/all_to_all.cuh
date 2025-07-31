@@ -152,7 +152,7 @@ namespace gossip {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
 
-                        if (context.get_peer_status(src_gpu, dest_gpu) >= 1 && !after) {
+                        if (context.get_peer_status(src_gpu, dest_gpu) >= 10 && !after) {
                             printf("[%lu] peer to [%u]\n", world_rank(), dest_gpu);
                             const table_t dest_index = v_table[src_gpu][dest_gpu];
                             key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
@@ -175,7 +175,7 @@ namespace gossip {
                         }
                     }
                     if (dest_gpu == world_rank()) {
-                        if (after || context.get_peer_status(src_gpu, dest_gpu) < 1) {
+                        if (after || context.get_peer_status(src_gpu, dest_gpu) < 10) {
                             const table_t dest_index = v_table[src_gpu][dest_gpu];
                             key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                             value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
