@@ -44,7 +44,6 @@
 #include <nvToolsExt.h>
 
 static const uint NUM_GPUS = 4;
-static const uint NUM_PER_NODE = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -1018,7 +1017,7 @@ int main(int argc, char** argv)
     }
 
     for(int i = 0; i < 2; i++) {
-        
+
     comm_world().barrier();
     char* input = nullptr;
 
@@ -1036,9 +1035,9 @@ int main(int argc, char** argv)
     
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
     #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 0, 1 };
     
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, NUM_PER_NODE);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2);
     
     #endif
     SuffixSorter sorter(context, realLen, input);

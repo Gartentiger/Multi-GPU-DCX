@@ -44,21 +44,16 @@ private:
 
     std::array<std::array<mgpu::my_mpgu_context_t*, NUM_GPUS>, NUM_GPUS> mpgu_contexts;
     std::array<QDAllocator, NUM_GPUS> mdevice_temp_allocators;
-    uint node_id;
     bool in_node;
     ncclComm_t nccl_comm;
 
 public:
     static const uint num_gpus = NUM_GPUS;
-    uint num_per_node;
     MultiGPUContext(const MultiGPUContext&) = delete;
     MultiGPUContext& operator=(const MultiGPUContext&) = delete;
 
-    MultiGPUContext(ncclComm_t comm, const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr, uint num_node = 4)
+    MultiGPUContext(ncclComm_t comm, const std::array<device_id_t, NUM_GPUS>* device_ids_ = nullptr)
     {
-        num_per_node = num_node;
-        node_id = uint(world_rank() / num_per_node);
-
         nccl_comm = comm;
         // Copy num_gpus many device identifiers
 
@@ -100,18 +95,18 @@ public:
                 continue;
             }
 
-            // gpus are only connected through pcie
-            if (node_id != dst_gpu / num_per_node) {
+
+            uint dst = get_device_id(dst_gpu);
+            int status;
+            cudaDeviceCanAccessPeer(&status, src, dst);
+            // if (!status) {
+            //     std::cerr << "Could not enable peer access between " << world_rank() << " and " << dst_gpu << std::endl;
+            //     exit(1);
+            // }
+            if (!status) {
                 peer_status[world_rank()][dst_gpu] = PEER_STATUS_SLOW;
             }
             else {
-                uint dst = get_device_id(dst_gpu);
-                int status;
-                cudaDeviceCanAccessPeer(&status, src, dst);
-                if (!status) {
-                    std::cerr << "Could not enable peer access between " << world_rank() << " and " << dst_gpu << std::endl;
-                    exit(1);
-                }
                 peer_status[world_rank()][dst_gpu] = PEER_STATUS_FAST;
                 printf("[%lu] peer access to [%u] activated: %u\n", world_rank(), dst_gpu, peer_status[world_rank()][dst_gpu]);
             }
@@ -123,23 +118,23 @@ public:
         //for (uint src_gpu = 0; src_gpu < NUM_PER_NODE; ++src_gpu)
         {
             uint src_gpu = world_rank();
-            const device_id_t src = get_device_id(src_gpu);
+            // const device_id_t src = get_device_id(src_gpu);
             // //(src);
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu)
             {
                 device_id_t dst = get_device_id(dst_gpu);
 
-                // in node ids should be unique
-                if (src_gpu != dst_gpu && node_id == dst_gpu / num_per_node)
-                {
-                    if (THROW_EXCEPTIONS)
-                    {
-                        if (src == dst) {
-                            //continue;
-                            throw std::invalid_argument("Device identifiers are not unique inside a node.");
-                        }
-                    }
-                }
+                // // in node ids should be unique
+                // if (src_gpu != dst_gpu && node_id == dst_gpu / num_per_node)
+                // {
+                //     if (THROW_EXCEPTIONS)
+                //     {
+                //         if (src == dst) {
+                //             //continue;
+                //             throw std::invalid_argument("Device identifiers are not unique inside a node.");
+                //         }
+                //     }
+                // }
 
                 if (peer_status[src_gpu][dst_gpu] == PEER_STATUS_FAST)
                 {
@@ -249,10 +244,6 @@ public:
 
     ncclComm_t get_nccl() {
         return nccl_comm;
-    }
-
-    uint get_node_id() {
-        return node_id;
     }
 
     device_id_t get_device_id(uint gpu) const noexcept
