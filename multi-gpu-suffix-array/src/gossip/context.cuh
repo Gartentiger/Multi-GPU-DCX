@@ -327,6 +327,19 @@ public:
         }
     }
 
+    void sync_all_streams_mpi_safe() const noexcept
+    {
+        for (uint part = 0; part < num_gpus; ++part)
+        {
+            cudaError_t err = cudaErrorNotReady;
+            int flag;
+            while (err == cudaErrorNotReady) {
+                err = cudaStreamQuery(get_streams(world_rank())[part]);
+                MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, MPI_STATUS_IGNORE);
+            }
+        }
+    }
+
     void sync_all_streams() const noexcept
     {
         // sync all streams of the context
