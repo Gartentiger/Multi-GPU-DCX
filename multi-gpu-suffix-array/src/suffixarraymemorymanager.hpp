@@ -217,25 +217,26 @@ public:
                 cudaMemset(malloc_base[gpu], 0, malloc_size);
                 CUERR;
             }
-            uint node_offest = mcontext.get_node_id() * mcontext.num_per_node;
+
             cudaIpcMemHandle_t handle;
             cudaIpcGetMemHandle(&handle, malloc_base[gpu]);
-            for (int i = 0; i < mcontext.num_per_node; i++) {
-                if (node_offest + i == world_rank()) {
+            for (size_t dst = 0; dst < NUM_GPUS; dst++) {
+                if (mcontext.get_peer_status(world_rank())[dst] != 1) {
                     continue;
                 }
-                comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handle, 1)), send_count(1), tag(world_rank()), destination(size_t(node_offest + i)));
+                comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handle, 1)), send_count(1), tag(world_rank()), destination(dst));
             }
-            for (int i = 0; i < mcontext.num_per_node; i++) {
-                if (node_offest + i == world_rank()) {
+            for (size_t src = 0; src < NUM_GPUS; src++) {
+                if (mcontext.get_peer_status(world_rank())[src] != 1) {
                     continue;
                 }
                 cudaIpcMemHandle_t other_handle;
-                comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handle, 1)), recv_count(1), tag(node_offest + i));
+                comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handle, 1)), recv_count(1), tag(src));
                 void* ptrHandle;
                 cudaIpcOpenMemHandle(&ptrHandle, other_handle, cudaIpcMemLazyEnablePeerAccess);
-                printf("[%lu] opened mem handle from %d\n", world_rank(), i);
-                malloc_base[node_offest + i] = reinterpret_cast<unsigned char*>(ptrHandle);
+                CUERR;
+                printf("[%lu] opened mem handle from %d\n", world_rank(), src);
+                malloc_base[src] = reinterpret_cast<unsigned char*>(ptrHandle);
             }
         }
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
