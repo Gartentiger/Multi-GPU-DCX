@@ -549,7 +549,7 @@ private:
         //            dump_prepare_s12("After split");
         comm_world().barrier();
         printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
-        mall2all.execKVAsync(all2all_node_info, split_table, true);
+        mall2all.execKVAsync(all2all_node_info, split_table, false);
         mcontext.sync_all_streams_mpi_safe();
         comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
