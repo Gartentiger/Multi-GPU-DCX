@@ -97,5 +97,5 @@ set(GEN_CODE_OPTIONS "--relocatable-device-code=false -gencode arch=compute_60,c
 
 set(CMAKE_CUDA_FLAGS "--expt-extended-lambda --expt-relaxed-constexpr -Wno-deprecated-declarations -g -O3 ${GEN_CODE_OPTIONS}")
 
-target_include_directories(suffix_array PRIVATE deps src)
+target_include_directories(suffix_array PRIVATE deps src /software/all/devel/cuda/12.9/targets/x86_64-linux/include/nvtx3)
 

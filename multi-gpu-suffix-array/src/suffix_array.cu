@@ -451,7 +451,7 @@ private:
         //            dump_prepare_s12("After all2all");
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
-        nvtxRangePush("My Critical Section");
+        nvtxRangePush("Sorting");
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             const uint SORT_DOWN_TO_BIT = 11;
