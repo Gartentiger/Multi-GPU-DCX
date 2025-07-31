@@ -812,7 +812,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
     cudaSetDevice(0);
     size_t realLen;
-    size_t maxLength = 1024 * 1024 * 250 * NUM_GPUS;
+    size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
@@ -822,8 +822,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
+    // const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
+    MultiGPUContext<NUM_GPUS> context;
 #endif
     SuffixSorter sorter(context, realLen, input);
     sorter.alloc();
