@@ -19,7 +19,7 @@
 #include "gossip/all_to_all.cuh"
 #include "gossip/multisplit.cuh"
 #include "distrib_merge/distrib_merge.hpp"
-#include <nvToolsExt.h>
+// #include <nvToolsExt.h>
 
 static const uint NUM_GPUS = 4;
 
@@ -54,7 +54,19 @@ using DistribMergeTopology = distrib_merge::DistribMergeAllConnectedTopologyHelp
 #define _KLC_SIMPLE_ITEMS_PER_THREAD_(num_elements, items_per_thread, stream)
 #define _KLC_(...)
 #endif
+__global__ void printArrayss(char* kmer, sa_index_t* isa, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
 
+        printf("[%lu] isa: %u", rank, isa[i]);
+        // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
+        for (int j = 0; j < 8;j++) {
+            printf(", %c", kmer[i * 8 + j]);
+        }
+        printf("\n");
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
 struct S12PartitioningFunctor : public std::unary_function<sa_index_t, uint32_t>
 {
     sa_index_t split_divisor;
@@ -368,6 +380,10 @@ private:
         }
         kernels::fixup_last_four_12_kmers_64 << <1, 4, 0, mcontext.get_gpu_default_stream(NUM_GPUS - 1) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 4);
         mcontext.sync_default_streams();
+        printf("elements: %lu\n", mgpus[0].num_elements);
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(0) >> > (reinterpret_cast<char*>(mgpus[0].pd_ptr.Sa_rank), mgpus[0].pd_ptr.Isa, SDIV(mgpus[0].num_elements, 12) * 12, 0);
+        mcontext.sync_default_streams();
+        exit(1);
     }
 
     void prepare_S12_for_merge()
@@ -451,7 +467,7 @@ private:
         //            dump_prepare_s12("After all2all");
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
-        nvtxRangePush("Sorting");
+        // nvtxRangePush("Sorting");
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             const uint SORT_DOWN_TO_BIT = 11;
@@ -488,7 +504,7 @@ private:
             CUERR;
         }
         mcontext.sync_default_streams();
-        nvtxRangePop();
+        // nvtxRangePop();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
         //            dump_prepare_s12("After preparing S12");
@@ -822,8 +838,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    // const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
-    MultiGPUContext<NUM_GPUS> context;
+    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
+    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #endif
     SuffixSorter sorter(context, realLen, input);
     sorter.alloc();

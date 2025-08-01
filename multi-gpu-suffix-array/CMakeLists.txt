@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CUDA_STANDARD 20)
 
-find_package(NVHPC REQUIRED COMPONENTS NCCL)
+#find_package(NVHPC REQUIRED COMPONENTS NCCL)
 
 add_executable(suffix_array
                src/util.h
@@ -66,7 +66,7 @@ if(DGX1_TOPOLOGY)
     target_compile_definitions(suffix_array PRIVATE DGX1_TOPOLOGY)
 endif(DGX1_TOPOLOGY)
 
-target_link_libraries(suffix_array PRIVATE NVHPC::NCCL)
+#target_link_libraries(suffix_array PRIVATE NVHPC::NCCL)
 
 #set(NCCL_LIBRARY "/usr/lib/x86_64-linux-gnu/libnccl.so")
 #target_link_libraries(suffix_array PRIVATE ${NCCL_LIBRARY})
@@ -105,5 +105,5 @@ set(GEN_CODE_OPTIONS "--relocatable-device-code=false -gencode arch=compute_60,c
 
 set(CMAKE_CUDA_FLAGS "--expt-extended-lambda --expt-relaxed-constexpr -Wno-deprecated-declarations -g -O3 ${GEN_CODE_OPTIONS}")
 
-target_include_directories(suffix_array PRIVATE deps src build/_deps/kamping-src/include build/_deps/kassert-src/include build/_deps/pfr-src/include /software/all/devel/cuda/12.9/targets/x86_64-linux/include/nvtx3)
+target_include_directories(suffix_array PRIVATE deps src build/_deps/kamping-src/include build/_deps/kassert-src/include build/_deps/pfr-src/include)
 
