@@ -58,32 +58,17 @@ namespace distrib_merge {
                     if (c.src_node == world_rank()) {
                         //const
                         key_t* src_k_buff = c.extra ? b[c.src_node].keys : a[c.src_node].keys;
-                        if (mcontext.get_peer_status(c.src_node, c.dest_node) >= 10) {
-                            key_t* dest_k_buff = out[c.dest_node].keys_buffer;
-                            cudaMemcpyPeerAsync(dest_k_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                                src_k_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                                c.len * sizeof(key_t),
-                                mcontext.get_streams(node)[c.dest_node]);CUERR;
-                            if (do_values) {
-                                value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
-                                value_t* dest_v_buff = out[c.dest_node].values_buffer;
-                                cudaMemcpyPeerAsync(dest_v_buff + c.dest_index, mcontext.get_device_id(c.dest_node),
-                                    src_v_buff + c.src_index, mcontext.get_device_id(c.src_node),
-                                    c.len * sizeof(value_t),
-                                    mcontext.get_streams(node)[c.dest_node]);CUERR;
-                            }
-                        }
-                        else {
-                            ncclSend(src_k_buff, sizeof(key_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
-                            if (do_values) {
-                                value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
-                                src_v_buff += c.src_index;
-                                ncclSend(src_k_buff, sizeof(value_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
 
-                            }
+                        ncclSend(src_k_buff, sizeof(key_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+                        if (do_values) {
+                            value_t* src_v_buff = c.extra ? b[c.src_node].values : a[c.src_node].values;
+                            src_v_buff += c.src_index;
+                            ncclSend(src_k_buff, sizeof(value_t) * c.len, ncclChar, c.dest_node, nccl_comm, mcontext.get_streams(node)[c.dest_node]);
+
                         }
+
                     }
-                    if (c.dest_node == world_rank() && mcontext.get_peer_status(c.src_node, c.dest_node) < 10) {
+                    if (c.dest_node == world_rank()) {
                         key_t* dest_k_buff = out[c.dest_node].keys_buffer + c.dest_index;
 
                         ncclRecv(dest_k_buff, c.len * (sizeof(key_t)), ncclChar, c.src_node, nccl_comm, mcontext.get_streams(c.dest_node)[c.src_node]);
