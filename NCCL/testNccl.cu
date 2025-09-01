@@ -24,7 +24,7 @@
 #include <kamping/p2p/send.hpp>
 #include <kamping/request_pool.hpp>
 // #include <nvToolsExt.h>
-#include <time.h>
+#include <chrono>
 
 static const size_t SEND_SIZE = 1024;
 static const size_t SEND_TIMES = 1024;
@@ -51,6 +51,7 @@ static const size_t SEND_TIMES = 1024;
 
 int main(int argc, char** argv)
 {
+    using namespace std::chrono;
     // using namespace kamping;
     // kamping::Environment e;
     // Communicator comm;
@@ -160,8 +161,9 @@ int main(int argc, char** argv)
         CUDACHECK(cudaSetDevice(0));
         //ncclGroupEnd();
         // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
-        double start_time, stop_time, elapsed_time;
-        start_time = clock();
+        double elapsed_time;
+        steady_clock::time_point start = steady_clock::now();
+        // start_time = clock();
         // ncclGroupStart();
         for (int i = 1; i <= loop_count; i++) {
             // if (world_rank() == 0) {
@@ -182,9 +184,10 @@ int main(int argc, char** argv)
         // ncclGroupEnd();
         // int msec = 0, trigger = 10; /* 10ms */
         // clock_t before = clock();
-        stop_time = clock();
-        elapsed_time = stop_time - start_time;
-
+        steady_clock::time_point end = steady_clock::now();
+        // stop_time = clock();
+        duration<double> elapsed_seconds = end - start;
+        elapsed_time = elapsed_seconds.count();
         long int num_B = 8 * N;
         long int B_in_GB = 1 << 30;
         double num_GB = (double)num_B / (double)B_in_GB;
