@@ -23,7 +23,7 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 #include <kamping/request_pool.hpp>
-#include <nvToolsExt.h>
+// #include <nvToolsExt.h>
 
 
 static const size_t SEND_SIZE = 1024;
@@ -54,50 +54,57 @@ int main(int argc, char** argv)
     using namespace kamping;
     kamping::Environment e;
     Communicator comm;
-    nvtxRangePush("SuffixArray");
-    nvtxRangePop();
+    // nvtxRangePush("SuffixArray");
+    // nvtxRangePop();
     int deviceCount;
     CUDACHECK(cudaGetDeviceCount(&deviceCount));
-    int deviceId = world_rank() % (size_t)deviceCount;
-    std::cout << "Device Id: " << deviceId << std::endl;
-    CUDACHECK(cudaSetDevice(deviceId));
+    // int deviceId = world_rank() % (size_t)deviceCount;
+    // std::cout << "Device Id: " << deviceId << std::endl;
+    CUDACHECK(cudaSetDevice(0));
+
 
 #ifdef USE_NCCL
-    ncclComm_t nccl_comm;
-    ncclUniqueId Id;
+    //ncclComm_t nccl_comm;
+    //ncclUniqueId Id;
     if (world_rank() == 0) {
-        std::span<ncclUniqueId> unique(&Id, 1);
-        NCCLCHECK(ncclGetUniqueId(&Id));
-        comm_world().bcast_single(send_recv_buf(Id));
+        //std::span<ncclUniqueId> unique(&Id, 1);
+        //NCCLCHECK(ncclGetUniqueId(&Id));
+        //comm_world().bcast_single(send_recv_buf(Id));
     }
     else {
-        Id = comm_world().bcast_single<ncclUniqueId>();
+        //Id = comm_world().bcast_single<ncclUniqueId>();
     }
 
-    NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
+    //NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
 
 #endif
     cudaStream_t stream;
     CUDACHECK(cudaStreamCreate(&stream));
-
+    CUDACHECK(cudaSetDevice(1));
+    cudaStream_t stream1;
+    CUDACHECK(cudaStreamCreate(&stream1));
+    CUDACHECK(cudaSetDevice(0));
     if (deviceCount > 1) {
-        if (world_rank() == 0) {
-            int canAccess;
-            cudaDeviceCanAccessPeer(&canAccess, world_rank(), 1);
-            if (canAccess) {
-                CUDACHECK(cudaDeviceEnablePeerAccess(1, 0));
-                printf("[%lu] peer to peer enabled\n", world_rank());
-            }
-
+        // if (world_rank() == 0) {
+        int canAccess;
+        cudaDeviceCanAccessPeer(&canAccess, 0, 1);
+        if (canAccess) {
+            CUDACHECK(cudaDeviceEnablePeerAccess(1, 0));
+            printf("[%lu] peer to peer enabled\n", world_rank());
         }
-        else if (world_rank() == 1) {
+
+        // }
+        // else if (world_rank() == 1) 
+        {
+            CUDACHECK(cudaSetDevice(1));
             int canAccess;
-            cudaDeviceCanAccessPeer(&canAccess, world_rank(), 0);
+            cudaDeviceCanAccessPeer(&canAccess, 1, 0);
             if (canAccess) {
                 CUDACHECK(cudaDeviceEnablePeerAccess(0, 0));
                 printf("[%lu] peer to peer enabled\n", world_rank());
             }
         }
+        // 
     }
 
 
@@ -110,52 +117,72 @@ int main(int argc, char** argv)
     for (int i = 0; i <= 27; i++) {
 
         long int N = 1 << i;
-
+        CUDACHECK(cudaSetDevice(0));
         // Allocate memory for A on CPU
         double* A = (double*)malloc(N * sizeof(double));
 
+        double* B = (double*)malloc(N * sizeof(double));
         // Initialize all elements of A to random values
         for (int i = 0; i < N; i++) {
             A[i] = (double)rand() / (double)RAND_MAX;
+            B[i] = (double)rand() / (double)RAND_MAX;
         }
 
         double* d_A;
         CUDACHECK(cudaMalloc(&d_A, N * sizeof(double)));
         CUDACHECK(cudaMemcpy(d_A, A, N * sizeof(double), cudaMemcpyHostToDevice));
 
+        CUDACHECK(cudaSetDevice(1));
+        double* d_B;
+        CUDACHECK(cudaMalloc(&d_B, N * sizeof(double)));
+        CUDACHECK(cudaMemcpy(d_B, B, N * sizeof(double), cudaMemcpyHostToDevice));
         int tag1 = 10;
         int tag2 = 20;
 
         int loop_count = 50;
         // Warm-up loop
-        ncclGroupStart();
+        //ncclGroupStart();
+        CUDACHECK(cudaSetDevice(0));
         for (int i = 1; i <= 5; i++) {
+            CUDACHECK(cudaMemcpyPeerAsync(d_B, 1, d_A, 0, N * sizeof(double), stream));
+            CUDACHECK(cudaMemcpyPeerAsync(d_A, 0, d_B, 1, N * sizeof(double), stream1));
+            // if (world_rank() == 0) {
 
-            if (world_rank() == 0) {
-                NCCLCHECK(ncclSend(d_A, N, ncclDouble, 1, nccl_comm, stream));
-                NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 1, nccl_comm, stream));
-            }
-            else if (world_rank() == 1) {
-                NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 0, nccl_comm, stream));
-                NCCLCHECK(ncclSend(d_A, N, ncclDouble, 0, nccl_comm, stream));
-            }
+                // NCCLCHECK(ncclSend(d_A, N, ncclDouble, 1, nccl_comm, stream));
+                // NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 1, nccl_comm, stream));
+            // }
+            // else if (world_rank() == 1) {
+                // NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 0, nccl_comm, stream));
+                // NCCLCHECK(ncclSend(d_A, N, ncclDouble, 0, nccl_comm, stream));
+            // }
         }
-        ncclGroupEnd();
+
+        cudaStreamSynchronize(stream);
+        CUDACHECK(cudaSetDevice(1));
+        cudaStreamSynchronize(stream1);
+        CUDACHECK(cudaSetDevice(0));
+        //ncclGroupEnd();
         // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
         double start_time, stop_time, elapsed_time;
         start_time = MPI_Wtime();
-        ncclGroupStart();
+        // ncclGroupStart();
         for (int i = 1; i <= loop_count; i++) {
-            if (world_rank() == 0) {
-                NCCLCHECK(ncclSend(d_A, N, ncclDouble, 1, nccl_comm, stream));
-                NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 1, nccl_comm, stream));
-            }
-            else if (world_rank() == 1) {
-                NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 0, nccl_comm, stream));
-                NCCLCHECK(ncclSend(d_A, N, ncclDouble, 0, nccl_comm, stream));
-            }
+            // if (world_rank() == 0) {
+            CUDACHECK(cudaMemcpyPeerAsync(d_B, 1, d_A, 0, N * sizeof(double), stream));
+            CUDACHECK(cudaMemcpyPeerAsync(d_A, 0, d_B, 1, N * sizeof(double), stream1));
+            // NCCLCHECK(ncclSend(d_A, N, ncclDouble, 1, nccl_comm, stream));
+            // NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 1, nccl_comm, stream));
+        // }
+        // else if (world_rank() == 1) {
+            // NCCLCHECK(ncclRecv(d_A, N, ncclDouble, 0, nccl_comm, stream));
+            // NCCLCHECK(ncclSend(d_A, N, ncclDouble, 0, nccl_comm, stream));
+        // }
         }
-        ncclGroupEnd();
+        cudaStreamSynchronize(stream);
+        CUDACHECK(cudaSetDevice(1));
+        cudaStreamSynchronize(stream1);
+        CUDACHECK(cudaSetDevice(0));
+        // ncclGroupEnd();
         stop_time = MPI_Wtime();
         elapsed_time = stop_time - start_time;
 
@@ -164,10 +191,13 @@ int main(int argc, char** argv)
         double num_GB = (double)num_B / (double)B_in_GB;
         double avg_time_per_transfer = elapsed_time / (2.0 * (double)loop_count);
 
-        if (world_rank() == 0) printf("Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", num_B, avg_time_per_transfer, num_GB / avg_time_per_transfer);
+        printf("Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", num_B, avg_time_per_transfer, num_GB / avg_time_per_transfer);
 
         CUDACHECK(cudaFree(d_A));
+        CUDACHECK(cudaSetDevice(1));
+        CUDACHECK(cudaFree(d_B));
         free(A);
+        free(B);
     }
 
 #else 
@@ -231,7 +261,7 @@ int main(int argc, char** argv)
 
         CUDACHECK(cudaFree(d_A));
         free(A);
-}
+    }
 #endif
 
 
