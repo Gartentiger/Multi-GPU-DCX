@@ -24,7 +24,7 @@
 #include <kamping/p2p/send.hpp>
 #include <kamping/request_pool.hpp>
 // #include <nvToolsExt.h>
-
+#include <time.h>
 
 static const size_t SEND_SIZE = 1024;
 static const size_t SEND_TIMES = 1024;
@@ -51,9 +51,9 @@ static const size_t SEND_TIMES = 1024;
 
 int main(int argc, char** argv)
 {
-    using namespace kamping;
-    kamping::Environment e;
-    Communicator comm;
+    // using namespace kamping;
+    // kamping::Environment e;
+    // Communicator comm;
     // nvtxRangePush("SuffixArray");
     // nvtxRangePop();
     int deviceCount;
@@ -66,14 +66,14 @@ int main(int argc, char** argv)
 #ifdef USE_NCCL
     //ncclComm_t nccl_comm;
     //ncclUniqueId Id;
-    if (world_rank() == 0) {
+    // if (world_rank() == 0) {
         //std::span<ncclUniqueId> unique(&Id, 1);
         //NCCLCHECK(ncclGetUniqueId(&Id));
         //comm_world().bcast_single(send_recv_buf(Id));
-    }
-    else {
+    // }
+    // else {
         //Id = comm_world().bcast_single<ncclUniqueId>();
-    }
+    // }
 
     //NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
 
@@ -90,7 +90,7 @@ int main(int argc, char** argv)
         cudaDeviceCanAccessPeer(&canAccess, 0, 1);
         if (canAccess) {
             CUDACHECK(cudaDeviceEnablePeerAccess(1, 0));
-            printf("[%lu] peer to peer enabled\n", world_rank());
+            // printf("[%lu] peer to peer enabled\n", world_rank());
         }
 
         // }
@@ -101,7 +101,7 @@ int main(int argc, char** argv)
             cudaDeviceCanAccessPeer(&canAccess, 1, 0);
             if (canAccess) {
                 CUDACHECK(cudaDeviceEnablePeerAccess(0, 0));
-                printf("[%lu] peer to peer enabled\n", world_rank());
+                // printf("[%lu] peer to peer enabled\n", world_rank());
             }
         }
         // 
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
         //ncclGroupEnd();
         // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
         double start_time, stop_time, elapsed_time;
-        start_time = MPI_Wtime();
+        start_time = clock();
         // ncclGroupStart();
         for (int i = 1; i <= loop_count; i++) {
             // if (world_rank() == 0) {
@@ -183,7 +183,9 @@ int main(int argc, char** argv)
         cudaStreamSynchronize(stream1);
         CUDACHECK(cudaSetDevice(0));
         // ncclGroupEnd();
-        stop_time = MPI_Wtime();
+        // int msec = 0, trigger = 10; /* 10ms */
+        // clock_t before = clock();
+        stop_time = clock();
         elapsed_time = stop_time - start_time;
 
         long int num_B = 8 * N;
