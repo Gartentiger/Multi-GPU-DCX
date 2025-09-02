@@ -983,6 +983,114 @@ void print_device_info()
             prop.unifiedAddressing);
     }
 }
+
+void alltoallMeasure(MultiGPUContext<NUM_GPUS> &context){
+    MultiSplit<NUM_GPUS> multi_split(context);
+    All2All<NUM_GPUS> all2all(context);
+     for (int i = 0; i <= 27; i++) {
+
+        long int N = 1 << i;
+        
+        // Allocate memory for A on CPU
+        sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
+
+        // Initialize all elements of A to random values
+        for (int i = 0; i < N; i++) {
+            A[i] = rand();
+        }
+
+        sa_index_t* d_A, *d_A_temp;
+        cudaMalloc(&d_A, N * sizeof(sa_index_t));
+        cudaMalloc(&d_A_temp, N * sizeof(sa_index_t));
+        cudaMemcpy(d_A, A, N * sizeof(sa_index_t), cudaMemcpyHostToDevice);
+
+
+        int loop_count = 50;
+        std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
+        std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
+        split_table_tt<sa_index_t, NUM_GPUS> split_table;
+        std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+        multi_split_node_info[gpu_index].src_keys = d_A;
+        multi_split_node_info[gpu_index].src_values = d_A;
+        multi_split_node_info[gpu_index].src_len = N;
+
+        multi_split_node_info[gpu_index].dest_keys = d_A;
+        multi_split_node_info[gpu_index].dest_values = d_A;
+        multi_split_node_info[gpu_index].dest_len = N;
+
+        // if (gpu_index == world_rank()) {
+        //     //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
+        //     mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
+        // }
+    }
+    PartitioningFunctor<uint> f(N/NUM_GPUS, NUM_GPUS - 1);
+    multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+
+    context.sync_default_streams();
+
+        // Warm-up loop
+    
+    for (int i = 1; i <= 5; i++) {
+        
+    for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+    {
+        all2all_node_info[gpu_index].src_keys = d_A;
+        all2all_node_info[gpu_index].src_values = d_A;
+        all2all_node_info[gpu_index].src_len = N;
+
+        all2all_node_info[gpu_index].dest_keys = d_A;
+        all2all_node_info[gpu_index].dest_values = d_A;
+        all2all_node_info[gpu_index].dest_len = N;
+
+        all2all_node_info[gpu_index].temp_keys = d_A_temp;
+        all2all_node_info[gpu_index].temp_values = d_A_temp;
+        all2all_node_info[gpu_index].temp_len = N;
+    }
+    all2all.execKVAsync(all2all_node_info, split_table);
+    context.sync_all_streams();
+    }
+
+        // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
+        double elapsed_time,start_time,stop_time;
+        start_time = MPI_Wtime();
+        
+        for (int i = 1; i <= loop_count; i++) {
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            {
+                all2all_node_info[gpu_index].src_keys = d_A;
+                all2all_node_info[gpu_index].src_values = d_A;
+                all2all_node_info[gpu_index].src_len = N;
+                
+                all2all_node_info[gpu_index].dest_keys = d_A;
+                all2all_node_info[gpu_index].dest_values = d_A;
+                all2all_node_info[gpu_index].dest_len = N;
+                
+                all2all_node_info[gpu_index].temp_keys = d_A_temp;
+                all2all_node_info[gpu_index].temp_values = d_A_temp;
+                all2all_node_info[gpu_index].temp_len = N;
+            }
+            all2all.execKVAsync(all2all_node_info, split_table);
+            context.sync_all_streams();
+        }
+        stop_time = MPI_Wtime();
+       
+        elapsed_time = stop_time-start_time;
+        long int num_B = 8 * N;
+        long int B_in_GB = 1 << 30;
+        double num_GB = (double)num_B / (double)B_in_GB;
+        double avg_time_per_transfer = elapsed_time / (2.0 * (double)loop_count);
+
+        printf("Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", num_B, avg_time_per_transfer, num_GB / avg_time_per_transfer);
+
+        cudaFree(d_A);
+        cudaFree(d_A_temp);
+        free(A);
+    }
+    
+}
+
 int main(int argc, char** argv)
 {
     using namespace kamping;
@@ -1026,7 +1134,8 @@ int main(int argc, char** argv)
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
-
+    
+    
     #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
     //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
@@ -1038,10 +1147,13 @@ int main(int argc, char** argv)
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1};
     
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 2);
-    
+    alltoallMeasure(context);
+    return 0;
     #endif
     SuffixSorter sorter(context, realLen, input);
     
+
+   
     sorter.alloc();
     // auto stringPath = ((std::string)argv[3]);
     // int pos = stringPath.find_last_of("/\\");
