@@ -224,6 +224,9 @@ namespace kernels {
         return o;
     }
 
+
+
+
     __global__ void produce_index_kmer_tuples_12(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         sa_index_t* Output_kmers, size_t N) {
         assert(N % 12 == 0); // No one wants to deal with the "tails" here, we just write some more and don't care.
@@ -306,7 +309,93 @@ namespace kernels {
         out.x |= 7ull << 13;
         return out;
     }
+    __device__ __forceinline__ ulong1 get_octet2(uint4 values, uint rem, uint indexmod) {
+        uchar4 v0 = *reinterpret_cast<uchar4*>(&values.x);
+        uchar4 v4 = *reinterpret_cast<uchar4*>(&values.y);
+        uchar4 v8 = *reinterpret_cast<uchar4*>(&values.z);
+        uchar4 v12 = *reinterpret_cast<uchar4*>(&values.w);
+        uchar4 v16 = *reinterpret_cast<uchar4*>(&rem);
+        ulong1 out;
+        switch (indexmod) {
+        case 1:
+            out = make_uchar8_be(v0.y, v0.z, v0.w, v4.x, v4.y, v4.z, v4.w, v8.x);
+            break;
+        case 2:
+            out = make_uchar8_be(v0.z, v0.w, v4.x, v4.y, v4.z, v4.w, v8.x, v8.y);
+            break;
+        case 4:
+            out = make_uchar8_be(v4.x, v4.y, v4.z, v4.w, v8.x, v8.y, v8.z, v8.w);
+            break;
+        case 5:
+            out = make_uchar8_be(v4.y, v4.z, v4.w, v8.x, v8.y, v8.z, v8.w, v12.x);
+            break;
+        case 6:
+            out = make_uchar8_be(v4.z, v4.w, v8.x, v8.y, v8.z, v8.w, v12.x, v12.y);
+            break;
+        case 7:
+            out = make_uchar8_be(v4.w, v8.x, v8.y, v8.z, v8.w, v12.x, v12.y, v12.z);
+            break;
+        case 8:
+            out = make_uchar8_be(v8.x, v8.y, v8.z, v8.w, v12.x, v12.y, v12.z, v12.w);
+            break;
+        case 9:
+            out = make_uchar8_be(v8.y, v8.z, v8.w, v12.x, v12.y, v12.z, v12.w, v16.x);
+            break;
+        case 10:
+            out = make_uchar8_be(v8.z, v8.w, v12.x, v12.y, v12.z, v12.w, v16.x, v16.y);
+            break;
+        case 11:
+            out = make_uchar8_be(v8.w, v12.x, v12.y, v12.z, v12.w, v16.x, v16.y, v16.z);
+            break;
+        }
+        out.x &= ~((1ull << 13) - 1ull);
+        out.x |= 7ull << 13;
+        return out;
+    }
+    __global__ void produce_index_kmer_tuples_12_64_dc5(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
+        ulong1* Output_kmers, size_t N) {
+        assert(N % 10 == 0); // No one wants to deal with the "tails" here, we just write some more and don't care.
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N / 10; i += blockDim.x * gridDim.x) {
+            // printf("[%u] 1\n", tidx);
+            // uint3 a = *(reinterpret_cast<const uint3*>(Input + 10 * i));
+            const char* baseInput = Input + 10 * i;
+            uchar axx = *(baseInput);     uchar ayx = *(baseInput + 4); uchar azx = *(baseInput + 8);
+            uchar axy = *(baseInput + 1); uchar ayy = *(baseInput + 5); uchar azy = *(baseInput + 9);
+            uchar axz = *(baseInput + 2); uchar ayz = *(baseInput + 6); uchar azz = *(baseInput + 10);
+            uchar axw = *(baseInput + 3); uchar ayw = *(baseInput + 7); uchar azw = *(baseInput + 11);
+            uchar4 ax = make_uchar4(axx, axy, axz, axw);
+            uchar4 ay = make_uchar4(ayx, ayy, ayz, ayw);
+            uchar4 az = make_uchar4(azx, azy, azz, azw);
+            uchar4 b = make_uchar4(*(baseInput + 12), *(baseInput + 13), *(baseInput + 14), *(baseInput + 15));
+            uchar4 c = make_uchar4(*(baseInput + 16), *(baseInput + 17), *(baseInput + 18), *(baseInput + 19));
+            // uint b = *(reinterpret_cast<const uint*>(Input + 10 * i) + (3 * i) + 3);
+            // uint c = *(reinterpret_cast<const uint*>(Input + 10 * i) + (3 * i) + 4);
+            uint4 inp = make_uint4(*reinterpret_cast<uint*>(&ax), *reinterpret_cast<uint*>(&ay), *reinterpret_cast<uint*>(&az), *reinterpret_cast<uint*>(&b));
+            // Now generate
+            // printf("[%u]\n", tidx);
+            ulong3 res1;
+            ulong3 res2;
+            uint base_idx = start_index + 6 * i;
+            uint3 index1 = make_uint3(base_idx + 0, base_idx + 1, base_idx + 2);
+            uint3 index2 = make_uint3(base_idx + 3, base_idx + 4, base_idx + 5);
+            res1.x = get_octet2(inp, *reinterpret_cast<uint*>(&c), 1).x;
+            res1.y = get_octet2(inp, *reinterpret_cast<uint*>(&c), 2).x;
+            res1.z = get_octet2(inp, *reinterpret_cast<uint*>(&c), 4).x;
+            //res1.w = get_octet(inp, c, 5).x;
 
+            res2.x = get_octet2(inp, *reinterpret_cast<uint*>(&c), 6).x;
+            res2.y = get_octet2(inp, *reinterpret_cast<uint*>(&c), 7).x;
+            res2.z = get_octet2(inp, *reinterpret_cast<uint*>(&c), 9).x;
+            //res2.w = get_octet(inp, c, 11).x;
+
+            *(reinterpret_cast<ulong3*>(Output_kmers) + i * 2) = res1;
+            *(reinterpret_cast<ulong3*>(Output_kmers) + i * 2 + 1) = res2;
+            *(reinterpret_cast<uint3*>(Output_index) + i * 2) = index1;
+            *(reinterpret_cast<uint3*>(Output_index) + i * 2 + 1) = index2;
+        }
+        // Maybe we could have a nicer coalescing load/safe pattern with shared memory?
+    }
 
     __global__ void produce_index_kmer_tuples_12_64(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N) {
@@ -627,4 +716,25 @@ namespace kernels {
         }
     }
 
+
+    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk5* output) {
+        // corresponds with the index
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+
+        output[tidx].index = tidx;
+
+        output[tidx].ranks0 = ranks[tidx];
+        output[tidx].ranks1 = ranks[tidx + 1];
+        output[tidx].ranks2 = ranks[tidx + 2];
+        output[tidx].ranks3 = ranks[tidx + 3];
+        output[tidx].ranks4 = ranks[tidx + 4];
+        output[tidx].xPrefix0 = Input[tidx];
+        output[tidx].xPrefix1 = Input[tidx + 1];
+        output[tidx].xPrefix2 = Input[tidx + 2];
+        output[tidx].xPrefix3 = Input[tidx + 3];
+        output[tidx].xPrefix4 = Input[tidx + 4];
+        // printf("[%u] %u, ranks: %u, xPrefix: %c\n", tidx, i, output[tidx].ranks[i], output[tidx].xPrefix[i]);
+
+
+    }
 }

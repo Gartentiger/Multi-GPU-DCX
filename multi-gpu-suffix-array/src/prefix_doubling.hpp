@@ -500,6 +500,7 @@ private:
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
 
         mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>());
+
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 
@@ -586,6 +587,7 @@ private:
         //     mcontext.sync_default_streams();
         // }
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
+
         // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         // {
         //     SaGPU gpu = mgpus[gpu_index];
@@ -889,12 +891,14 @@ private:
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
 
+
         // Can be initialized upfront.
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
             multi_split_node_info[gpu_index].src_keys = gpu.Sa_index;
             multi_split_node_info[gpu_index].src_values = gpu.Sa_rank;
+
             multi_split_node_info[gpu_index].src_len = gpu.working_len;
 
             multi_split_node_info[gpu_index].dest_keys = gpu.Temp1;
@@ -947,6 +951,7 @@ private:
 
         bool sorting = false;
 
+        // sa ranks in segment heads, sa index in old ranks
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
@@ -958,7 +963,6 @@ private:
                 CUERR;
 
                 size_t temp_storage;
-
                 cub::DoubleBuffer<sa_index_t> d_keys(gpu.Temp1, gpu.Old_ranks);
                 cub::DoubleBuffer<sa_index_t> d_values(gpu.Segment_heads, gpu.Temp2);
                 cub::DeviceRadixSort::SortPairs(nullptr, temp_storage, d_keys, d_values, dest_lens[gpu_index],
