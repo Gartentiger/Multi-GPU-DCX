@@ -19,6 +19,7 @@
 #include "gossip/all_to_all.cuh"
 #include "gossip/multisplit.cuh"
 #include "distrib_merge/distrib_merge.hpp"
+#include <chrono>
 // #include <nvToolsExt.h>
 
 static const uint NUM_GPUS = 4;
@@ -818,6 +819,160 @@ void print_device_info()
             prop.unifiedAddressing);
     }
 }
+void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
+
+    for (int i = 1; i <= 27; i++) {
+        MultiSplit<NUM_GPUS> multi_split(context);
+        All2All<NUM_GPUS> all2all(context);
+        std::array<sa_index_t*, NUM_GPUS> d_A_send;
+        std::array<sa_index_t*, NUM_GPUS> d_A_recv;
+        std::array<void*, NUM_GPUS> temp_buffer;
+        std::array<sa_index_t*, NUM_GPUS> d_A_recv_temp;
+        size_t N = 2 << i;
+
+        // Allocate memory for A on CPU
+        sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
+
+        // Initialize all elements of A to random values
+        for (size_t i = 0; i < N; i++) {
+            A[i] = i;
+        }
+
+        // std::shuffle(A, A + N, std::default_random_engine());
+        size_t per_gpu = N / NUM_GPUS;
+
+        std::array<size_t, NUM_GPUS> temp_storages;
+        // printf("N: %u, per_gpu: %u\n", N, per_gpu);
+        for (size_t i = 0; i < NUM_GPUS; i++) {
+            // cudaStream_t stream = context.get_gpu_default_stream(i);
+            sa_index_t* d_A, * d_A_rec, * d_A_te, * d_A_recv_tem;
+            cudaMalloc(&d_A, per_gpu * sizeof(sa_index_t));
+            d_A_send[i] = d_A;
+            cudaMemcpy(d_A_send[i], A + per_gpu * i, per_gpu * sizeof(sa_index_t), cudaMemcpyHostToDevice);
+
+            cudaMalloc(&d_A_rec, per_gpu * sizeof(sa_index_t));
+            d_A_recv[i] = d_A_rec;
+            cudaMemset(d_A_recv[i], 0, per_gpu * sizeof(sa_index_t));
+
+            cudaMalloc(&d_A_recv_tem, per_gpu * sizeof(sa_index_t));
+            d_A_recv_temp[i] = d_A_recv_tem;
+            cudaMemset(d_A_recv_temp[i], 0, per_gpu * sizeof(sa_index_t));
+
+            cub::DeviceRadixSort::SortKeys(nullptr, temp_storages[i],
+                d_A_recv[i], d_A_recv[i], per_gpu);
+            void* temp;
+            temp_storages[i] = std::max(temp_storages[i], 1024ul);
+            temp_storages[i] = std::max(temp_storages[i], per_gpu);
+            cudaMalloc(&temp, temp_storages[i]);
+            temp_buffer[i] = temp;
+            cudaMemset(temp_buffer[i], 0, temp_storages[i]);
+
+
+            // printArray << <1, 1 >> > (d_A_send[i], d_A_send[i], per_gpu, i);
+        }
+
+        context.sync_default_streams();
+        int loop_count = 50;
+        std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
+        std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
+        split_table_tt<sa_index_t, NUM_GPUS> split_table;
+        std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            // context.sync_default_streams();
+            multi_split_node_info[gpu_index].src_keys = d_A_send[gpu_index];
+            multi_split_node_info[gpu_index].src_values = d_A_send[gpu_index];
+            multi_split_node_info[gpu_index].src_len = per_gpu;
+
+            multi_split_node_info[gpu_index].dest_keys = d_A_recv_temp[gpu_index];
+            multi_split_node_info[gpu_index].dest_values = d_A_recv_temp[gpu_index];
+            multi_split_node_info[gpu_index].dest_len = per_gpu;
+            context.get_device_temp_allocator(gpu_index).init(temp_buffer[gpu_index], temp_storages[gpu_index] * sizeof(sa_index_t));
+        }
+
+
+        //}
+        PartitioningFunctor<uint> f(per_gpu, NUM_GPUS - 1);
+        multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+
+        context.sync_default_streams();
+
+        // Warm-up loop
+
+        for (int i = 1; i <= 5; i++) {
+
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            {
+                all2all_node_info[gpu_index].src_keys = d_A_recv_temp[gpu_index];
+                all2all_node_info[gpu_index].src_values = d_A_recv_temp[gpu_index];
+                all2all_node_info[gpu_index].src_len = per_gpu;
+
+                all2all_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
+                all2all_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
+                all2all_node_info[gpu_index].dest_len = per_gpu;
+            }
+            all2all.execAsync(all2all_node_info, split_table);
+            context.sync_all_streams();
+        }
+
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     size_t temp_storage = 0;
+        //     cub::DeviceRadixSort::SortKeys(nullptr, temp_storage,
+        //         d_A_recv[gpu_index], d_A_recv[gpu_index], per_gpu);
+
+        //     ASSERT(temp_storage <= temp_storages[gpu_index]);
+        //     cub::DeviceRadixSort::SortKeys(temp_buffer[gpu_index], temp_storage,
+        //         d_A_recv[gpu_index], d_A_send[gpu_index], per_gpu, 0, 32, context.get_gpu_default_stream(gpu_index));
+        // }
+        // context.sync_all_streams();
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     cudaMemcpy(&A[gpu_index], &d_A_send[gpu_index][per_gpu - 1], sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+        // }
+        // printf("1: %u, 2: %u: 3: %u: 4: %u\n", A[0], A[1], A[2], A[3]);
+        // printArray << <1, 1 >> > (d_A_send[0], d_A_send[1], per_gpu, 3);
+
+        // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
+        double elapsed_time;
+        std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+
+        for (int i = 1; i <= loop_count; i++) {
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            {
+                all2all_node_info[gpu_index].src_keys = d_A_recv_temp[gpu_index];
+                all2all_node_info[gpu_index].src_values = d_A_recv_temp[gpu_index];
+                all2all_node_info[gpu_index].src_len = per_gpu;
+
+                all2all_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
+                all2all_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
+                all2all_node_info[gpu_index].dest_len = per_gpu;
+            }
+            all2all.execAsync(all2all_node_info, split_table);
+            context.sync_all_streams();
+        }
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        std::chrono::duration<double> elapsed_seconds = end - start;
+        elapsed_time = elapsed_seconds.count();
+        long int num_B = 8 * N;
+        long int B_in_GB = 1 << 30;
+        double num_GB = (double)num_B / (double)B_in_GB;
+        double avg_time_per_transfer = elapsed_time / (2.0 * (double)loop_count);
+
+        printf("Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", num_B, avg_time_per_transfer, num_GB / avg_time_per_transfer);
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            cudaFree(d_A_send[gpu_index]);
+            cudaFree(d_A_recv[gpu_index]);
+            cudaFree(d_A_recv_temp[gpu_index]);
+            cudaFree(temp_buffer[gpu_index]);
+        }
+        free(A);
+    }
+
+}
+
 int main(int argc, char** argv)
 {
     if (argc != 4)
@@ -840,6 +995,8 @@ int main(int argc, char** argv)
 #else 
     const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
+    // alltoallMeasure(context);
+
 #endif
     SuffixSorter sorter(context, realLen, input);
     sorter.alloc();
