@@ -1015,9 +1015,9 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         }else{
             comm_world().recv(recv_buf(std::span<sa_index_t>(A+world_rank()*per_gpu,per_gpu)),recv_count(per_gpu), tag(world_rank()),source(0));
         }
-        for(size_t j = 0; j < N; j++){
-            printf("[%lu] A[%lu]: %u\n", world_rank(), j, A[j]);
-        }
+        // for(size_t j = 0; j < N; j++){
+            // printf("[%lu] A[%lu]: %u\n", world_rank(), j, A[j]);
+        // }
         std::array<size_t, NUM_GPUS> temp_storages;
         printf("N: %u, per_gpu: %u\n", N, per_gpu);
         // for (size_t i = 0; i < NUM_GPUS; i++) 
@@ -1037,16 +1037,16 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             d_A_recv_temp[gpu_index] = d_A_recv_tem;
             cudaMemset(d_A_recv_temp[gpu_index], 0, per_gpu * sizeof(sa_index_t));
 
-            cub::DeviceRadixSort::SortKeys(nullptr, temp_storages[i],
+            cub::DeviceRadixSort::SortKeys(nullptr, temp_storages[gpu_index],
                 d_A_recv[gpu_index], d_A_recv[gpu_index], per_gpu);
             void* temp;
             temp_storages[gpu_index] = std::max(temp_storages[gpu_index], 1024ul);
-            temp_storages[gpu_index] = std::max(temp_storages[gpu_index], per_gpu);
+            temp_storages[gpu_index] = std::max(temp_storages[gpu_index], per_gpu)*16;
             cudaMalloc(&temp, temp_storages[gpu_index]);
             temp_buffer[gpu_index] = temp;
             cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
 
-            printArray<<<1,1>>>(d_A_send[gpu_index], d_A_send[gpu_index], per_gpu, gpu_index);
+            printArray<<<1,1>>>(&d_A_send[gpu_index][per_gpu-1], &d_A_send[gpu_index][per_gpu-1], 1, gpu_index);
             // printArray << <1, 1 >> > (d_A_send[i], d_A_send[i], per_gpu, i); 
         }
 
@@ -1080,7 +1080,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         context.sync_default_streams();
 
         comm_world().barrier();
-        printArray<<<1,1>>>(d_A_recv_temp[world_rank()], d_A_recv_temp[world_rank()], per_gpu,world_rank());
+        printArray<<<1,1>>>(&d_A_recv_temp[world_rank()][per_gpu-1], &d_A_recv_temp[world_rank()][per_gpu-1], 1, world_rank());
         context.sync_all_streams();
         // Warm-up loop
 
@@ -1100,8 +1100,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             context.sync_all_streams();
         }
         comm_world().barrier();
-        
-        printArray<<<1,1>>>(d_A_recv[world_rank()], d_A_recv[world_rank()], per_gpu,world_rank());
+        printArray<<<1,1>>>(&d_A_recv[world_rank()][per_gpu-1], &d_A_recv[world_rank()][per_gpu-1], 1, world_rank());
         context.sync_all_streams();
         comm_world().barrier();
 
