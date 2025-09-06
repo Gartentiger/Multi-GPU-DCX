@@ -1012,7 +1012,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             }
             
         }else{
-            comm_world().recv(recv_buf(std::span<sa_index_t>(A+world_rank()*per_gpu),per_gpu),recv_count(per_gpu), tag(world_rank()),source(0));
+            comm_world().recv(recv_buf(std::span<sa_index_t>(A+world_rank()*per_gpu,per_gpu)),recv_count(per_gpu), tag(world_rank()),source(0));
         }
         
         std::array<size_t, NUM_GPUS> temp_storages;
