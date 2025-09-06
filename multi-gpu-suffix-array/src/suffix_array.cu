@@ -986,7 +986,7 @@ void print_device_info()
 
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
-    for (int i = 1; i <= 26; i++) {
+    for (int i = 1; i <= 10; i++) {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
         std::array<sa_index_t*, NUM_GPUS> d_A_send;
@@ -1056,9 +1056,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
-        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            uint gpu_index = world_rank();
             // context.sync_default_streams();
             multi_split_node_info[gpu_index].src_keys = d_A_send[gpu_index];
             multi_split_node_info[gpu_index].src_values = d_A_send[gpu_index];
@@ -1067,7 +1066,9 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             multi_split_node_info[gpu_index].dest_keys = d_A_recv_temp[gpu_index];
             multi_split_node_info[gpu_index].dest_values = d_A_recv_temp[gpu_index];
             multi_split_node_info[gpu_index].dest_len = per_gpu;
-            context.get_device_temp_allocator(gpu_index).init(temp_buffer[gpu_index], temp_storages[gpu_index] * sizeof(sa_index_t));
+            if(world_rank() == gpu_index){
+                context.get_device_temp_allocator(gpu_index).init(temp_buffer[gpu_index], temp_storages[gpu_index] * sizeof(sa_index_t));
+            }
         }
 
 
@@ -1078,13 +1079,13 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         context.sync_default_streams();
 
         comm_world().barrier();
+        printArray<<<1,1>>>(d_A_recv_temp[world_rank()], d_A_recv_temp[world_rank()], per_gpu,world_rank());
         // Warm-up loop
 
-        for (int i = 1; i <= 5; i++) {
-
-            //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // for (int i = 1; i <= 5; i++) 
+        {
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
-                uint gpu_index = world_rank();
                 all2all_node_info[gpu_index].src_keys = d_A_recv_temp[gpu_index];
                 all2all_node_info[gpu_index].src_values = d_A_recv_temp[gpu_index];
                 all2all_node_info[gpu_index].src_len = per_gpu;
@@ -1098,12 +1099,14 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         }
         comm_world().barrier();
         
+        printArray<<<1,1>>>(d_A_recv[world_rank()], d_A_recv[world_rank()], per_gpu,world_rank());
 
         // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
         double elapsed_time;
         double start = MPI_Wtime();
 
-        for (int i = 1; i <= loop_count; i++) {
+        // for (int i = 1; i <= loop_count; i++) 
+        {
             for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
                 all2all_node_info[gpu_index].src_keys = d_A_recv_temp[gpu_index];
@@ -1125,8 +1128,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         double num_GB = (double)num_B / (double)B_in_GB;
         double avg_time_per_transfer = elapsed_time / (2.0 * (double)loop_count);
 
-        if(world_rank == 0){
-
+        if(world_rank == 0)
+        {
             printf("Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", num_B, avg_time_per_transfer, num_GB / avg_time_per_transfer);
         }
 
