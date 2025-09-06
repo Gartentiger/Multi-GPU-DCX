@@ -986,7 +986,7 @@ void print_device_info()
 
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
-    for (int i = 1; i <= 10; i++) 
+    for (int i = 1; i <= 27; i++) 
     {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
@@ -1019,7 +1019,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             // printf("[%lu] A[%lu]: %u\n", world_rank(), j, A[j]);
         // }
         std::array<size_t, NUM_GPUS> temp_storages;
-        printf("N: %u, per_gpu: %u\n", N, per_gpu);
+        // printf("N: %u, per_gpu: %u\n", N, per_gpu);
         // for (size_t i = 0; i < NUM_GPUS; i++) 
         {
             size_t gpu_index = world_rank();
@@ -1046,7 +1046,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             temp_buffer[gpu_index] = temp;
             cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
 
-            printArray<<<1,1>>>(&d_A_send[gpu_index][per_gpu-1], &d_A_send[gpu_index][per_gpu-1], 1, gpu_index);
+            // printArray<<<1,1>>>(&d_A_send[gpu_index][per_gpu-1], &d_A_send[gpu_index][per_gpu-1], 1, gpu_index);
             // printArray << <1, 1 >> > (d_A_send[i], d_A_send[i], per_gpu, i); 
         }
 
@@ -1080,11 +1080,11 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         context.sync_default_streams();
 
         comm_world().barrier();
-        printArray<<<1,1>>>(&d_A_recv_temp[world_rank()][per_gpu-1], &d_A_recv_temp[world_rank()][per_gpu-1], 1, world_rank());
+        // printArray<<<1,1>>>(&d_A_recv_temp[world_rank()][per_gpu-1], &d_A_recv_temp[world_rank()][per_gpu-1], 1, world_rank());
         context.sync_all_streams();
         // Warm-up loop
 
-        for (int i = 1; i <= 5; i++) 
+        for (int j = 1; j <= 5; j++) 
         {
             for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
@@ -1100,7 +1100,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             context.sync_all_streams();
         }
         comm_world().barrier();
-        printArray<<<1,1>>>(&d_A_recv[world_rank()][per_gpu-1], &d_A_recv[world_rank()][per_gpu-1], 1, world_rank());
+        // printArray<<<1,1>>>(&d_A_recv[world_rank()][per_gpu-1], &d_A_recv[world_rank()][per_gpu-1], 1, world_rank());
         context.sync_all_streams();
         comm_world().barrier();
 
@@ -1108,7 +1108,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         double elapsed_time;
         double start = MPI_Wtime();
 
-        for (int i = 1; i <= loop_count; i++) 
+        for (int j = 1; j <= loop_count; j++) 
         {
             for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
