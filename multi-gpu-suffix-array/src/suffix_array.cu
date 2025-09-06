@@ -1081,6 +1081,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
 
         comm_world().barrier();
         printArray<<<1,1>>>(d_A_recv_temp[world_rank()], d_A_recv_temp[world_rank()], per_gpu,world_rank());
+        context.sync_all_streams();
         // Warm-up loop
 
         // for (int i = 1; i <= 5; i++) 
@@ -1101,6 +1102,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         comm_world().barrier();
         
         printArray<<<1,1>>>(d_A_recv[world_rank()], d_A_recv[world_rank()], per_gpu,world_rank());
+        context.sync_all_streams();
         comm_world().barrier();
 
         // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
@@ -1109,18 +1111,18 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
 
         // for (int i = 1; i <= loop_count; i++) 
         {
-            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-            {
-                all2all_node_info[gpu_index].src_keys = d_A_recv_temp[gpu_index];
-                all2all_node_info[gpu_index].src_values = d_A_recv_temp[gpu_index];
-                all2all_node_info[gpu_index].src_len = per_gpu;
+            // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            // {
+            //     all2all_node_info[gpu_index].src_keys = d_A_recv_temp[gpu_index];
+            //     all2all_node_info[gpu_index].src_values = d_A_recv_temp[gpu_index];
+            //     all2all_node_info[gpu_index].src_len = per_gpu;
 
-                all2all_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
-                all2all_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
-                all2all_node_info[gpu_index].dest_len = per_gpu;
-            }
-            all2all.execAsync(all2all_node_info, split_table);
-            context.sync_all_streams();
+            //     all2all_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
+            //     all2all_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
+            //     all2all_node_info[gpu_index].dest_len = per_gpu;
+            // }
+            // all2all.execAsync(all2all_node_info, split_table);
+            // context.sync_all_streams();
         }
         double end = MPI_Wtime();
 
