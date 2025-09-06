@@ -986,7 +986,8 @@ void print_device_info()
 
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
-    for (int i = 1; i <= 10; i++) {
+    for (int i = 1; i <= 10; i++) 
+    {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
         std::array<sa_index_t*, NUM_GPUS> d_A_send;
@@ -1045,7 +1046,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             temp_buffer[gpu_index] = temp;
             cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
 
-            printArray<<<1,1>>>(d_A_send[gpu_index], d_A_send[gpu_index], per_gpu,gpu_index);
+            printArray<<<1,1>>>(d_A_send[gpu_index], d_A_send[gpu_index], per_gpu, gpu_index);
             // printArray << <1, 1 >> > (d_A_send[i], d_A_send[i], per_gpu, i); 
         }
 
@@ -1100,6 +1101,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         comm_world().barrier();
         
         printArray<<<1,1>>>(d_A_recv[world_rank()], d_A_recv[world_rank()], per_gpu,world_rank());
+        comm_world().barrier();
 
         // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
         double elapsed_time;
@@ -1128,11 +1130,11 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         double num_GB = (double)num_B / (double)B_in_GB;
         double avg_time_per_transfer = elapsed_time / (2.0 * (double)loop_count);
 
-        if(world_rank == 0)
+        if(world_rank() == 0)
         {
             printf("Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", num_B, avg_time_per_transfer, num_GB / avg_time_per_transfer);
         }
-
+        comm_world().barrier();
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             uint gpu_index = world_rank();
@@ -1141,9 +1143,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             cudaFree(d_A_recv_temp[gpu_index]);
             cudaFree(temp_buffer[gpu_index]);
         }
-        if(world_rank() == 0){
-            free(A);
-        }
+        free(A);
+        comm_world().barrier();
     }
 
 }
