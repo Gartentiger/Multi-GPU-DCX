@@ -1018,7 +1018,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             printf("[%lu] A[%lu]: %u\n", world_rank(), j, A[j]);
         }
         std::array<size_t, NUM_GPUS> temp_storages;
-        // printf("N: %u, per_gpu: %u\n", N, per_gpu);
+        printf("N: %u, per_gpu: %u\n", N, per_gpu);
         // for (size_t i = 0; i < NUM_GPUS; i++) 
         {
             size_t gpu_index = world_rank();
