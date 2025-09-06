@@ -23,9 +23,9 @@ __global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t r
 {
     for (size_t i = 0; i < size; i++) {
 
-        // printf("[%lu]: Isa 1: %u, Sa_index 2: %u\n", rank, key[i], value[i]);
+        printf("[%lu]: Isa: %u, Sa_index: %u\n", rank, key[i], value[i]);
 
-        auto r = key[i] + value[i];
+        //auto r = key[i] + value[i];
     }
     printf("---------------------------------------------------------------------------\n");
 }

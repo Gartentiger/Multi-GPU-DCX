@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 2;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -1005,7 +1005,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             for (size_t j = 0; j < N; j++) {
                 A[j] = j;
             }
-            std::shuffle(A, A + N, std::default_random_engine());
+            // std::shuffle(A, A + N, std::default_random_engine());
             
             for (size_t gpu_index = 1; gpu_index < NUM_GPUS; gpu_index++) {
                 comm_world().send(send_buf(std::span<sa_index_t>(A+gpu_index*per_gpu,per_gpu)),send_count(per_gpu), tag(gpu_index), destination(gpu_index));
@@ -1014,7 +1014,9 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         }else{
             comm_world().recv(recv_buf(std::span<sa_index_t>(A+world_rank()*per_gpu,per_gpu)),recv_count(per_gpu), tag(world_rank()),source(0));
         }
-        
+        for(size_t j = 0; j < N; j++){
+            printf("[%lu] A[%lu]: %u\n", world_rank(), j, A[j]);
+        }
         std::array<size_t, NUM_GPUS> temp_storages;
         // printf("N: %u, per_gpu: %u\n", N, per_gpu);
         // for (size_t i = 0; i < NUM_GPUS; i++) 
@@ -1043,7 +1045,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             temp_buffer[gpu_index] = temp;
             cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
 
-
+            printArray<<<1,1>>>(d_A_send[i], d_A_send[i], per_gpu, i);
             // printArray << <1, 1 >> > (d_A_send[i], d_A_send[i], per_gpu, i); 
         }
 
@@ -1196,9 +1198,9 @@ int main(int argc, char** argv)
     
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
     #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1,2,3};
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1};
     
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 2);
     alltoallMeasure(context);
     return 0;
     #endif
