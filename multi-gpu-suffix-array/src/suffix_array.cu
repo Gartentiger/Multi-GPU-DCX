@@ -1008,11 +1008,11 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             std::shuffle(A, A + N, std::default_random_engine());
             
             for (size_t gpu_index = 1; i < NUM_GPUS; i++) {
-                comm_world().send(send_buf(A+gpu_index*per_gpu),send_count(per_gpu), tag(gpu_index), destination(gpu_index));
+                comm_world().send(send_buf(std::span<sa_index_t>(A+gpu_index*per_gpu,per_gpu)),send_count(per_gpu), tag(gpu_index), destination(gpu_index));
             }
             
         }else{
-            comm_world().recv(recv_buf(A+world_rank()*per_gpu),recv_count(per_gpu), tag(world_rank()),source(0));
+            comm_world().recv(recv_buf(std::span<sa_index_t>(A+world_rank()*per_gpu),per_gpu),recv_count(per_gpu), tag(world_rank()),source(0));
         }
         
         std::array<size_t, NUM_GPUS> temp_storages;
