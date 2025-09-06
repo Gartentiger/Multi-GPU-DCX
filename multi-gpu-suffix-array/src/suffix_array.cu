@@ -997,7 +997,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
 
         // Allocate memory for A on CPU
         sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
-
+        // memset(A, 0, N * sizeof(sa_index_t));
         size_t per_gpu = N / NUM_GPUS;
         if(world_rank() == 0){
 
@@ -1045,7 +1045,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             temp_buffer[gpu_index] = temp;
             cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
 
-            printArray<<<1,1>>>(d_A_send[i], d_A_send[i], per_gpu, i);
+            printArray<<<1,1>>>(d_A_send[gpu_index], d_A_send[gpu_index], per_gpu,gpu_index);
             // printArray << <1, 1 >> > (d_A_send[i], d_A_send[i], per_gpu, i); 
         }
 
