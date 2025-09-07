@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 2;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -986,7 +986,7 @@ void print_device_info()
 
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
-    for (int i = 1; i <= 30; i++) 
+    for (int i = 1; i <= 29; i++) 
     {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
@@ -1204,9 +1204,9 @@ int main(int argc, char** argv)
     
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
     #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3};
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1};
     
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 2);
     alltoallMeasure(context);
     return 0;
     #endif
