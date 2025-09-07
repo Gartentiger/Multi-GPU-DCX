@@ -1151,7 +1151,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         }
         for(size_t j = 0; j < per_gpu; j++){
             if(A[j]-per_gpu*world_rank() != j){
-                std::cerr << "wrong" << std::endl;
+                printf("[%lu] A[%lu] wrong\n", world_rank(), j);
             }
         }
         comm_world().barrier();
