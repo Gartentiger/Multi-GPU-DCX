@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 8;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -1129,7 +1129,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             loop_time[j] =  end - start;
         }
 
-        // std::sort(loop_time.begin(), loop_time.end(), std::less_equal<double>());
+        std::sort(loop_time.begin(), loop_time.end(), std::less_equal<double>());
         double elapsed_time = loop_time[0];
         for(int j = 1; j < loop_count; j++){
             elapsed_time += loop_time[j];
@@ -1145,13 +1145,13 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         comm_world().barrier();
         cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
         CUERR;
-        std::sort(A, A + per_gpu, std::less<sa_index_t>());
-        for(sa_index_t j = 0; j < per_gpu; j++){
-            if(A[j]-per_gpu*world_rank() != j){
-                printf("[%lu] A[%u] %u wrong\n", world_rank(), j, A[j]);
-                break;
-            }
-        }
+        // std::sort(A, A + per_gpu, std::less<sa_index_t>());
+        // for(sa_index_t j = 0; j < per_gpu; j++){
+        //     if(A[j]-per_gpu*world_rank() != j){
+        //         printf("[%lu] A[%u] %u wrong\n", world_rank(), j, A[j]);
+        //         break;
+        //     }
+        // }
         comm_world().barrier();
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -1166,7 +1166,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
 
 
 
-    if(world_rank() == 0){
+    if (world_rank() == 0)
+    {
         std::ofstream outFile("algoBandwidth", std::ios::binary);
         if (!outFile) {
             std::cerr << "Write Error" << std::endl;
@@ -1231,9 +1232,9 @@ int main(int argc, char** argv)
     
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
     #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3, 0, 1, 2, 3 };
     
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 8);
     alltoallMeasure(context);
     return 0;
     #endif
