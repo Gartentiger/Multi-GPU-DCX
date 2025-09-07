@@ -1145,7 +1145,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         comm_world().barrier();
         cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
         CUERR;
-        std::sort(A, A + per_gpu - 1, std::less<sa_index_t>());
+        std::sort(A, A + per_gpu, std::less<sa_index_t>());
         for(sa_index_t j = 0; j < per_gpu; j++){
            printf("[%lu] A[%u]: %u\n", world_rank(), j, A[j]); 
         }
