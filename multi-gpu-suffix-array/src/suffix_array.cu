@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 2;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -1026,23 +1026,26 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             // cudaStream_t stream = context.get_gpu_default_stream(i);
             sa_index_t* d_A, * d_A_rec;
             cudaMalloc(&d_A, per_gpu * sizeof(sa_index_t));
+            CUERR;
             d_A_send[gpu_index] = d_A;
             cudaMemcpy(d_A_send[gpu_index], A + per_gpu * gpu_index, per_gpu * sizeof(sa_index_t), cudaMemcpyHostToDevice);
-
+            CUERR;
            
             cudaMalloc(&d_A_rec, per_gpu * sizeof(sa_index_t));
+            CUERR;
             d_A_recv[gpu_index] = d_A_rec;
             cudaMemset(d_A_recv[gpu_index], 0, per_gpu * sizeof(sa_index_t));
-
+            CUERR;
             cub::DeviceRadixSort::SortKeys(nullptr, temp_storages[gpu_index],
                 d_A_recv[gpu_index], d_A_recv[gpu_index], per_gpu);
             void* temp;
             temp_storages[gpu_index] = std::max(temp_storages[gpu_index], 1024ul);
             temp_storages[gpu_index] = std::max(temp_storages[gpu_index], per_gpu)*4;
             cudaMalloc(&temp, temp_storages[gpu_index]);
+            CUERR;
             temp_buffer[gpu_index] = temp;
             cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
-
+            CUERR;
             // printArray<<<1,1>>>(&d_A_send[gpu_index][per_gpu-1], &d_A_send[gpu_index][per_gpu-1], 1, gpu_index);
             // printArray << <1, 1 >> > (d_A_send[i], d_A_send[i], per_gpu, i); 
         }
@@ -1204,9 +1207,9 @@ int main(int argc, char** argv)
     
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
     #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1};
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3};
     
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 2);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     alltoallMeasure(context);
     return 0;
     #endif
