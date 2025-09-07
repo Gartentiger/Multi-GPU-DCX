@@ -1049,7 +1049,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
 
         context.sync_default_streams();
    
-        int loop_count = 10;
+        const int loop_count = 10;
         std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
         std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
@@ -1102,7 +1102,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         comm_world().barrier();
 
         // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
-        std::array<double, 50> loop_time;
+        std::array<double, loop_count> loop_time;
         
         for (int j = 0; j < loop_count; j++) 
         {
