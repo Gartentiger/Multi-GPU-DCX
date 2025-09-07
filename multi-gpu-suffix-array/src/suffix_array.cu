@@ -992,13 +992,13 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
-        std::array<sa_index_t*, NUM_GPUS> d_A_send;
+        std::array<size_t*, NUM_GPUS> d_A_send;
         std::array<void*, NUM_GPUS> temp_buffer;
-        std::array<sa_index_t*, NUM_GPUS> d_A_recv;
+        std::array<size_t*, NUM_GPUS> d_A_recv;
         size_t N = 2 << i;
 
         // Allocate memory for A on CPU
-        sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
+        size_t* A = (size_t*)malloc(N * sizeof(size_t));
         // memset(A, 0, N * sizeof(sa_index_t));
         size_t per_gpu = N / NUM_GPUS;
         if(world_rank() == 0){
@@ -1011,11 +1011,11 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
 
             
             for (size_t gpu_index = 1; gpu_index < NUM_GPUS; gpu_index++) {
-                comm_world().send(send_buf(std::span<sa_index_t>(A+gpu_index*per_gpu,per_gpu)),send_count(per_gpu), tag(gpu_index), destination(gpu_index));
+                comm_world().send(send_buf(std::span<size_t>(A+gpu_index*per_gpu,per_gpu)),send_count(per_gpu), tag(gpu_index), destination(gpu_index));
             }
             
         }else{
-            comm_world().recv(recv_buf(std::span<sa_index_t>(A+world_rank()*per_gpu,per_gpu)),recv_count(per_gpu), tag(world_rank()),source(0));
+            comm_world().recv(recv_buf(std::span<size_t>(A+world_rank()*per_gpu,per_gpu)),recv_count(per_gpu), tag(world_rank()),source(0));
         }
         // for(size_t j = 0; j < N; j++){
             // printf("[%lu] A[%lu]: %u\n", world_rank(), j, A[j]);
@@ -1026,17 +1026,17 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         {
             size_t gpu_index = world_rank();
             // cudaStream_t stream = context.get_gpu_default_stream(i);
-            sa_index_t* d_A, * d_A_rec;
-            cudaMalloc(&d_A, per_gpu * sizeof(sa_index_t));
+            size_t* d_A, * d_A_rec;
+            cudaMalloc(&d_A, per_gpu * sizeof(size_t));
             CUERR;
             d_A_send[gpu_index] = d_A;
-            cudaMemcpy(d_A_send[gpu_index], A + per_gpu * gpu_index, per_gpu * sizeof(sa_index_t), cudaMemcpyHostToDevice);
+            cudaMemcpy(d_A_send[gpu_index], A + per_gpu * gpu_index, per_gpu * sizeof(size_t), cudaMemcpyHostToDevice);
             CUERR;
            
-            cudaMalloc(&d_A_rec, per_gpu * sizeof(sa_index_t));
+            cudaMalloc(&d_A_rec, per_gpu * sizeof(size_t));
             CUERR;
             d_A_recv[gpu_index] = d_A_rec;
-            cudaMemset(d_A_recv[gpu_index], 0, per_gpu * sizeof(sa_index_t));
+            cudaMemset(d_A_recv[gpu_index], 0, per_gpu * sizeof(size_t));
             CUERR;
             cub::DeviceRadixSort::SortKeys(nullptr, temp_storages[gpu_index],
                 d_A_recv[gpu_index], d_A_recv[gpu_index], per_gpu);
@@ -1055,10 +1055,10 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         context.sync_default_streams();
    
         const int loop_count = 10;
-        std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
-        std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
-        split_table_tt<sa_index_t, NUM_GPUS> split_table;
-        std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
+        std::array<MultiSplitNodeInfoT<size_t, size_t, size_t>, NUM_GPUS> multi_split_node_info;
+        std::array<All2AllNodeInfoT<size_t, size_t, size_t>, NUM_GPUS> all2all_node_info;
+        split_table_tt<size_t, NUM_GPUS> split_table;
+        std::array<size_t, NUM_GPUS> dest_lens, src_lens;
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             // context.sync_default_streams();
@@ -1070,13 +1070,13 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             multi_split_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
             multi_split_node_info[gpu_index].dest_len = per_gpu;
             if(world_rank() == gpu_index){
-                context.get_device_temp_allocator(gpu_index).init(temp_buffer[gpu_index], temp_storages[gpu_index] * sizeof(sa_index_t));
+                context.get_device_temp_allocator(gpu_index).init(temp_buffer[gpu_index], temp_storages[gpu_index] * sizeof(size_t));
             }
         }
 
 
         //}
-        PartitioningFunctor<uint> f(per_gpu, NUM_GPUS - 1);
+        PartitioningFunctor<size_t> f(per_gpu, NUM_GPUS - 1);
         multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         context.sync_default_streams();
@@ -1134,8 +1134,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         for(int j = 1; j < loop_count; j++){
             elapsed_time += loop_time[j];
         }
-        long int num_B = 8 * N;
-        long int B_in_GB = 1 << 30;
+        size_t num_B = sizeof(size_t) * N;
+        size_t B_in_GB = 1 << 30;
         
         double num_GB = (double)num_B / (double)B_in_GB;
         double avg_time_per_transfer = elapsed_time / ((double)loop_count);
@@ -1143,13 +1143,13 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i-1]);
         // printArray<<<1,1>>>(d_A_send[world_rank()], d_A_send[world_rank()], per_gpu, world_rank());
         comm_world().barrier();
-        cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+        cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(size_t), cudaMemcpyDeviceToHost);
         CUERR;
-        std::sort(A, A + per_gpu - 1, std::less<sa_index_t>());
-        for(int j = 0; j < per_gpu; j++){
-           printf("[%lu] A[%d]: %u\n",world_rank(), j, A[j]); 
+        std::sort(A, A + per_gpu - 1, std::less<size_t>());
+        for(size_t j = 0; j < per_gpu; j++){
+           printf("[%lu] A[%d]: %lu\n", world_rank(), j, A[j]); 
         }
-        for(int j = 0; j < per_gpu; j++){
+        for(size_t j = 0; j < per_gpu; j++){
             if(A[j]-per_gpu*world_rank() != j){
                 std::cerr << "wrong" << std::endl;
             }
@@ -1233,7 +1233,7 @@ int main(int argc, char** argv)
     
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
     #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3};
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
     
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     alltoallMeasure(context);

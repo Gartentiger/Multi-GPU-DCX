@@ -71,7 +71,23 @@ struct NotEqualsFunctor
         return (a != compare);
     }
 };
+template <typename value_t>
+struct PartitioningFunctor : public std::unary_function<value_t, uint32_t>
+{
+    value_t split_divisor;
+    uint max_v;
 
+    __forceinline__
+        PartitioningFunctor(value_t split_divisor_, uint max_v_)
+        : split_divisor(split_divisor_), max_v(max_v_)
+    {
+    }
+
+    __host__ __device__ __forceinline__ uint32_t operator()(value_t x) const
+    {
+        return min(((x) / split_divisor), max_v);
+    }
+};
 template <typename value_t>
 struct PartitioningFunctor : public std::unary_function<value_t, uint32_t>
 {
