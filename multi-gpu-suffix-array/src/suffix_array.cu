@@ -1142,6 +1142,15 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         alg_bandwidth[i-1] = num_GB / avg_time_per_transfer;
         printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i-1]);
         
+        cudaMemcpy(A, d_A_send[world_rank()], per_gpu, cudaMemcpyDeviceToHost);
+        CUERR;
+        std::sort(A, A + per_gpu - 1, std::less<sa_index_t>());
+        for(int j = 0; j < per_gpu; j++){
+            if(A[j]-per_gpu*world_rank() != j){
+                std::cerr << "wrong" << std::endl;
+                return;
+            }
+        }
         comm_world().barrier();
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -1153,6 +1162,9 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         free(A);
         comm_world().barrier();
     }
+
+
+
     if(world_rank() == 0){
         std::ofstream outFile("algoBandwidth", std::ios::binary);
         if (!outFile) {
