@@ -1076,7 +1076,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
 
 
         //}
-        PartitioningFunctor<size_t> f(per_gpu, NUM_GPUS - 1);
+        PartitioningFunctor64<size_t> f(per_gpu, NUM_GPUS - 1);
         multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         context.sync_default_streams();

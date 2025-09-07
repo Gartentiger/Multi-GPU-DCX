@@ -72,13 +72,13 @@ struct NotEqualsFunctor
     }
 };
 template <typename value_t>
-struct PartitioningFunctor : public std::unary_function<value_t, uint32_t>
+struct PartitioningFunctor64 : public std::unary_function<value_t, uint32_t>
 {
-    value_t split_divisor;
+    size_t split_divisor;
     uint max_v;
 
     __forceinline__
-        PartitioningFunctor(value_t split_divisor_, uint max_v_)
+        PartitioningFunctor64(size_t split_divisor_, uint max_v_)
         : split_divisor(split_divisor_), max_v(max_v_)
     {
     }
