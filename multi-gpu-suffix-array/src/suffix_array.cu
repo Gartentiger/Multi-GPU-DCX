@@ -986,7 +986,9 @@ void print_device_info()
 
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
-    for (int i = 1; i <= 30; i++) 
+    const int rounds = 29;
+    std::array<double, rounds> alg_bandwidth;
+    for (int i = 1; i <= rounds; i++) 
     {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
@@ -1132,13 +1134,13 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         for(int j = 1; j < loop_count; j++){
             elapsed_time += loop_time[j];
         }
-        long int num_B = 8 * per_gpu;
+        long int num_B = 8 * N;
         long int B_in_GB = 1 << 30;
         
         double num_GB = (double)num_B / (double)B_in_GB;
         double avg_time_per_transfer = elapsed_time / ((double)loop_count);
-
-        printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f|%15.9f|%15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), num_GB / avg_time_per_transfer);
+        alg_bandwidth[i-1] = num_GB / avg_time_per_transfer;
+        printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i-1]);
         
         comm_world().barrier();
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -1151,7 +1153,16 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         free(A);
         comm_world().barrier();
     }
+    if(world_rank() == 0){
+        std::ofstream outFile("algoBandwidth", std::ios::binary);
+        if (!outFile) {
+            std::cerr << "Write Error" << std::endl;
+            return 1;
+        }
 
+        outFile.write(reinterpret_cast<char*>(alg_bandwidth), rounds * sizeof(double));
+        outFile.close();
+    }
 }
 
 int main(int argc, char** argv)
