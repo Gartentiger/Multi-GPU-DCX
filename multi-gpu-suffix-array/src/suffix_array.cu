@@ -1124,7 +1124,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             loop_time[j] =  end - start;
         }
 
-        std::sort(loop_time.begin(),loop_time.end());
+        std::sort(loop_time.begin(), loop_time.end(), std::less_equal<double>());
         double elapsed_time = loop_time[0];
         for(int j = 1; j < loop_count; j++){
             elapsed_time += loop_time[j];
