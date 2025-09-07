@@ -986,7 +986,7 @@ void print_device_info()
 
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
-    for (int i = 1; i <= 28; i++) 
+    for (int i = 1; i <= 30; i++) 
     {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
@@ -1049,7 +1049,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
 
         context.sync_default_streams();
    
-        int loop_count = 50;
+        int loop_count = 10;
         std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
         std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
@@ -1119,6 +1119,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             }
             all2all.execAsync(all2all_node_info, split_table);
             context.sync_all_streams();
+            comm_world().barrier();
             double end = MPI_Wtime();
             loop_time[j] =  end - start;
         }
@@ -1130,10 +1131,11 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         }
         long int num_B = 8 * per_gpu;
         long int B_in_GB = 1 << 30;
+        
         double num_GB = (double)num_B / (double)B_in_GB;
         double avg_time_per_transfer = elapsed_time / ((double)loop_count);
 
-        printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Max|Min (s): %15.9f|%15.9f|%15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.back(), loop_time.front(), num_GB / avg_time_per_transfer);
+        printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f|%15.9f|%15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), num_GB / avg_time_per_transfer);
         
         comm_world().barrier();
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
