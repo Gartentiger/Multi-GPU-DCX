@@ -1005,7 +1005,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             for (size_t j = 0; j < N; j++) {
                 A[j] = j;
             }
-            // std::shuffle(A, A + N, std::default_random_engine());
+            std::shuffle(A, A + N, std::default_random_engine());
 
             
             for (size_t gpu_index = 1; gpu_index < NUM_GPUS; gpu_index++) {
