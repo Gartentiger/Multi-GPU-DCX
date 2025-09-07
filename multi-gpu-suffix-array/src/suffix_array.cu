@@ -988,7 +988,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
     const int rounds = 29;
     std::array<double, rounds> alg_bandwidth;
-    for (int i = 1; i <= rounds; i++) 
+    for (int i = 2; i <= rounds; i++) 
     {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
@@ -1168,7 +1168,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
 
     if (world_rank() == 0)
     {
-        std::ofstream outFile("algoBandwidth", std::ios::binary);
+        std::ofstream outFile("algoBandwidth8", std::ios::binary);
         if (!outFile) {
             std::cerr << "Write Error" << std::endl;
             return;
