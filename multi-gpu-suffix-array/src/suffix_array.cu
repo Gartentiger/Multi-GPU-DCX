@@ -986,7 +986,7 @@ void print_device_info()
 
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
-    const int rounds = 29;
+    const int rounds = 10;
     std::array<double, rounds> alg_bandwidth;
     for (int i = 1; i <= rounds; i++) 
     {
@@ -1145,6 +1145,9 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         cudaMemcpy(A, d_A_send[world_rank()], per_gpu, cudaMemcpyDeviceToHost);
         CUERR;
         std::sort(A, A + per_gpu - 1, std::less<sa_index_t>());
+        for(int j = 0; j < per_gpu; j++){
+           printf("[%lu] A[%d]: %u\n",world_rank(), j, A[j]); 
+        }
         for(int j = 0; j < per_gpu; j++){
             if(A[j]-per_gpu*world_rank() != j){
                 std::cerr << "wrong" << std::endl;
