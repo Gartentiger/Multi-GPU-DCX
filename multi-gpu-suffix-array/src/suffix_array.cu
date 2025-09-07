@@ -1042,7 +1042,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
                 d_A_recv[gpu_index], d_A_recv[gpu_index], per_gpu);
             void* temp;
             temp_storages[gpu_index] = std::max(temp_storages[gpu_index], 1024ul);
-            temp_storages[gpu_index] = std::max(temp_storages[gpu_index], ((size_t)per_gpu)*sizeof(sa_index_t));
+            temp_storages[gpu_index] = std::max(temp_storages[gpu_index], ((size_t)per_gpu)*sizeof(sa_index_t))*4;
             cudaMalloc(&temp, temp_storages[gpu_index]);
             CUERR;
             temp_buffer[gpu_index] = temp;
