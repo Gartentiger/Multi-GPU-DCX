@@ -1151,7 +1151,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         // }
         for(sa_index_t j = 0; j < per_gpu; j++){
             if(A[j]-per_gpu*world_rank() != j){
-                printf("[%lu] A[%lu] wrong\n", world_rank(), j);
+                printf("[%lu] A[%lu] %u wrong\n", world_rank(), j, A[j]);
                 break;
             }
         }
