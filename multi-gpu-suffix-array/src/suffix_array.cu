@@ -1006,7 +1006,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             for (size_t j = 0; j < N; j++) {
                 A[j] = j;
             }
-            std::shuffle(A, A + N, std::default_random_engine());
+            // std::shuffle(A, A + N, std::default_random_engine());
+
             
             for (size_t gpu_index = 1; gpu_index < NUM_GPUS; gpu_index++) {
                 comm_world().send(send_buf(std::span<sa_index_t>(A+gpu_index*per_gpu,per_gpu)),send_count(per_gpu), tag(gpu_index), destination(gpu_index));
@@ -1084,7 +1085,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         context.sync_all_streams();
         // Warm-up loop
 
-        for (int j = 1; j <= 5; j++) 
+        for (int j = 0; j < 1; j++) 
         {
             for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
@@ -1129,12 +1130,10 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         long int num_B = 8 * per_gpu;
         long int B_in_GB = 1 << 30;
         double num_GB = (double)num_B / (double)B_in_GB;
-        double avg_time_per_transfer = elapsed_time / (2.0 * (double)loop_count);
+        double avg_time_per_transfer = elapsed_time / ((double)loop_count);
 
-        if(world_rank() == 0)
-        {
-            printf("Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", num_B, avg_time_per_transfer, num_GB / avg_time_per_transfer);
-        }
+        printf("[%lu] Transfer size (B): %10li, Transfer Time (s): %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, num_GB / avg_time_per_transfer);
+        
         comm_world().barrier();
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
