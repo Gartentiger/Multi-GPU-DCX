@@ -1234,7 +1234,7 @@ int main(int argc, char** argv)
     #else
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3, 0, 1, 2, 3 };
     
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 8);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     alltoallMeasure(context);
     return 0;
     #endif
