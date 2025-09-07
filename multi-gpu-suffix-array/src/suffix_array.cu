@@ -986,7 +986,7 @@ void print_device_info()
 
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
-    const int rounds = 7;
+    const int rounds = 29;
     std::array<double, rounds> alg_bandwidth;
     for (int i = 1; i <= rounds; i++) 
     {
@@ -1129,7 +1129,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             loop_time[j] =  end - start;
         }
 
-        std::sort(loop_time.begin(), loop_time.end(), std::less_equal<double>());
+        // std::sort(loop_time.begin(), loop_time.end(), std::less_equal<double>());
         double elapsed_time = loop_time[0];
         for(int j = 1; j < loop_count; j++){
             elapsed_time += loop_time[j];
@@ -1146,9 +1146,6 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
         CUERR;
         std::sort(A, A + per_gpu, std::less<sa_index_t>());
-        for(sa_index_t j = 0; j < per_gpu; j++){
-           printf("[%lu] A[%u]: %u\n", world_rank(), j, A[j]); 
-        }
         for(sa_index_t j = 0; j < per_gpu; j++){
             if(A[j]-per_gpu*world_rank() != j){
                 printf("[%lu] A[%u] %u wrong\n", world_rank(), j, A[j]);
