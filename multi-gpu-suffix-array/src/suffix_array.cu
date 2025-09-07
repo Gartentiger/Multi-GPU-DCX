@@ -986,7 +986,7 @@ void print_device_info()
 
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
     using namespace kamping;
-    for (int i = 1; i <= 29; i++) 
+    for (int i = 1; i <= 30; i++) 
     {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
@@ -1038,7 +1038,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
                 d_A_recv[gpu_index], d_A_recv[gpu_index], per_gpu);
             void* temp;
             temp_storages[gpu_index] = std::max(temp_storages[gpu_index], 1024ul);
-            temp_storages[gpu_index] = std::max(temp_storages[gpu_index], per_gpu)*2;
+            temp_storages[gpu_index] = std::max(temp_storages[gpu_index], per_gpu)*4;
             cudaMalloc(&temp, temp_storages[gpu_index]);
             temp_buffer[gpu_index] = temp;
             cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
