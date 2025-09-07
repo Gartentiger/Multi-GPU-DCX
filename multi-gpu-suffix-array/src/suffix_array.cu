@@ -1157,10 +1157,10 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         std::ofstream outFile("algoBandwidth", std::ios::binary);
         if (!outFile) {
             std::cerr << "Write Error" << std::endl;
-            return 1;
+            return;
         }
 
-        outFile.write(reinterpret_cast<char*>(alg_bandwidth), rounds * sizeof(double));
+        outFile.write(reinterpret_cast<char*>(alg_bandwidth.data()), rounds * sizeof(double));
         outFile.close();
     }
 }
