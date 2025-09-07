@@ -1035,7 +1035,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             cudaMemset(d_A_recv[gpu_index], 0, per_gpu * sizeof(sa_index_t));
 
             cub::DeviceRadixSort::SortKeys(nullptr, temp_storages[gpu_index],
-                d_A_rec[gpu_index], d_A_rec[gpu_index], per_gpu);
+                d_A_recv[gpu_index], d_A_recv[gpu_index], per_gpu);
             void* temp;
             temp_storages[gpu_index] = std::max(temp_storages[gpu_index], 1024ul);
             temp_storages[gpu_index] = std::max(temp_storages[gpu_index], per_gpu)*2;
@@ -1187,7 +1187,7 @@ int main(int argc, char** argv)
     comm_world().barrier();
     char* input = nullptr;
 
-    size_t realLen;
+    size_t realLen = 0;
     // size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
     // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
