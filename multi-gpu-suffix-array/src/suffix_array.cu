@@ -1092,8 +1092,9 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
 void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 {
     using namespace kamping;
-    const int rounds = 29;
+    std::random_device rd;
     std::mt19937 g(rd());
+    const int rounds = 29;
     std::array<double, rounds> alg_bandwidth;
     for (int i = 1; i <= rounds; i++)
     {
