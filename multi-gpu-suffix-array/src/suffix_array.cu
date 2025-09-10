@@ -1145,10 +1145,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
             cudaMalloc(&d_A_rec, per_gpu * sizeof(sa_index_t));
             CUERR;
             d_A_recv[gpu_index] = d_A_rec;
-            cudaMemset(d_A_recv[gpu_index], 0, per_gpu * sizeof(sa_index_t));
-            CUERR;
             cub::DeviceRadixSort::SortKeys(nullptr, temp_storages[gpu_index],
-                d_A_recv[gpu_index], d_A_recv[gpu_index], per_gpu);
+                d_A_send[gpu_index], d_A_recv[gpu_index], per_gpu);
             void* temp;
             temp_storages[gpu_index] = std::max(temp_storages[gpu_index], 1024ul);
             temp_storages[gpu_index] = std::max(temp_storages[gpu_index], ((size_t)per_gpu) * sizeof(sa_index_t)) * 4;
@@ -1156,6 +1154,13 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
             CUERR;
             temp_buffer[gpu_index] = temp;
             cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
+            CUERR;
+
+            cub::DeviceRadixSort::SortKeys(temp, temp_storages[gpu_index],
+                d_A_send[gpu_index], d_A_recv[gpu_index], per_gpu);
+
+            cudaMemcpy(d_A_send[gpu_index], d_A_recv[gpu_index], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToDevice);
+            cudaMemset(d_A_recv[gpu_index], 0, per_gpu * sizeof(sa_index_t));
             CUERR;
         }
         comm_world().barrier();
