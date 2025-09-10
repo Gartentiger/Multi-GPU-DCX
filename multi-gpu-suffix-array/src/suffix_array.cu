@@ -1097,7 +1097,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     const int rounds = 29;
-    const int start_offset = 2;
+    const int start_offset = 3;
     std::array<double, rounds> alg_bandwidth;
     for (int i = start_offset; i <= rounds; i++)
     {
@@ -1269,7 +1269,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 
     if (world_rank() == 0)
     {
-        std::ofstream outFile("algoBandwidth8", std::ios::binary);
+        std::ofstream outFile("algoBandwidth", std::ios::binary);
         if (!outFile)
         {
             std::cerr << "Write Error" << std::endl;
@@ -1340,8 +1340,8 @@ int main(int argc, char** argv)
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
-    //alltoallMeasure(context);
-    ncclMeasure(context);
+    alltoallMeasure(context);
+    // ncclMeasure(context);
     return 0;
 #endif
     SuffixSorter sorter(context, realLen, input);
