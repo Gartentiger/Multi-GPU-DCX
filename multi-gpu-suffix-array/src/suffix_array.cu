@@ -985,7 +985,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
     using namespace kamping;
     std::random_device rd;
     std::mt19937 g(rd());
-    const int rounds = 29;
+    const int rounds = 30;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
 
@@ -1036,22 +1036,21 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
         for (size_t loop = 0; loop < loop_count; loop++)
         {
             double start = MPI_Wtime();
-            ncclGroupStart();
-            for (size_t src_gpu = 0; src_gpu < NUM_GPUS; src_gpu++)
-            {
-                for (size_t dst_gpu = 0; dst_gpu < NUM_GPUS; dst_gpu++)
-                {
-                    if (src_gpu == world_rank())
-                    {
-                        ncclSend(d_A_send + dst_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
-                    }
-                    if (dst_gpu == world_rank())
-                    {
-                        ncclRecv(d_A_recv + src_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
-                    }
-                }
-            }
-            ncclGroupEnd();
+            ncclAlltoAll(d_A_send, d_A_recv, per_gpu * sizeof(sa_index_t), ncclChar, nccl_comm, context.get_gpu_default_stream(world_rank()));
+            // for (size_t src_gpu = 0; src_gpu < NUM_GPUS; src_gpu++)
+            // {
+            //     for (size_t dst_gpu = 0; dst_gpu < NUM_GPUS; dst_gpu++)
+            //     {
+            //         if (src_gpu == world_rank())
+            //         {
+            //             ncclSend(d_A_send + dst_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
+            //         }
+            //         if (dst_gpu == world_rank())
+            //         {
+            //             ncclRecv(d_A_recv + src_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
+            //         }
+            //     }
+            // }
             context.sync_all_streams();
             comm_world().barrier();
             double end = MPI_Wtime();
@@ -1079,7 +1078,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
     }
     if (world_rank() == 0)
     {
-        std::ofstream outFile("ncclBandwidth", std::ios::binary);
+        std::ofstream outFile("ncclBandwidthAllToAll", std::ios::binary);
         if (!outFile)
         {
             std::cerr << "Write Error" << std::endl;
