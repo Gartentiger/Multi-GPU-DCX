@@ -1340,8 +1340,8 @@ int main(int argc, char** argv)
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3, 0, 1, 2, 3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
-    alltoallMeasure(context);
-    // ncclMeasure(context);
+    //alltoallMeasure(context);
+    ncclMeasure(context);
     return 0;
 #endif
     SuffixSorter sorter(context, realLen, input);
