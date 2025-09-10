@@ -59,9 +59,6 @@ namespace gossip {
                     const table_t dest_index = v_table[src_gpu][dest_gpu];
                     const table_t len = table[src_gpu][dest_gpu];
                     if (src_gpu == world_rank()) {
-                        if (world_rank() == 0) {
-                            printf("send to [%u] len: %u\n", dest_gpu, len);
-                        }
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
 
                         ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
