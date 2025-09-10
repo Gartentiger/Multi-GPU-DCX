@@ -1079,7 +1079,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     }
     if (world_rank() == 0)
     {
-        std::ofstream outFile("ncclBandwidthAllToAll8", std::ios::binary);
+        std::ofstream outFile("ncclBandwidthAllToAll", std::ios::binary);
         if (!outFile)
         {
             std::cerr << "Write Error" << std::endl;
