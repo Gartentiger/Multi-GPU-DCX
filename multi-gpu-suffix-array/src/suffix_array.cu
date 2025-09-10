@@ -1200,8 +1200,9 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
             }
             all2all.execAsync(all2all_node_info, split_table);
             context.sync_all_streams();
+            cudaMemset(d_A_send[world_rank()], 0, sizeof(sa_index_t) * per_gpu);
+            comm_world().barrier();
         }
-        comm_world().barrier();
         context.sync_all_streams();
         comm_world().barrier();
 
@@ -1225,6 +1226,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
             context.sync_all_streams();
             comm_world().barrier();
             double end = MPI_Wtime();
+            cudaMemset(d_A_send[world_rank()], 0, sizeof(sa_index_t) * per_gpu);
             loop_time[j] = end - start;
         }
 
