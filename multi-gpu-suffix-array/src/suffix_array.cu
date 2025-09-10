@@ -1023,7 +1023,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
             cudaMemset(d_A_recv, 0, sizeof(sa_index_t) * N);
         }
 
-        size_t loop_count = 10;
+        const size_t loop_count = 10;
         std::array<double, loop_count> loop_time;
 
         for (size_t loop = 0; loop < loop_count; loop++)
