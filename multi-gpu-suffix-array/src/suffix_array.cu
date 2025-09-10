@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -988,7 +988,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     const int rounds = 29;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
-    const int start_offset = 2;
+    const int start_offset = 1;
     for (int i = start_offset; i <= rounds; i++)
     {
         sa_index_t N = 2 << i;
@@ -1337,7 +1337,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3, 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     //alltoallMeasure(context);
