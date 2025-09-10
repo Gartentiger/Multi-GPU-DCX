@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -1096,8 +1096,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     using namespace kamping;
     std::random_device rd;
     std::mt19937 g(rd());
-    const int rounds = 29;
-    const int start_offset = 5;
+    const int rounds = 28;
+    const int start_offset = 3;
     std::array<double, rounds> alg_bandwidth;
     for (int i = start_offset; i <= rounds; i++)
     {
@@ -1159,7 +1159,40 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
             CUERR;
         }
 
+        cudaIpcMemHandle_t handleSend;
+        cudaIpcGetMemHandle(&handleSend, d_A_send[world_rank()]);
+        cudaIpcMemHandle_t handleRecv;
+        cudaIpcGetMemHandle(&handleRecv, d_A_recv[world_rank()]);
+        for (size_t dst = 0; dst < NUM_GPUS; dst++) {
+            if (mcontext.get_peer_status(world_rank(), dst) != 1) {
+                continue;
+            }
+            comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleSend, 1)), send_count(1), tag(0), destination(dst));
+            comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleRecv, 1)), send_count(1), tag(1), destination(dst));
+        }
+        for (size_t src = 0; src < NUM_GPUS; src++) {
+            if (mcontext.get_peer_status(world_rank(), src) != 1) {
+                continue;
+            }
+            cudaIpcMemHandle_t other_handleSend;
+            cudaIpcMemHandle_t other_handleRecv;
+            comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleSend, 1)), recv_count(1), tag(0), source(src));
+            comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleRecv, 1)), recv_count(1), tag(1), source(src));
+            void* ptrHandleSend;
+            void* ptrHandleRecv;
+            cudaIpcOpenMemHandle(&ptrHandleSend, ptrHandleSend, cudaIpcMemLazyEnablePeerAccess);
+            CUERR;
+            cudaIpcOpenMemHandle(&ptrHandleRecv, other_handleRecv, cudaIpcMemLazyEnablePeerAccess);
+            CUERR;
+
+            printf("[%lu] opened mem handles from %d\n", world_rank(), src);
+            d_A_send[world_rank()] = reinterpret_cast<sa_index_t*>(ptrHandleSend);
+            d_A_recv[world_rank()] = reinterpret_cast<sa_index_t*>(ptrHandleRecv);
+        }
+
         context.sync_default_streams();
+        comm_world().barrier();
+
 
         std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
         std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
@@ -1269,7 +1302,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 
     if (world_rank() == 0)
     {
-        std::ofstream outFile("algoBandwidth", std::ios::binary);
+        std::ofstream outFile("algoBandwidth8", std::ios::binary);
         if (!outFile)
         {
             std::cerr << "Write Error" << std::endl;
@@ -1337,7 +1370,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3, 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     alltoallMeasure(context);
