@@ -988,7 +988,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     const int rounds = 29;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
-    const int start_offset = 1;
+    const int start_offset = 2;
     for (int i = start_offset; i <= rounds; i++)
     {
         sa_index_t N = 2 << i;
@@ -1079,7 +1079,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     }
     if (world_rank() == 0)
     {
-        std::ofstream outFile("ncclBandwidthAllToAll", std::ios::binary);
+        std::ofstream outFile("ncclBandwidthAllToAll8", std::ios::binary);
         if (!outFile)
         {
             std::cerr << "Write Error" << std::endl;
