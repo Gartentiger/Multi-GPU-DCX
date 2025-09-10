@@ -1158,6 +1158,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
             cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
             CUERR;
         }
+        comm_world().barrier();
 
         cudaIpcMemHandle_t handleSend;
         cudaIpcGetMemHandle(&handleSend, d_A_send[world_rank()]);
@@ -1186,8 +1187,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
             CUERR;
 
             printf("[%lu] opened mem handles from %d\n", world_rank(), src);
-            d_A_send[world_rank()] = reinterpret_cast<sa_index_t*>(ptrHandleSend);
-            d_A_recv[world_rank()] = reinterpret_cast<sa_index_t*>(ptrHandleRecv);
+            d_A_send[src] = reinterpret_cast<sa_index_t*>(ptrHandleSend);
+            d_A_recv[src] = reinterpret_cast<sa_index_t*>(ptrHandleRecv);
         }
 
         context.sync_default_streams();
@@ -1302,7 +1303,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 
     if (world_rank() == 0)
     {
-        std::ofstream outFile("algoBandwidth8", std::ios::binary);
+        std::ofstream outFile("algoBandwidth", std::ios::binary);
         if (!outFile)
         {
             std::cerr << "Write Error" << std::endl;
