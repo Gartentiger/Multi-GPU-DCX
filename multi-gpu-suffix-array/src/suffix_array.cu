@@ -983,7 +983,8 @@ void print_device_info()
 void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
 {
     using namespace kamping;
-
+    std::random_device rd;
+    std::mt19937 g(rd());
     const int rounds = 29;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
@@ -996,7 +997,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
         {
             A[j] = j;
         }
-        std::shuffle(A, A + N, std::default_random_engine());
+        std::shuffle(A, A + N, g);
         sa_index_t *d_A_send;
         sa_index_t *d_A_recv;
         sa_index_t per_gpu = N / NUM_GPUS;
