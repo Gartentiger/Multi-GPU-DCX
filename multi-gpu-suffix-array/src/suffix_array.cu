@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -988,8 +988,8 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     const int rounds = 29;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
-
-    for (int i = 1; i <= rounds; i++)
+    const int start_offset = 1;
+    for (int i = start_offset; i <= rounds; i++)
     {
         sa_index_t N = 2 << i;
         sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
@@ -1036,6 +1036,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
         for (size_t loop = 0; loop < loop_count; loop++)
         {
             double start = MPI_Wtime();
+            ncclGroupStart();
             for (size_t src_gpu = 0; src_gpu < NUM_GPUS; src_gpu++)
             {
                 for (size_t dst_gpu = 0; dst_gpu < NUM_GPUS; dst_gpu++)
@@ -1050,6 +1051,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
                     }
                 }
             }
+            ncclGroupEnd();
             context.sync_all_streams();
             comm_world().barrier();
             double end = MPI_Wtime();
@@ -1067,8 +1069,8 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
 
         double num_GB = (double)num_B / (double)B_in_GB;
         double avg_time_per_transfer = elapsed_time / ((double)loop_count);
-        alg_bandwidth[i - 1] = num_GB / avg_time_per_transfer;
-        printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i - 1]);
+        alg_bandwidth[i - start_offset] = num_GB / avg_time_per_transfer;
+        printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i - start_offset]);
         comm_world().barrier();
         cudaFree(d_A_send);
         cudaFree(d_A_recv);
@@ -1243,7 +1245,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         double num_GB = (double)num_B / (double)B_in_GB;
         double avg_time_per_transfer = elapsed_time / ((double)loop_count);
         alg_bandwidth[i - start_offset] = num_GB / avg_time_per_transfer;
-        printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i - 1]);
+        printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i - start_offset]);
         // comm_world().barrier();
         // cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
         // CUERR;
@@ -1335,11 +1337,11 @@ int main(int argc, char** argv)
 
         MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-        const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3,0, 1, 2, 3 };
+        const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
 
         MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
-        alltoallMeasure(context);
-        // ncclMeasure(context);
+        // alltoallMeasure(context);
+        ncclMeasure(context);
         return 0;
 #endif
         SuffixSorter sorter(context, realLen, input);
