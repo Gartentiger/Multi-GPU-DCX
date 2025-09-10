@@ -352,14 +352,14 @@ namespace kernels {
         out.x |= 7ull << 13;
         return out;
     }
-    __global__ void produce_index_kmer_tuples_12_64_dc5(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
+    __global__ void produce_index_kmer_tuples_12_64_dc7(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N) {
-        assert(N % 10 == 0); // No one wants to deal with the "tails" here, we just write some more and don't care.
+        assert(N % 14 == 0); // No one wants to deal with the "tails" here, we just write some more and don't care.
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
-        for (uint i = tidx; i < N / 10; i += blockDim.x * gridDim.x) {
+        for (uint i = tidx; i < N / 14; i += blockDim.x * gridDim.x) {
             // printf("[%u] 1\n", tidx);
             // uint3 a = *(reinterpret_cast<const uint3*>(Input + 10 * i));
-            const char* baseInput = Input + 10 * i;
+            const char* baseInput = Input + 14 * i;
             uchar axx = *(baseInput);     uchar ayx = *(baseInput + 4); uchar azx = *(baseInput + 8);
             uchar axy = *(baseInput + 1); uchar ayy = *(baseInput + 5); uchar azy = *(baseInput + 9);
             uchar axz = *(baseInput + 2); uchar ayz = *(baseInput + 6); uchar azz = *(baseInput + 10);
@@ -717,22 +717,26 @@ namespace kernels {
     }
 
 
-    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk5* output) {
+    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk7* output) {
         // corresponds with the index
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
         output[tidx].index = tidx;
 
-        output[tidx].ranks0 = ranks[tidx];
-        output[tidx].ranks1 = ranks[tidx + 1];
-        output[tidx].ranks2 = ranks[tidx + 2];
-        output[tidx].ranks3 = ranks[tidx + 3];
-        output[tidx].ranks4 = ranks[tidx + 4];
-        output[tidx].xPrefix0 = Input[tidx];
-        output[tidx].xPrefix1 = Input[tidx + 1];
-        output[tidx].xPrefix2 = Input[tidx + 2];
-        output[tidx].xPrefix3 = Input[tidx + 3];
-        output[tidx].xPrefix4 = Input[tidx + 4];
+        output[tidx].ranks[0] = ranks[tidx];
+        output[tidx].ranks[1] = ranks[tidx + 1];
+        output[tidx].ranks[2] = ranks[tidx + 2];
+        output[tidx].ranks[3] = ranks[tidx + 3];
+        output[tidx].ranks[4] = ranks[tidx + 4];
+        output[tidx].ranks[5] = ranks[tidx + 5];
+        output[tidx].ranks[6] = ranks[tidx + 6];
+        output[tidx].prefix[0] = Input[tidx];
+        output[tidx].prefix[1] = Input[tidx + 1];
+        output[tidx].prefix[2] = Input[tidx + 2];
+        output[tidx].prefix[3] = Input[tidx + 3];
+        output[tidx].prefix[4] = Input[tidx + 4];
+        output[tidx].prefix[5] = Input[tidx + 5];
+        output[tidx].prefix[6] = Input[tidx + 6];
         // printf("[%u] %u, ranks: %u, xPrefix: %c\n", tidx, i, output[tidx].ranks[i], output[tidx].xPrefix[i]);
 
 

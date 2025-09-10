@@ -41,7 +41,7 @@ namespace kernels {
     __global__ void produce_index_kmer_tuples_12_64(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N);
 
-    __global__ void produce_index_kmer_tuples_12_64_dc5(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
+    __global__ void produce_index_kmer_tuples_12_64_dc7(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N);
 
     __global__ void fixup_last_two_12_kmers(sa_index_t* address);
@@ -87,7 +87,7 @@ namespace kernels {
     __global__ void from_merge_suffix_to_index(const MergeStageSuffix* Merge_suffixes, sa_index_t* Out, size_t N);
 
 
-    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk5* output);
+    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk7* output);
 }
 
 #endif /* SA_TEST_KERNELS_CUH_ */

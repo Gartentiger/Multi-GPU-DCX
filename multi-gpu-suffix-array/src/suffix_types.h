@@ -39,26 +39,34 @@ struct MergeStageSuffixS12HalfValue {
 };
 
 
-struct Sk5 {
+struct Sk7 {
+    unsigned char prefix[7], padd[5];
+    sa_index_t ranks[7];
     size_t index;
-    sa_index_t ranks0;
-    sa_index_t ranks1;
-    sa_index_t ranks2;
-    sa_index_t ranks3;
-    sa_index_t ranks4;
+};
 
-    unsigned char xPrefix0;
-    unsigned char xPrefix1;
-    unsigned char xPrefix2;
-    unsigned char xPrefix3;
-    unsigned char xPrefix4;
+struct DC7L {
+    static constexpr uint32_t lookupL[7][7] = {
+        {1, 1, 2, 1, 4, 4, 2},
+
+        {1, 0, 0, 1, 0, 3, 3},
+
+        {2, 0, 0, 6, 0, 6, 2},
+
+        {1, 1, 6, 1, 5, 6, 5},
+
+        {4, 0, 0, 5, 0, 4, 5},
+
+        {4, 3, 6, 6, 4, 3, 3},
+
+        {2, 3, 2, 5, 5, 3, 2} };
 };
 
 struct decomposer_t
 {
-    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, sa_index_t&, sa_index_t&, sa_index_t&, sa_index_t&, sa_index_t&, size_t&> operator()(Sk5& key) const
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(Sk7& key) const
     {
-        return { key.xPrefix0, key.xPrefix1, key.xPrefix2, key.xPrefix3, key.xPrefix4, key.ranks0, key.ranks1,key.ranks2,key.ranks3,key.ranks4, key.index };
+        return { key.prefix[0], key.prefix[1], key.prefix[2], key.prefix[3], key.prefix[4], key.prefix[5], key.prefix[6] };
     }
 };
 using MergeStageSuffix = MergeStageSuffixS0;
