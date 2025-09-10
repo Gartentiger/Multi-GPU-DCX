@@ -1013,8 +1013,14 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
             {
                 for (size_t dst_gpu = 0; dst_gpu < NUM_GPUS; dst_gpu++)
                 {
-                    ncclSend(d_A_send + dst_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
-                    ncclRecv(d_A_recv + src_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
+                    if (src_gpu == world_rank())
+                    {
+                        ncclSend(d_A_send + dst_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
+                    }
+                    if (dst_gpu == world_rank())
+                    {
+                        ncclRecv(d_A_recv + src_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
+                    }
                 }
             }
             ncclGroupEnd();
@@ -1034,8 +1040,14 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
             {
                 for (size_t dst_gpu = 0; dst_gpu < NUM_GPUS; dst_gpu++)
                 {
-                    ncclSend(d_A_send + dst_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
-                    ncclRecv(d_A_recv + src_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
+                    if (src_gpu == world_rank())
+                    {
+                        ncclSend(d_A_send + dst_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
+                    }
+                    if (dst_gpu == world_rank())
+                    {
+                        ncclRecv(d_A_recv + src_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
+                    }
                 }
             }
             ncclGroupEnd();
