@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 8;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -1095,8 +1095,9 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     const int rounds = 29;
+    const int start_offset = 2;
     std::array<double, rounds> alg_bandwidth;
-    for (int i = 1; i <= rounds; i++)
+    for (int i = start_offset; i <= rounds; i++)
     {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
@@ -1241,7 +1242,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 
         double num_GB = (double)num_B / (double)B_in_GB;
         double avg_time_per_transfer = elapsed_time / ((double)loop_count);
-        alg_bandwidth[i - 1] = num_GB / avg_time_per_transfer;
+        alg_bandwidth[i - start_offset] = num_GB / avg_time_per_transfer;
         printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i - 1]);
         // comm_world().barrier();
         // cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
@@ -1334,7 +1335,7 @@ int main(int argc, char** argv)
 
         MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-        const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
+        const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3,0, 1, 2, 3 };
 
         MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
         alltoallMeasure(context);
