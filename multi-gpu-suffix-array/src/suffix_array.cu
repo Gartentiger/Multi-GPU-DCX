@@ -1164,14 +1164,14 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         cudaIpcMemHandle_t handleRecv;
         cudaIpcGetMemHandle(&handleRecv, d_A_recv[world_rank()]);
         for (size_t dst = 0; dst < NUM_GPUS; dst++) {
-            if (mcontext.get_peer_status(world_rank(), dst) != 1) {
+            if (context.get_peer_status(world_rank(), dst) != 1) {
                 continue;
             }
             comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleSend, 1)), send_count(1), tag(0), destination(dst));
             comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleRecv, 1)), send_count(1), tag(1), destination(dst));
         }
         for (size_t src = 0; src < NUM_GPUS; src++) {
-            if (mcontext.get_peer_status(world_rank(), src) != 1) {
+            if (context.get_peer_status(world_rank(), src) != 1) {
                 continue;
             }
             cudaIpcMemHandle_t other_handleSend;
@@ -1180,7 +1180,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
             comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleRecv, 1)), recv_count(1), tag(1), source(src));
             void* ptrHandleSend;
             void* ptrHandleRecv;
-            cudaIpcOpenMemHandle(&ptrHandleSend, ptrHandleSend, cudaIpcMemLazyEnablePeerAccess);
+            cudaIpcOpenMemHandle(&ptrHandleSend, other_handleSend, cudaIpcMemLazyEnablePeerAccess);
             CUERR;
             cudaIpcOpenMemHandle(&ptrHandleRecv, other_handleRecv, cudaIpcMemLazyEnablePeerAccess);
             CUERR;
