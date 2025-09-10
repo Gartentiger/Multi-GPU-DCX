@@ -1263,7 +1263,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 
     if (world_rank() == 0)
     {
-        std::ofstream outFile("algoBandwidth8", std::ios::binary);
+        std::ofstream outFile("algoBandwidth", std::ios::binary);
         if (!outFile)
         {
             std::cerr << "Write Error" << std::endl;
