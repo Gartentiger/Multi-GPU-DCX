@@ -1317,60 +1317,60 @@ int main(int argc, char** argv)
         error("Usage: sa-test <ofile> <ifile> !");
     }
 
-    for (int i = 0; i < 2; i++)
-    {
+    // for (int i = 0; i < 2; i++)
+    // {
 
-        comm_world().barrier();
-        char* input = nullptr;
+    comm_world().barrier();
+    char* input = nullptr;
 
-        size_t realLen = 0;
-        // size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
-        // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
-        comm.barrier();
-        CUERR;
+    size_t realLen = 0;
+    // size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
+    // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    comm.barrier();
+    CUERR;
 
 #ifdef DGX1_TOPOLOGY
-        //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
-        //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
-        //    const std::array<uint, NUM_GPUS> gpu_ids { 3, 2, 1, 0,    4, 5, 6, 7 };
-        const std::array<uint, NUM_GPUS> gpu_ids{ 3, 2, 1, 0, 4, 7, 6, 5 };
+    //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
+    //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
+    //    const std::array<uint, NUM_GPUS> gpu_ids { 3, 2, 1, 0,    4, 5, 6, 7 };
+    const std::array<uint, NUM_GPUS> gpu_ids{ 3, 2, 1, 0, 4, 7, 6, 5 };
 
-        MultiGPUContext<NUM_GPUS> context(&gpu_ids);
+    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-        const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
 
-        MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
-        // alltoallMeasure(context);
-        ncclMeasure(context);
-        return 0;
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
+    // alltoallMeasure(context);
+    ncclMeasure(context);
+    return 0;
 #endif
-        SuffixSorter sorter(context, realLen, input);
+    SuffixSorter sorter(context, realLen, input);
 
-        sorter.alloc();
-        // auto stringPath = ((std::string)argv[3]);
-        // int pos = stringPath.find_last_of("/\\");
-        // auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
+    sorter.alloc();
+    // auto stringPath = ((std::string)argv[3]);
+    // int pos = stringPath.find_last_of("/\\");
+    // auto fileName = (pos == std::string::npos) ? argv[3] : stringPath.substr(pos + 1);
 
-        // auto& t = kamping::measurements::timer();
-        // t.synchronize_and_start(fileName);
-        nvtxRangePush("SuffixArray");
-        sorter.do_sa();
-        nvtxRangePop();
-        // t.stop();
-        // if (world_rank() == 0)
-        //     write_array(argv[2], sorter.get_result(), realLen);
+    // auto& t = kamping::measurements::timer();
+    // t.synchronize_and_start(fileName);
+    nvtxRangePush("SuffixArray");
+    sorter.do_sa();
+    nvtxRangePop();
+    // t.stop();
+    // if (world_rank() == 0)
+    //     write_array(argv[2], sorter.get_result(), realLen);
 
-        sorter.done();
+    sorter.done();
 
-        if (world_rank() == 0)
-        {
-            sorter.print_pd_stats();
-            sorter.get_perf_measurements().print(argv[1]);
-        }
-
-        cudaFreeHost(input);
-        CUERR;
+    if (world_rank() == 0)
+    {
+        sorter.print_pd_stats();
+        sorter.get_perf_measurements().print(argv[1]);
     }
+
+    cudaFreeHost(input);
+    CUERR;
+    // }
     // std::ofstream outFile(argv[1], std::ios::app);
     // t.aggregate_and_print(
     //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
