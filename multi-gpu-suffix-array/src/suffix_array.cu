@@ -1023,10 +1023,10 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
             cudaMemset(d_A_recv, 0, sizeof(sa_index_t) * N);
         }
 
-        int loop_count = 10;
+        size_t loop_count = 10;
         std::array<double, loop_count> loop_time;
 
-        for (int loop = 0; loop < loop_count; loop++)
+        for (size_t loop = 0; loop < loop_count; loop++)
         {
             double start = MPI_Wtime();
             ncclGroupStart();
@@ -1059,11 +1059,8 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS> &context)
         alg_bandwidth[i - 1] = num_GB / avg_time_per_transfer;
         printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i - 1]);
         comm_world().barrier();
-        {
-            uint gpu_index = world_rank();
-            cudaFree(d_A_send[gpu_index]);
-            cudaFree(d_A_recv[gpu_index]);
-        }
+        cudaFree(d_A_send);
+        cudaFree(d_A_recv);
         free(A);
         comm_world().barrier();
     }
