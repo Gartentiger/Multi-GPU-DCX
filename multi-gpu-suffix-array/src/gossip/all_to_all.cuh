@@ -58,7 +58,9 @@ namespace gossip {
                     const table_t src_index = h_table[src_gpu][dest_gpu];
                     const table_t dest_index = v_table[src_gpu][dest_gpu];
                     const table_t len = table[src_gpu][dest_gpu];
-
+                    if (world_rank() == 0) {
+                        printf("send to [%u] len: %u\n", dest_gpu, len);
+                    }
                     if (src_gpu == world_rank()) {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
 
