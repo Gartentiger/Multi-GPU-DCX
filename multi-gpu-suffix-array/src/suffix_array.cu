@@ -986,11 +986,11 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 20;
+    const int rounds = 28;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
     const int start_offset = 0;
-    for (int i = start_offset; i <= rounds; i++)
+    for (int i = 0; i < rounds; i++)
     {
 
         size_t per_gpu = NUM_GPUS << i;
@@ -1098,7 +1098,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 26;
+    const int rounds = 28;
     const int start_offset = 0;
     std::array<double, rounds> alg_bandwidth;
     for (int iter = 0; iter < rounds; iter++)
