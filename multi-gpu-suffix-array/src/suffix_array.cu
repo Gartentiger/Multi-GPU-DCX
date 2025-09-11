@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 8;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -1098,7 +1098,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 28;
+    const int rounds = 25;
     const int start_offset = 0;
     std::array<double, rounds> alg_bandwidth;
     for (int iter = 0; iter < rounds; iter++)
@@ -1312,7 +1312,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 
     if (world_rank() == 0)
     {
-        std::ofstream outFile("algoBandwidth", std::ios::binary);
+        std::ofstream outFile("algoBandwidth8", std::ios::binary);
         if (!outFile)
         {
             std::cerr << "Write Error" << std::endl;
@@ -1380,7 +1380,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3,0, 1, 2, 3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     alltoallMeasure(context);
