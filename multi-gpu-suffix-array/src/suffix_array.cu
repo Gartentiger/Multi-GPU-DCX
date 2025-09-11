@@ -1096,7 +1096,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     using namespace kamping;
     std::random_device rd;
     std::mt19937 g(rd());
-    const int rounds = 28;
+    const int rounds = 29;
     const int start_offset = 3;
     std::array<double, rounds> alg_bandwidth;
     for (int i = start_offset; i <= rounds; i++)
@@ -1220,7 +1220,14 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         }
 
         PartitioningFunctor<sa_index_t> f(per_gpu, NUM_GPUS - 1);
-        multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+        // multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+        for (uint src = 0; src < NUM_GPUS; ++src)
+        {
+            for (uint dst = 0; dst < NUM_GPUS; ++dst)
+            {
+                split_table[src][dst] = per_gpu / NUM_GPUS;
+            }
+        }
 
         context.sync_default_streams();
 
