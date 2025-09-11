@@ -992,6 +992,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     const int start_offset = 0;
     for (int i = start_offset; i <= rounds; i++)
     {
+
         size_t per_gpu = NUM_GPUS << i;
         sa_index_t* A = (sa_index_t*)malloc(per_gpu * sizeof(sa_index_t));
         for (size_t j = 0; j < per_gpu; j++)
@@ -1097,11 +1098,12 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 20;
+    const int rounds = 1;
     const int start_offset = 0;
     std::array<double, rounds> alg_bandwidth;
     for (int i = start_offset; i <= rounds; i++)
     {
+        printf("[%lu] i: %d", world_rank(), i);
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
         std::array<sa_index_t*, NUM_GPUS> d_A_send;
