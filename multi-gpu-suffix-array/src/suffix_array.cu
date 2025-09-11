@@ -986,7 +986,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 25;
+    const int rounds = 20;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
     const int start_offset = 0;
@@ -1097,7 +1097,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 25;
+    const int rounds = 20;
     const int start_offset = 0;
     std::array<double, rounds> alg_bandwidth;
     for (int i = start_offset; i <= rounds; i++)
@@ -1107,7 +1107,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         std::array<sa_index_t*, NUM_GPUS> d_A_send;
         std::array<void*, NUM_GPUS> temp_buffer;
         std::array<sa_index_t*, NUM_GPUS> d_A_recv;
-        size_t N = NUM_GPUS * NUM_GPUS << i;
+        size_t N = (NUM_GPUS * NUM_GPUS) << i;
 
         // Allocate memory for A on CPU
         sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
