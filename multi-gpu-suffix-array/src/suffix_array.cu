@@ -1287,8 +1287,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 
     double num_GB = (double)num_B / (double)B_in_GB;
     double avg_time_per_transfer = elapsed_time / ((double)loop_count);
-    alg_bandwidth[i - start_offset] = num_GB / avg_time_per_transfer;
-    printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i - start_offset]);
+    alg_bandwidth[0 - start_offset] = num_GB / avg_time_per_transfer;
+    printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[0 - start_offset]);
     // comm_world().barrier();
     // cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
     // CUERR;
