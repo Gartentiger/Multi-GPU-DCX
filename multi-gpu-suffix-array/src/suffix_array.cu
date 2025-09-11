@@ -985,26 +985,26 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     using namespace kamping;
     std::random_device rd;
     std::mt19937 g(rd());
-    const int rounds = 29;
+    std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
+    const int rounds = 27;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
-    const int start_offset = 1;
+    const int start_offset = 0;
     for (int i = start_offset; i <= rounds; i++)
     {
-        sa_index_t N = 2 << i;
-        sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
-        for (size_t j = 0; j < N; j++)
+        size_t per_gpu = NUM_GPUS << i;
+        sa_index_t* A = (sa_index_t*)malloc(per_gpu * sizeof(sa_index_t));
+        for (size_t j = 0; j < per_gpu; j++)
         {
-            A[j] = j;
+            A[j] = randomDist(g);
         }
-        std::shuffle(A, A + N, g);
         sa_index_t* d_A_send;
         sa_index_t* d_A_recv;
-        sa_index_t per_gpu = N / NUM_GPUS;
-        cudaMalloc(&d_A_send, sizeof(sa_index_t) * N);
-        cudaMalloc(&d_A_recv, sizeof(sa_index_t) * N);
-        cudaMemset(d_A_recv, 0, sizeof(sa_index_t) * N);
-        cudaMemcpy(d_A_send, A, sizeof(sa_index_t) * N, cudaMemcpyHostToDevice);
+        sa_index_t send_size = per_gpu / NUM_GPUS;
+        cudaMalloc(&d_A_send, sizeof(sa_index_t) * per_gpu);
+        cudaMalloc(&d_A_recv, sizeof(sa_index_t) * per_gpu);
+        cudaMemset(d_A_recv, 0, sizeof(sa_index_t) * per_gpu);
+        cudaMemcpy(d_A_send, A, sizeof(sa_index_t) * per_gpu, cudaMemcpyHostToDevice);
 
         // warm up
         for (int loop = 0; loop < 1; loop++)
@@ -1016,18 +1016,18 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
                 {
                     if (src_gpu == world_rank())
                     {
-                        ncclSend(d_A_send + dst_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
+                        ncclSend(d_A_send + dst_gpu * send_size, sizeof(sa_index_t) * send_size, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
                     }
                     if (dst_gpu == world_rank())
                     {
-                        ncclRecv(d_A_recv + src_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
+                        ncclRecv(d_A_recv + src_gpu * send_size, sizeof(sa_index_t) * send_size, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
                     }
                 }
             }
             ncclGroupEnd();
             context.sync_all_streams();
             comm_world().barrier();
-            cudaMemset(d_A_recv, 0, sizeof(sa_index_t) * N);
+            cudaMemset(d_A_recv, 0, sizeof(sa_index_t) * per_gpu);
         }
 
         const size_t loop_count = 10;
@@ -1043,11 +1043,11 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
                 {
                     if (src_gpu == world_rank())
                     {
-                        ncclSend(d_A_send + dst_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
+                        ncclSend(d_A_send + dst_gpu * send_size, sizeof(sa_index_t) * send_size, ncclChar, dst_gpu, nccl_comm, context.get_streams(src_gpu)[dst_gpu]);
                     }
                     if (dst_gpu == world_rank())
                     {
-                        ncclRecv(d_A_recv + src_gpu * per_gpu, sizeof(sa_index_t) * per_gpu, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
+                        ncclRecv(d_A_recv + src_gpu * send_size, sizeof(sa_index_t) * send_size, ncclChar, src_gpu, nccl_comm, context.get_streams(dst_gpu)[src_gpu]);
                     }
                 }
             }
@@ -1056,7 +1056,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
             comm_world().barrier();
             double end = MPI_Wtime();
             loop_time[loop] = end - start;
-            cudaMemset(d_A_recv, 0, sizeof(sa_index_t) * N);
+            cudaMemset(d_A_recv, 0, sizeof(sa_index_t) * per_gpu);
         }
         std::sort(loop_time.begin(), loop_time.end(), std::less_equal<double>());
         double elapsed_time = loop_time[0];
@@ -1064,7 +1064,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
         {
             elapsed_time += loop_time[j];
         }
-        size_t num_B = sizeof(sa_index_t) * N * NUM_GPUS;
+        size_t num_B = sizeof(sa_index_t) * per_gpu;
         size_t B_in_GB = 1 << 30;
 
         double num_GB = (double)num_B / (double)B_in_GB;
@@ -1097,8 +1097,8 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 30;
-    const int start_offset = 3;
+    const int rounds = 23;
+    const int start_offset = 0;
     std::array<double, rounds> alg_bandwidth;
     for (int i = start_offset; i <= rounds; i++)
     {
@@ -1107,11 +1107,11 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         std::array<sa_index_t*, NUM_GPUS> d_A_send;
         std::array<void*, NUM_GPUS> temp_buffer;
         std::array<sa_index_t*, NUM_GPUS> d_A_recv;
-        sa_index_t N = 2 << i;
+        size_t N = NUM_GPUS * NUM_GPUS << i;
 
         // Allocate memory for A on CPU
         sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
-        sa_index_t per_gpu = (N / NUM_GPUS);
+        size_t per_gpu = (N / NUM_GPUS);
         if (world_rank() == 0)
         {
 
@@ -1217,11 +1217,12 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 
         // PartitioningFunctor<sa_index_t> f(per_gpu, NUM_GPUS - 1);
         // multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+        size_t send_size = per_gpu / NUM_GPUS;
         for (uint src = 0; src < NUM_GPUS; ++src)
         {
             for (uint dst = 0; dst < NUM_GPUS; ++dst)
             {
-                split_table[src][dst] = per_gpu / NUM_GPUS;
+                split_table[src][dst] = send_size;
             }
         }
 
@@ -1309,7 +1310,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 
     if (world_rank() == 0)
     {
-        std::ofstream outFile("algoBandwidth", std::ios::binary);
+        std::ofstream outFile("algoBandwidth8", std::ios::binary);
         if (!outFile)
         {
             std::cerr << "Write Error" << std::endl;
