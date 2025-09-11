@@ -1098,7 +1098,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 27;
+    const int rounds = 26;
     const int start_offset = 0;
     std::array<double, rounds> alg_bandwidth;
     for (int iter = 0; iter < rounds; iter++)
