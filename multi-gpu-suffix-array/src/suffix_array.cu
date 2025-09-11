@@ -1101,214 +1101,212 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     const int rounds = 1;
     const int start_offset = 0;
     std::array<double, rounds> alg_bandwidth;
-    for (int i = start_offset; i <= 1; i++)
+
+    MultiSplit<NUM_GPUS> multi_split(context);
+    All2All<NUM_GPUS> all2all(context);
+    std::array<sa_index_t*, NUM_GPUS> d_A_send;
+    std::array<void*, NUM_GPUS> temp_buffer;
+    std::array<sa_index_t*, NUM_GPUS> d_A_recv;
+    size_t N = (NUM_GPUS * NUM_GPUS) << 1;
+
+    // Allocate memory for A on CPU
+    sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
+    size_t per_gpu = (N / NUM_GPUS);
+    if (world_rank() == 0)
     {
-        printf("[%lu] i: %d^\n", world_rank(), i);
-        MultiSplit<NUM_GPUS> multi_split(context);
-        All2All<NUM_GPUS> all2all(context);
-        std::array<sa_index_t*, NUM_GPUS> d_A_send;
-        std::array<void*, NUM_GPUS> temp_buffer;
-        std::array<sa_index_t*, NUM_GPUS> d_A_recv;
-        size_t N = (NUM_GPUS * NUM_GPUS) << i;
 
-        // Allocate memory for A on CPU
-        sa_index_t* A = (sa_index_t*)malloc(N * sizeof(sa_index_t));
-        size_t per_gpu = (N / NUM_GPUS);
-        if (world_rank() == 0)
+        // Initialize all elements of A to random values
+        for (size_t j = 0; j < N; j++)
         {
-
-            // Initialize all elements of A to random values
-            for (size_t j = 0; j < N; j++)
-            {
-                A[j] = randomDist(g);
-            }
-
-            for (size_t gpu_index = 1; gpu_index < NUM_GPUS; gpu_index++)
-            {
-                comm_world().send(send_buf(std::span<sa_index_t>(A + gpu_index * per_gpu, per_gpu)), send_count(per_gpu), tag(gpu_index), destination(gpu_index));
-            }
+            A[j] = randomDist(g);
         }
-        else
+
+        for (size_t gpu_index = 1; gpu_index < NUM_GPUS; gpu_index++)
         {
-            comm_world().recv(recv_buf(std::span<sa_index_t>(A + world_rank() * per_gpu, per_gpu)), recv_count(per_gpu), tag(world_rank()), source(0));
+            comm_world().send(send_buf(std::span<sa_index_t>(A + gpu_index * per_gpu, per_gpu)), send_count(per_gpu), tag(gpu_index), destination(gpu_index));
         }
+    }
+    else
+    {
+        comm_world().recv(recv_buf(std::span<sa_index_t>(A + world_rank() * per_gpu, per_gpu)), recv_count(per_gpu), tag(world_rank()), source(0));
+    }
 
-        std::array<size_t, NUM_GPUS> temp_storages;
-        {
-            size_t gpu_index = world_rank();
-            // cudaStream_t stream = context.get_gpu_default_stream(i);
-            sa_index_t* d_A, * d_A_rec;
-            cudaMalloc(&d_A, per_gpu * sizeof(sa_index_t));
-            CUERR;
-            d_A_send[gpu_index] = d_A;
-            cudaMemcpy(d_A_send[gpu_index], A + per_gpu * gpu_index, per_gpu * sizeof(sa_index_t), cudaMemcpyHostToDevice);
-            CUERR;
+    std::array<size_t, NUM_GPUS> temp_storages;
+    {
+        size_t gpu_index = world_rank();
+        // cudaStream_t stream = context.get_gpu_default_stream(i);
+        sa_index_t* d_A, * d_A_rec;
+        cudaMalloc(&d_A, per_gpu * sizeof(sa_index_t));
+        CUERR;
+        d_A_send[gpu_index] = d_A;
+        cudaMemcpy(d_A_send[gpu_index], A + per_gpu * gpu_index, per_gpu * sizeof(sa_index_t), cudaMemcpyHostToDevice);
+        CUERR;
 
-            cudaMalloc(&d_A_rec, per_gpu * sizeof(sa_index_t));
-            CUERR;
-            d_A_recv[gpu_index] = d_A_rec;
-            // cub::DeviceRadixSort::SortKeys(nullptr, temp_storages[gpu_index],
-            //     d_A_send[gpu_index], d_A_recv[gpu_index], per_gpu);
-            // void* temp;
-            // temp_storages[gpu_index] = std::max(temp_storages[gpu_index], 1024ul);
-            // temp_storages[gpu_index] = std::max(temp_storages[gpu_index], ((size_t)per_gpu) * sizeof(sa_index_t)) * 4;
-            // cudaMalloc(&temp, temp_storages[gpu_index]);
-            // CUERR;
-            // temp_buffer[gpu_index] = temp;
-            // cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
-            // CUERR;
-
-            cudaMemset(d_A_recv[gpu_index], 0, per_gpu * sizeof(sa_index_t));
-            CUERR;
-        }
-        comm_world().barrier();
-
-        cudaIpcMemHandle_t handleSend;
-        cudaIpcGetMemHandle(&handleSend, d_A_send[world_rank()]);
-        cudaIpcMemHandle_t handleRecv;
-        cudaIpcGetMemHandle(&handleRecv, d_A_recv[world_rank()]);
-        for (size_t dst = 0; dst < NUM_GPUS; dst++) {
-            if (context.get_peer_status(world_rank(), dst) != 1) {
-                continue;
-            }
-            comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleSend, 1)), send_count(1), tag(0), destination(dst));
-            comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleRecv, 1)), send_count(1), tag(1), destination(dst));
-        }
-        for (size_t src = 0; src < NUM_GPUS; src++) {
-            if (context.get_peer_status(world_rank(), src) != 1) {
-                continue;
-            }
-            cudaIpcMemHandle_t other_handleSend;
-            cudaIpcMemHandle_t other_handleRecv;
-            comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleSend, 1)), recv_count(1), tag(0), source(src));
-            comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleRecv, 1)), recv_count(1), tag(1), source(src));
-            void* ptrHandleSend;
-            void* ptrHandleRecv;
-            cudaIpcOpenMemHandle(&ptrHandleSend, other_handleSend, cudaIpcMemLazyEnablePeerAccess);
-            CUERR;
-            cudaIpcOpenMemHandle(&ptrHandleRecv, other_handleRecv, cudaIpcMemLazyEnablePeerAccess);
-            CUERR;
-
-            printf("[%lu] opened mem handles from %d\n", world_rank(), src);
-            d_A_send[src] = reinterpret_cast<sa_index_t*>(ptrHandleSend);
-            d_A_recv[src] = reinterpret_cast<sa_index_t*>(ptrHandleRecv);
-        }
-
-        context.sync_default_streams();
-        comm_world().barrier();
-
-        std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
-
-        split_table_tt<sa_index_t, NUM_GPUS> split_table;
-        // std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
-        // std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        // {
-        //     multi_split_node_info[gpu_index].src_keys = d_A_send[gpu_index];
-        //     multi_split_node_info[gpu_index].src_values = d_A_send[gpu_index];
-        //     multi_split_node_info[gpu_index].src_len = per_gpu;
-
-        //     multi_split_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
-        //     multi_split_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
-        //     multi_split_node_info[gpu_index].dest_len = per_gpu;
-        //     if (world_rank() == gpu_index)
-        //     {
-        //         context.get_device_temp_allocator(gpu_index).init(temp_buffer[gpu_index], temp_storages[gpu_index]);
-        //     }
-        // }
-
-        // PartitioningFunctor<sa_index_t> f(per_gpu, NUM_GPUS - 1);
-        // multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
-        size_t send_size = per_gpu / NUM_GPUS;
-        for (uint src = 0; src < NUM_GPUS; ++src)
-        {
-            for (uint dst = 0; dst < NUM_GPUS; ++dst)
-            {
-                split_table[src][dst] = send_size;
-            }
-        }
-
-        context.sync_default_streams();
-
-        comm_world().barrier();
-        context.sync_all_streams();
-
-        // Warm-up loop
-        for (int j = 0; j < 1; j++)
-        {
-            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-            {
-                all2all_node_info[gpu_index].src_keys = d_A_send[gpu_index];
-                all2all_node_info[gpu_index].src_values = d_A_send[gpu_index];
-                all2all_node_info[gpu_index].src_len = per_gpu;
-
-                all2all_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
-                all2all_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
-                all2all_node_info[gpu_index].dest_len = per_gpu;
-            }
-            all2all.execAsync(all2all_node_info, split_table);
-            context.sync_all_streams();
-            cudaMemset(d_A_recv[world_rank()], 0, sizeof(sa_index_t) * per_gpu);
-            comm_world().barrier();
-        }
-        context.sync_all_streams();
-        comm_world().barrier();
-
-        // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
-        const int loop_count = 10;
-        std::array<double, loop_count> loop_time;
-        for (int j = 0; j < loop_count; j++)
-        {
-            double start = MPI_Wtime();
-            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-            {
-                all2all_node_info[gpu_index].src_keys = d_A_send[gpu_index];
-                all2all_node_info[gpu_index].src_values = d_A_send[gpu_index];
-                all2all_node_info[gpu_index].src_len = per_gpu;
-
-                all2all_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
-                all2all_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
-                all2all_node_info[gpu_index].dest_len = per_gpu;
-            }
-            all2all.execAsync(all2all_node_info, split_table);
-            context.sync_all_streams();
-            comm_world().barrier();
-            double end = MPI_Wtime();
-            cudaMemset(d_A_recv[world_rank()], 0, sizeof(sa_index_t) * per_gpu);
-            loop_time[j] = end - start;
-        }
-
-        std::sort(loop_time.begin(), loop_time.end(), std::less_equal<double>());
-        double elapsed_time = loop_time[0];
-        for (int j = 1; j < loop_count; j++)
-        {
-            elapsed_time += loop_time[j];
-        }
-        size_t num_B = sizeof(sa_index_t) * per_gpu;
-        size_t B_in_GB = 1 << 30;
-
-        double num_GB = (double)num_B / (double)B_in_GB;
-        double avg_time_per_transfer = elapsed_time / ((double)loop_count);
-        alg_bandwidth[i - start_offset] = num_GB / avg_time_per_transfer;
-        printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i - start_offset]);
-        // comm_world().barrier();
-        // cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+        cudaMalloc(&d_A_rec, per_gpu * sizeof(sa_index_t));
+        CUERR;
+        d_A_recv[gpu_index] = d_A_rec;
+        // cub::DeviceRadixSort::SortKeys(nullptr, temp_storages[gpu_index],
+        //     d_A_send[gpu_index], d_A_recv[gpu_index], per_gpu);
+        // void* temp;
+        // temp_storages[gpu_index] = std::max(temp_storages[gpu_index], 1024ul);
+        // temp_storages[gpu_index] = std::max(temp_storages[gpu_index], ((size_t)per_gpu) * sizeof(sa_index_t)) * 4;
+        // cudaMalloc(&temp, temp_storages[gpu_index]);
         // CUERR;
-        // std::sort(A, A + per_gpu, std::less<sa_index_t>());
-        // for(sa_index_t j = 0; j < per_gpu; j++){
-        //     if(A[j]-per_gpu*world_rank() != j){
-        //         printf("[%lu] A[%u] %u wrong\n", world_rank(), j, A[j]);
-        //         break;
-        //     }
-        // }
-        comm_world().barrier();
+        // temp_buffer[gpu_index] = temp;
+        // cudaMemset(temp_buffer[gpu_index], 0, temp_storages[gpu_index]);
+        // CUERR;
 
-        cudaFree(d_A_send[world_rank()]);
-        cudaFree(d_A_recv[world_rank()]);
-        // cudaFree(temp_buffer[gpu_index]);
-        free(A);
+        cudaMemset(d_A_recv[gpu_index], 0, per_gpu * sizeof(sa_index_t));
+        CUERR;
+    }
+    comm_world().barrier();
+
+    cudaIpcMemHandle_t handleSend;
+    cudaIpcGetMemHandle(&handleSend, d_A_send[world_rank()]);
+    cudaIpcMemHandle_t handleRecv;
+    cudaIpcGetMemHandle(&handleRecv, d_A_recv[world_rank()]);
+    for (size_t dst = 0; dst < NUM_GPUS; dst++) {
+        if (context.get_peer_status(world_rank(), dst) != 1) {
+            continue;
+        }
+        comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleSend, 1)), send_count(1), tag(0), destination(dst));
+        comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleRecv, 1)), send_count(1), tag(1), destination(dst));
+    }
+    for (size_t src = 0; src < NUM_GPUS; src++) {
+        if (context.get_peer_status(world_rank(), src) != 1) {
+            continue;
+        }
+        cudaIpcMemHandle_t other_handleSend;
+        cudaIpcMemHandle_t other_handleRecv;
+        comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleSend, 1)), recv_count(1), tag(0), source(src));
+        comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleRecv, 1)), recv_count(1), tag(1), source(src));
+        void* ptrHandleSend;
+        void* ptrHandleRecv;
+        cudaIpcOpenMemHandle(&ptrHandleSend, other_handleSend, cudaIpcMemLazyEnablePeerAccess);
+        CUERR;
+        cudaIpcOpenMemHandle(&ptrHandleRecv, other_handleRecv, cudaIpcMemLazyEnablePeerAccess);
+        CUERR;
+
+        printf("[%lu] opened mem handles from %d\n", world_rank(), src);
+        d_A_send[src] = reinterpret_cast<sa_index_t*>(ptrHandleSend);
+        d_A_recv[src] = reinterpret_cast<sa_index_t*>(ptrHandleRecv);
+    }
+
+    context.sync_default_streams();
+    comm_world().barrier();
+
+    std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
+
+    split_table_tt<sa_index_t, NUM_GPUS> split_table;
+    // std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
+    // std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
+    // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+    // {
+    //     multi_split_node_info[gpu_index].src_keys = d_A_send[gpu_index];
+    //     multi_split_node_info[gpu_index].src_values = d_A_send[gpu_index];
+    //     multi_split_node_info[gpu_index].src_len = per_gpu;
+
+    //     multi_split_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
+    //     multi_split_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
+    //     multi_split_node_info[gpu_index].dest_len = per_gpu;
+    //     if (world_rank() == gpu_index)
+    //     {
+    //         context.get_device_temp_allocator(gpu_index).init(temp_buffer[gpu_index], temp_storages[gpu_index]);
+    //     }
+    // }
+
+    // PartitioningFunctor<sa_index_t> f(per_gpu, NUM_GPUS - 1);
+    // multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+    size_t send_size = per_gpu / NUM_GPUS;
+    for (uint src = 0; src < NUM_GPUS; ++src)
+    {
+        for (uint dst = 0; dst < NUM_GPUS; ++dst)
+        {
+            split_table[src][dst] = send_size;
+        }
+    }
+
+    context.sync_default_streams();
+
+    comm_world().barrier();
+    context.sync_all_streams();
+
+    // Warm-up loop
+    for (int j = 0; j < 1; j++)
+    {
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            all2all_node_info[gpu_index].src_keys = d_A_send[gpu_index];
+            all2all_node_info[gpu_index].src_values = d_A_send[gpu_index];
+            all2all_node_info[gpu_index].src_len = per_gpu;
+
+            all2all_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
+            all2all_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
+            all2all_node_info[gpu_index].dest_len = per_gpu;
+        }
+        all2all.execAsync(all2all_node_info, split_table);
+        context.sync_all_streams();
+        cudaMemset(d_A_recv[world_rank()], 0, sizeof(sa_index_t) * per_gpu);
         comm_world().barrier();
     }
+    context.sync_all_streams();
+    comm_world().barrier();
+
+    // Time ping-pong for loop_count iterations of data transfer size 8*N bytes
+    const int loop_count = 10;
+    std::array<double, loop_count> loop_time;
+    for (int j = 0; j < loop_count; j++)
+    {
+        double start = MPI_Wtime();
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            all2all_node_info[gpu_index].src_keys = d_A_send[gpu_index];
+            all2all_node_info[gpu_index].src_values = d_A_send[gpu_index];
+            all2all_node_info[gpu_index].src_len = per_gpu;
+
+            all2all_node_info[gpu_index].dest_keys = d_A_recv[gpu_index];
+            all2all_node_info[gpu_index].dest_values = d_A_recv[gpu_index];
+            all2all_node_info[gpu_index].dest_len = per_gpu;
+        }
+        all2all.execAsync(all2all_node_info, split_table);
+        context.sync_all_streams();
+        comm_world().barrier();
+        double end = MPI_Wtime();
+        cudaMemset(d_A_recv[world_rank()], 0, sizeof(sa_index_t) * per_gpu);
+        loop_time[j] = end - start;
+    }
+
+    std::sort(loop_time.begin(), loop_time.end(), std::less_equal<double>());
+    double elapsed_time = loop_time[0];
+    for (int j = 1; j < loop_count; j++)
+    {
+        elapsed_time += loop_time[j];
+    }
+    size_t num_B = sizeof(sa_index_t) * per_gpu;
+    size_t B_in_GB = 1 << 30;
+
+    double num_GB = (double)num_B / (double)B_in_GB;
+    double avg_time_per_transfer = elapsed_time / ((double)loop_count);
+    alg_bandwidth[i - start_offset] = num_GB / avg_time_per_transfer;
+    printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[i - start_offset]);
+    // comm_world().barrier();
+    // cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+    // CUERR;
+    // std::sort(A, A + per_gpu, std::less<sa_index_t>());
+    // for(sa_index_t j = 0; j < per_gpu; j++){
+    //     if(A[j]-per_gpu*world_rank() != j){
+    //         printf("[%lu] A[%u] %u wrong\n", world_rank(), j, A[j]);
+    //         break;
+    //     }
+    // }
+    comm_world().barrier();
+
+    cudaFree(d_A_send[world_rank()]);
+    cudaFree(d_A_recv[world_rank()]);
+    // cudaFree(temp_buffer[gpu_index]);
+    free(A);
+    comm_world().barrier();
+
 
     if (world_rank() == 0)
     {
