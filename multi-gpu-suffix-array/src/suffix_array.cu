@@ -986,7 +986,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 27;
+    const int rounds = 26;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
     const int start_offset = 0;
@@ -1097,7 +1097,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 27;
+    const int rounds = 26;
     const int start_offset = 0;
     std::array<double, rounds> alg_bandwidth;
     for (int i = start_offset; i <= rounds; i++)
@@ -1381,8 +1381,8 @@ int main(int argc, char** argv)
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
-    // alltoallMeasure(context);
-    ncclMeasure(context);
+    alltoallMeasure(context);
+    // ncclMeasure(context);
     return 0;
 #endif
     SuffixSorter sorter(context, realLen, input);
