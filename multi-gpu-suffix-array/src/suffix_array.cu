@@ -819,9 +819,9 @@ void print_device_info()
             prop.unifiedAddressing);
     }
 }
-void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
+void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context, int max) {
 
-    for (int i = 1; i <= 27; i++) {
+    for (int i = max; i <= max; i++) {
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
         std::array<sa_index_t*, NUM_GPUS> d_A_send;
@@ -838,7 +838,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             A[i] = i;
         }
 
-        // std::shuffle(A, A + N, std::default_random_engine());
+        std::shuffle(A, A + N, std::default_random_engine());
         size_t per_gpu = N / NUM_GPUS;
 
         std::array<size_t, NUM_GPUS> temp_storages;
@@ -872,7 +872,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
         }
 
         context.sync_default_streams();
-        int loop_count = 50;
+        int loop_count = 1;
         std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
         std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
@@ -890,16 +890,22 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context) {
             context.get_device_temp_allocator(gpu_index).init(temp_buffer[gpu_index], temp_storages[gpu_index] * sizeof(sa_index_t));
         }
 
+        for (uint src = 0; src < NUM_GPUS; ++src)
+        {
+            for (uint dst = 0; dst < NUM_GPUS; ++dst)
+            {
+                split_table[src][dst] = per_gpu / NUM_GPUS;
+            }
+        }
 
-        //}
         PartitioningFunctor<uint> f(per_gpu, NUM_GPUS - 1);
-        multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+        //multi_split.execAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         context.sync_default_streams();
 
         // Warm-up loop
 
-        for (int i = 1; i <= 5; i++) {
+        for (int i = 1; i <= 0; i++) {
 
             for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
@@ -982,9 +988,9 @@ int main(int argc, char** argv)
 
     char* input = nullptr;
     cudaSetDevice(0);
-    size_t realLen;
-    size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
-    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
+    size_t realLen = 0;
+    // size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
+    // size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
     //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
@@ -995,7 +1001,8 @@ int main(int argc, char** argv)
 #else 
     const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
-    // alltoallMeasure(context);
+    alltoallMeasure(context, std::stoi(argv[1]));
+    return 0;
 
 #endif
     SuffixSorter sorter(context, realLen, input);
