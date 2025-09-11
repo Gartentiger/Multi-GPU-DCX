@@ -1101,9 +1101,9 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     const int rounds = 1;
     const int start_offset = 0;
     std::array<double, rounds> alg_bandwidth;
-    for (int i = start_offset; i <= rounds; i++)
+    for (int i = start_offset; i <= 1; i++)
     {
-        printf("[%lu] i: %d", world_rank(), i);
+        printf("[%lu] i: %d^\n", world_rank(), i);
         MultiSplit<NUM_GPUS> multi_split(context);
         All2All<NUM_GPUS> all2all(context);
         std::array<sa_index_t*, NUM_GPUS> d_A_send;
