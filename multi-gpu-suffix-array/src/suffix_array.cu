@@ -22,7 +22,7 @@
 #include <chrono>
 // #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 1;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -988,9 +988,9 @@ int main(int argc, char** argv)
 
     char* input = nullptr;
     cudaSetDevice(0);
-    size_t realLen = 0;
-    // size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
-    // size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
+    size_t realLen;
+    size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
+    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
     //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
@@ -999,10 +999,10 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
+    const std::array<uint, NUM_GPUS> gpu_ids{ 0 };
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
-    alltoallMeasure(context, std::stoi(argv[1]));
-    return 0;
+    // alltoallMeasure(context, std::stoi(argv[1]));
+    // return 0;
 
 #endif
     SuffixSorter sorter(context, realLen, input);

@@ -1,4 +1,5 @@
 /build/
+/mainbuild/
 /Debug/
 /.ptp-sync/
 CMakeLists.txt.user
