@@ -22,7 +22,7 @@
 #include <chrono>
 // #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 1;
+static const uint NUM_GPUS = 2;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -381,10 +381,13 @@ private:
         }
         kernels::fixup_last_four_12_kmers_64 << <1, 4, 0, mcontext.get_gpu_default_stream(NUM_GPUS - 1) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 4);
         mcontext.sync_default_streams();
-        printf("elements: %lu\n", mgpus[0].num_elements);
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(0) >> > (reinterpret_cast<char*>(mgpus[0].pd_ptr.Sa_rank), mgpus[0].pd_ptr.Isa, SDIV(mgpus[0].num_elements, 12) * 12, 0);
-        mcontext.sync_default_streams();
-        exit(1);
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
+            printf("elements: %lu, offset %lu\n", gpu.num_elements, gpu.offset);
+            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<char*>(gpu.pd_ptr.Sa_rank), gpu.pd_ptr.Isa, SDIV(gpu.num_elements, 12) * 12, gpu_index);
+            mcontext.sync_default_streams();
+        }
     }
 
     void prepare_S12_for_merge()
@@ -999,7 +1002,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0 };
+    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0 };
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
     // alltoallMeasure(context, std::stoi(argv[1]));
     // return 0;
