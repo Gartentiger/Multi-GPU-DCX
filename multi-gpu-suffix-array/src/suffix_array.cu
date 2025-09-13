@@ -68,6 +68,49 @@ __global__ void printArrayss(char* kmer, sa_index_t* isa, size_t size, size_t ra
     }
     printf("---------------------------------------------------------------------------\n");
 }
+__global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, size_t rank)
+{
+    printf("[%lu] isa: ", rank);
+    for (size_t i = 0; i < size; i++) {
+        if (i + 1 < size) {
+
+            printf("%u, ", isa[i]);
+        }
+        else {
+            printf("%u", isa[i]);
+        }
+
+    }
+    printf("\n");
+    printf("[%lu]  sa: ", rank);
+    for (size_t i = 0; i < size; i++) {
+        if (i + 1 < size) {
+
+            printf("%u, ", sa_rank[i]);
+        }
+        else {
+            printf("%u", sa_rank[i]);
+        }
+
+    }
+    printf("\n");
+    printf("---------------------------------------------------------------------------\n");
+}
+__global__ void printArrayss(MergeStageSuffixS12HalfValue* isa, MergeStageSuffixS12HalfKey* sa_rank, size_t size, size_t rank)
+{
+    printf("[%lu] key: ", rank);
+    for (size_t i = 0; i < size; i++) {
+        printf("%c, %c, %c, %u\n", isa[i].chars[0], isa[i].chars[1], isa[i].rank_p1p2);
+    }
+    printf("\n");
+    printf("[%lu]  value: ", rank);
+    for (size_t i = 0; i < size; i++) {
+
+        printf("%u, %u\n", sa_rank[i].own_rank, sa_rank[i].index);
+    }
+    printf("\n");
+    printf("---------------------------------------------------------------------------\n");
+}
 struct S12PartitioningFunctor : public std::unary_function<sa_index_t, uint32_t>
 {
     sa_index_t split_divisor;
@@ -404,7 +447,8 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
             CUERR;
-
+            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, (size_t)gpu_index);
+            mcontext.sync_default_streams();
             multi_split_node_info[gpu_index].src_keys = gpu.prepare_S12_ptr.Isa;
             multi_split_node_info[gpu_index].src_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result;
             multi_split_node_info[gpu_index].src_len = gpu.pd_elements;
@@ -421,7 +465,13 @@ private:
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-
+        printf("multi\n");
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
+            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > ((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half, gpu.pd_elements, (size_t)gpu_index);
+            mcontext.sync_default_streams();
+        }
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
@@ -464,8 +514,16 @@ private:
 
         //            dump_prepare_s12("After split");
 
+        printf("alltoall\n");
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
+
+            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.S12_buffer2_half, gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, (size_t)gpu_index);
+            mcontext.sync_all_streams();
+        }
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
         //            dump_prepare_s12("After all2all");
@@ -781,7 +839,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 };
 
