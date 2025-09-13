@@ -38,15 +38,29 @@ struct MergeStageSuffixS12HalfValue {
     unsigned char chars[2], _padding[2];
 };
 
-
-struct Sk7 {
-    unsigned char prefix[7], padd[5];
-    sa_index_t ranks[7];
-    size_t index;
+// device dcx struct
+template<uint _X, uint _C>
+struct _D_DCX {
+    uint nextSample[_C];
+    uint lookupL[_X][_X];
 };
 
-struct DC7L {
-    static constexpr uint32_t lookupL[7][7] = {
+
+struct DC3 {
+    static constexpr uint32_t X = 3;
+    static constexpr uint32_t C = 2;
+    static constexpr uint32_t nextSample[2] = { 1,2 };
+    static constexpr uint32_t lookupL[X][X] = {
+        {1,1,2},
+        {1,0,0},
+        {2,0,0} };
+};
+
+struct DC7 {
+    static constexpr uint32_t X = 7;
+    static constexpr uint32_t C = 3;
+    static constexpr uint32_t nextSample[3] = { 1,2,4 };
+    static constexpr uint32_t lookupL[X][X] = {
         {1, 1, 2, 1, 4, 4, 2},
 
         {1, 0, 0, 1, 0, 3, 3},
@@ -60,15 +74,25 @@ struct DC7L {
         {4, 3, 6, 6, 4, 3, 3},
 
         {2, 3, 2, 5, 5, 3, 2} };
+
+};
+
+using MergeStageSuffix = MergeStageSuffixS0;
+using DCX = DC7;
+using D_DCX = _D_DCX<DCX::X, DCX::C>;
+
+struct Sk {
+    unsigned char prefix[DCX::X];
+    sa_index_t ranks[DCX::X];
+    size_t index;
 };
 
 struct decomposer_t
 {
-    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(Sk7& key) const
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(Sk& key) const
     {
         return { key.prefix[0], key.prefix[1], key.prefix[2], key.prefix[3], key.prefix[4], key.prefix[5], key.prefix[6] };
     }
 };
-using MergeStageSuffix = MergeStageSuffixS0;
 
 #endif // CONFIG_H

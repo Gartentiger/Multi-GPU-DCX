@@ -384,9 +384,9 @@ namespace kernels {
             res1.z = get_octet2(inp, *reinterpret_cast<uint*>(&c), 4).x;
             //res1.w = get_octet(inp, c, 5).x;
 
-            res2.x = get_octet2(inp, *reinterpret_cast<uint*>(&c), 6).x;
-            res2.y = get_octet2(inp, *reinterpret_cast<uint*>(&c), 7).x;
-            res2.z = get_octet2(inp, *reinterpret_cast<uint*>(&c), 9).x;
+            res2.x = get_octet2(inp, *reinterpret_cast<uint*>(&c), 8).x;
+            res2.y = get_octet2(inp, *reinterpret_cast<uint*>(&c), 9).x;
+            res2.z = get_octet2(inp, *reinterpret_cast<uint*>(&c), 11).x;
             //res2.w = get_octet(inp, c, 11).x;
 
             *(reinterpret_cast<ulong3*>(Output_kmers) + i * 2) = res1;
@@ -541,6 +541,37 @@ namespace kernels {
         }
     }
 
+    __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
+        const sa_index_t* next_Isa, const unsigned char* next_Input,
+        sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
+        Sk* out_keys, size_t N, D_DCX* dcx)
+    {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i_ = tidx; i_ < N; i_ += blockDim.x * gridDim.x) {
+            uint i = indices[i_];
+            uint index = (i / DCX::C) * DCX::X + dcx->nextSample[i % DCX::C];
+            Sk sk;
+            sk.index = index + offset;
+            uint nexInputIndex = 0;
+            uint nexIsaIndex = 0;
+            for (uint x = 0; x < DCX::X; x++) {
+                sk.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
+                if (i < N - 1)
+                    sk.ranks[x] = Isa[i + x];
+                else {
+                    if (next_Isa) {
+                        sk.ranks[x] = next_Isa[nexIsaIndex];
+                    }
+                    else {
+                        sk.ranks[x] = index < num_chars - 1 ? 1 : 0;
+                    }
+                    nexIsaIndex++;
+                }
+            }
+            out_keys[i_] = sk;
+        }
+    }
+
     __global__ void prepare_S12_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
@@ -549,7 +580,7 @@ namespace kernels {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i_ = tidx; i_ < N; i_ += blockDim.x * gridDim.x) {
             uint i = indices[i_];
-            uint index = (i / 2) * 3 + i % 2 + 1; // Transform from PD 0/1 to full index, assume offset % 3 == 0.
+            uint index = (i / 2) * 3 + i % 3 + 1; // Transform from PD 0/1 to full index, assume offset % 3 == 0.
             unsigned char x = Input[index];
             unsigned char x_p1 = index < num_chars ? Input[index + 1] : (next_Input ? *next_Input : 0);
             uint rank = Isa[i] - 1;
@@ -717,27 +748,27 @@ namespace kernels {
     }
 
 
-    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk7* output) {
-        // corresponds with the index
-        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk* output) {
+        //     // corresponds with the index
+        //     uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
-        output[tidx].index = tidx;
+        //     output[tidx].index = tidx;
 
-        output[tidx].ranks[0] = ranks[tidx];
-        output[tidx].ranks[1] = ranks[tidx + 1];
-        output[tidx].ranks[2] = ranks[tidx + 2];
-        output[tidx].ranks[3] = ranks[tidx + 3];
-        output[tidx].ranks[4] = ranks[tidx + 4];
-        output[tidx].ranks[5] = ranks[tidx + 5];
-        output[tidx].ranks[6] = ranks[tidx + 6];
-        output[tidx].prefix[0] = Input[tidx];
-        output[tidx].prefix[1] = Input[tidx + 1];
-        output[tidx].prefix[2] = Input[tidx + 2];
-        output[tidx].prefix[3] = Input[tidx + 3];
-        output[tidx].prefix[4] = Input[tidx + 4];
-        output[tidx].prefix[5] = Input[tidx + 5];
-        output[tidx].prefix[6] = Input[tidx + 6];
-        // printf("[%u] %u, ranks: %u, xPrefix: %c\n", tidx, i, output[tidx].ranks[i], output[tidx].xPrefix[i]);
+        //     output[tidx].ranks[0] = ranks[tidx];
+        //     output[tidx].ranks[1] = ranks[tidx + 1];
+        //     output[tidx].ranks[2] = ranks[tidx + 2];
+        //     output[tidx].ranks[3] = ranks[tidx + 3];
+        //     output[tidx].ranks[4] = ranks[tidx + 4];
+        //     output[tidx].ranks[5] = ranks[tidx + 5];
+        //     output[tidx].ranks[6] = ranks[tidx + 6];
+        //     output[tidx].prefix[0] = Input[tidx];
+        //     output[tidx].prefix[1] = Input[tidx + 1];
+        //     output[tidx].prefix[2] = Input[tidx + 2];
+        //     output[tidx].prefix[3] = Input[tidx + 3];
+        //     output[tidx].prefix[4] = Input[tidx + 4];
+        //     output[tidx].prefix[5] = Input[tidx + 5];
+        //     output[tidx].prefix[6] = Input[tidx + 6];
+        //     // printf("[%u] %u, ranks: %u, xPrefix: %c\n", tidx, i, output[tidx].ranks[i], output[tidx].xPrefix[i]);
 
 
     }

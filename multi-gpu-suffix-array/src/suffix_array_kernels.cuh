@@ -58,6 +58,11 @@ namespace kernels {
         sa_index_t offset, size_t num_chars,
         MergeStageSuffixS12* out, size_t N);
 
+    __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
+        const sa_index_t* next_Isa, const unsigned char* next_Input,
+        sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
+        Sk* out_keys, size_t N, D_DCX* dcx);
+
     __global__ void prepare_S12_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
@@ -87,7 +92,9 @@ namespace kernels {
     __global__ void from_merge_suffix_to_index(const MergeStageSuffix* Merge_suffixes, sa_index_t* Out, size_t N);
 
 
-    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk7* output);
+    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk* output);
+
+
 }
 
 #endif /* SA_TEST_KERNELS_CUH_ */
