@@ -72,6 +72,11 @@ namespace kernels {
 
     __global__ void write_S12_back(const MergeStageSuffixS12* inp, MergeStageSuffix* outp, size_t base_offset, size_t N);
 
+    __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
+        const sa_index_t* next_Isa, const unsigned char* next_Input,
+        sa_index_t offset, size_t num_chars, size_t isa_size,
+        Sk* out_keys, size_t N, D_DCX* dcx);
+
     __global__ void prepare_S0(const sa_index_t* Isa, const unsigned char* Input,
         sa_index_t node_offset, size_t no_chars, size_t Isa_size, bool last,
         MergeStageSuffixS0HalfKey* Out_key,

@@ -39,18 +39,20 @@ struct MergeStageSuffixS12HalfValue {
 };
 
 // device dcx struct
-template<uint _X, uint _C>
+template<uint X, uint C>
 struct _D_DCX {
-    uint nextSample[_C];
-    uint lookupL[_X][_X];
+    uint samplePosition[C];
+    uint nextNonSample[X - C];
+    uint nextSample[X][X];
 };
 
 
 struct DC3 {
     static constexpr uint32_t X = 3;
     static constexpr uint32_t C = 2;
-    static constexpr uint32_t nextSample[2] = { 1,2 };
-    static constexpr uint32_t lookupL[X][X] = {
+    static constexpr uint32_t samplePosition[C] = { 1, 2 };
+    static constexpr uint32_t nextNonSample[X - C] = { 0 };
+    static constexpr uint32_t nextSample[X][X] = {
         {1,1,2},
         {1,0,0},
         {2,0,0} };
@@ -59,8 +61,9 @@ struct DC3 {
 struct DC7 {
     static constexpr uint32_t X = 7;
     static constexpr uint32_t C = 3;
-    static constexpr uint32_t nextSample[3] = { 1,2,4 };
-    static constexpr uint32_t lookupL[X][X] = {
+    static constexpr uint32_t samplePosition[C] = { 1, 2, 4 };
+    static constexpr uint32_t nextNonSample[X - C] = { 0, 3, 5, 6 };
+    static constexpr uint32_t nextSample[X][X] = {
         {1, 1, 2, 1, 4, 4, 2},
 
         {1, 0, 0, 1, 0, 3, 3},

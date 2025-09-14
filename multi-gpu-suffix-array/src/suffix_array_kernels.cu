@@ -549,7 +549,7 @@ namespace kernels {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i_ = tidx; i_ < N; i_ += blockDim.x * gridDim.x) {
             uint i = indices[i_];
-            uint index = (i / DCX::C) * DCX::X + dcx->nextSample[i % DCX::C];
+            uint index = (i / DCX::C) * DCX::X + dcx->samplePosition[i % DCX::C];
             Sk sk;
             sk.index = index + offset;
             uint nexInputIndex = 0;
@@ -631,6 +631,38 @@ namespace kernels {
             out._padding[0] = suff._padding[0];
             out._padding[1] = suff._padding[1];
             outp[target_index] = out;
+        }
+    }
+
+    __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
+        const sa_index_t* next_Isa, const unsigned char* next_Input,
+        sa_index_t offset, size_t num_chars, size_t isa_size,
+        Sk* out_keys, size_t N, D_DCX* dcx)
+    {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+
+            uint index = (i / (DCX::X - DCX::C)) * DCX::X + dcx->nextNonSample[i % (DCX::X - DCX::C)];
+            Sk sk;
+            sk.index = index + offset;
+            uint nexInputIndex = 0;
+            uint nexIsaIndex = 0;
+            for (uint x = 0; x < DCX::X; x++) {
+                sk.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
+                uint pos = (index + x) % DCX::X;
+                if (i + x + dcx->nextSample[pos][pos] < isa_size)
+                    sk.ranks[x] = Isa[i + x + dcx->nextSample[pos][pos]];
+                else {
+                    if (next_Isa) {
+                        sk.ranks[x] = next_Isa[nexIsaIndex];
+                    }
+                    else {
+                        sk.ranks[x] = index < num_chars - 1 ? 1 : 0;
+                    }
+                    nexIsaIndex++;
+                }
+            }
+            out_keys[i] = sk;
         }
     }
 
