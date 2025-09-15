@@ -544,13 +544,13 @@ namespace kernels {
     __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
-        Sk* out_keys, size_t N, D_DCX* dcx)
+        MergeSuffixes* out_keys, size_t N, D_DCX* dcx)
     {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i_ = tidx; i_ < N; i_ += blockDim.x * gridDim.x) {
             uint i = indices[i_];
             uint index = (i / DCX::C) * DCX::X + dcx->samplePosition[i % DCX::C];
-            Sk sk;
+            MergeSuffixes sk;
             sk.index = index + offset;
             uint nexInputIndex = 0;
             uint nexIsaIndex = 0;
@@ -637,32 +637,36 @@ namespace kernels {
     __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t isa_size,
-        Sk* out_keys, size_t N, D_DCX* dcx)
+        MergeSuffixes* out_keys, size_t N, sa_index_t non_sample_pos, sa_index_t f, sa_index_t l)
     {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
-
-            uint index = (i / (DCX::X - DCX::C)) * DCX::X + dcx->nextNonSample[i % (DCX::X - DCX::C)];
-            Sk sk;
-            sk.index = index + offset;
+            uint index = non_sample_pos + i * DCX::X;
+            // uint index = (i / (DCX::X - DCX::C)) * DCX::X + dcx->nextNonSample[i % (DCX::X - DCX::C)];
+            MergeSuffixes sv;
+            sv.l = l;
+            sv.index = index + offset;
             uint nexInputIndex = 0;
             uint nexIsaIndex = 0;
+
+            uint starting_isa_index = i * DCX::C + f;
+
             for (uint x = 0; x < DCX::X; x++) {
-                sk.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
-                uint pos = (index + x) % DCX::X;
-                if (i + x + dcx->nextSample[pos][pos] < isa_size)
-                    sk.ranks[x] = Isa[i + x + dcx->nextSample[pos][pos]];
+                sv.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
+                if (starting_isa_index < isa_size) {
+                    sv.ranks[x] = Isa[starting_isa_index++];
+                }
                 else {
                     if (next_Isa) {
-                        sk.ranks[x] = next_Isa[nexIsaIndex];
+                        sv.ranks[x] = next_Isa[nexIsaIndex];
                     }
                     else {
-                        sk.ranks[x] = index < num_chars - 1 ? 1 : 0;
+                        sv.ranks[x] = index < num_chars - 1 ? 1 : 0;
                     }
                     nexIsaIndex++;
                 }
             }
-            out_keys[i] = sk;
+            out_keys[i] = sv;
         }
     }
 
@@ -780,7 +784,7 @@ namespace kernels {
     }
 
 
-    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk* output) {
+    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, MergeSuffixes* output) {
         //     // corresponds with the index
         //     uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
 

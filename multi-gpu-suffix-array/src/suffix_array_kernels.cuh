@@ -61,7 +61,7 @@ namespace kernels {
     __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
-        Sk* out_keys, size_t N, D_DCX* dcx);
+        MergeSuffixes* out_keys, size_t N, D_DCX* dcx);
 
     __global__ void prepare_S12_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
@@ -75,7 +75,7 @@ namespace kernels {
     __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t isa_size,
-        Sk* out_keys, size_t N, D_DCX* dcx);
+        MergeSuffixes* out_keys, size_t N, sa_index_t non_sample_pos, sa_index_t f, sa_index_t l);
 
     __global__ void prepare_S0(const sa_index_t* Isa, const unsigned char* Input,
         sa_index_t node_offset, size_t no_chars, size_t Isa_size, bool last,
@@ -97,7 +97,7 @@ namespace kernels {
     __global__ void from_merge_suffix_to_index(const MergeStageSuffix* Merge_suffixes, sa_index_t* Out, size_t N);
 
 
-    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, Sk* output);
+    __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, MergeSuffixes* output);
 
 
 }

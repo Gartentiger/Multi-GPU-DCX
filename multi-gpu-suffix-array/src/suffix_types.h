@@ -43,58 +43,95 @@ template<uint X, uint C>
 struct _D_DCX {
     uint samplePosition[C];
     uint nextNonSample[X - C];
-    uint nextSample[X][X];
+    uint inverseSamplePosition[X];
+    uint nextSample[X][X][2];
 };
 
 
 struct DC3 {
     static constexpr uint32_t X = 3;
     static constexpr uint32_t C = 2;
+    static constexpr uint32_t nonSampleCount = X - C;
     static constexpr uint32_t samplePosition[C] = { 1, 2 };
+    static constexpr uint32_t inverseSamplePosition[X] = { 0, 0, 1 };
     static constexpr uint32_t nextNonSample[X - C] = { 0 };
-    static constexpr uint32_t nextSample[X][X] = {
-        {1,1,2},
-        {1,0,0},
-        {2,0,0} };
+    static constexpr uint32_t nextSample[X][X][2] = {
+        {{1,0},{1,0},{2,1}},
+        {{1,1},{0,0},{0,0}},
+        {{2,1},{0,0},{0,0}} };
 };
 
 struct DC7 {
     static constexpr uint32_t X = 7;
     static constexpr uint32_t C = 3;
+    static constexpr uint32_t nonSampleCount = X - C;
     static constexpr uint32_t samplePosition[C] = { 1, 2, 4 };
+    static constexpr uint32_t inverseSamplePosition[X] = { 0, 0, 1, 0, 2, 0, 0 };
     static constexpr uint32_t nextNonSample[X - C] = { 0, 3, 5, 6 };
-    static constexpr uint32_t nextSample[X][X] = {
-        {1, 1, 2, 1, 4, 4, 2},
 
-        {1, 0, 0, 1, 0, 3, 3},
+    static constexpr uint32_t nextSample[X][X][2] = {
+        {{1,0}, {1,0}, {2,1}, {1,0}, {4,2}, {4,2}, {2,1}},
 
-        {2, 0, 0, 6, 0, 6, 2},
+        {{1,1}, {0,0}, {0,0}, {1,1}, {0,0}, {3,2}, {3,2}},
 
-        {1, 1, 6, 1, 5, 6, 5},
+        {{2,1}, {0,0}, {0,0}, {6,2}, {0,0}, {6,2}, {2,1}},
 
-        {4, 0, 0, 5, 0, 4, 5},
+        {{1,0}, {1,0}, {6,2}, {1,0}, {5,1}, {6,2}, {5,1}},
 
-        {4, 3, 6, 6, 4, 3, 3},
+        {{4,1}, {0,0}, {0,0}, {5,2}, {0,0}, {4,1}, {5,2}},
 
-        {2, 3, 2, 5, 5, 3, 2} };
+        {{4,1}, {3,0}, {6,2}, {6,2}, {4,1}, {3,0}, {3,0}},
+
+        {{2,0}, {3,1}, {2,0}, {5,2}, {5,2}, {3,1}, {2,0}} };
 
 };
 
 using MergeStageSuffix = MergeStageSuffixS0;
 using DCX = DC7;
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
-
-struct Sk {
-    unsigned char prefix[DCX::X];
+struct MergeSuffixes {
+    sa_index_t l;
+    sa_index_t index;
     sa_index_t ranks[DCX::X];
-    size_t index;
+    unsigned char prefix[DCX::X];
 };
 
-struct decomposer_t
+
+__constant__ uint32_t lookupNext[DCX::X][DCX::X];
+
+struct NonSampleKey {
+    sa_index_t rankL;
+    unsigned char prefix[DCX::X];
+};
+
+
+struct NonSampleValue {
+    sa_index_t index;
+    sa_index_t ranks[DCX::X];
+};
+
+struct non_sample_prefix_decomp
 {
-    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(Sk& key) const
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, sa_index_t&> operator()(MergeSuffixes& key) const
     {
-        return { key.prefix[0], key.prefix[1], key.prefix[2], key.prefix[3], key.prefix[4], key.prefix[5], key.prefix[6] };
+        return { key.prefix[0], key.prefix[1], key.prefix[2], key.prefix[3], key.prefix[4], key.prefix[5], key.prefix[6], key.ranks[0] };
+    }
+};
+
+struct index_decomposer
+{
+    __host__ __device__ cuda::std::tuple<sa_index_t&> operator()(MergeSuffixes& key) const
+    {
+
+        return { key.index };
+    }
+};
+
+struct DC7Comparator : public std::binary_function<sa_index_t, sa_index_t, bool>
+{
+    __host__ __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const
+    {
+        return false;
     }
 };
 
