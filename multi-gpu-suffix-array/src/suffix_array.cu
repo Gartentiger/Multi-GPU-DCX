@@ -155,6 +155,84 @@ struct MergeCompFunctor : std::binary_function<MergeStageSuffix, MergeStageSuffi
         }
     }
 };
+__global__ void printArrayss(const unsigned char* input, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+
+        printf("[%lu] input: %c\n", rank, input[i]);
+        // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
+__global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, size_t rank)
+{
+    printf("[%lu] isa: ", rank);
+    for (size_t i = 0; i < size; i++) {
+        if (i + 1 < size) {
+
+            printf("%u, ", isa[i]);
+        }
+        else {
+            printf("%u", isa[i]);
+        }
+
+    }
+    printf("\n");
+    printf("[%lu]  sa: ", rank);
+    for (size_t i = 0; i < size; i++) {
+        if (i + 1 < size) {
+
+            printf("%u, ", sa_rank[i]);
+        }
+        else {
+            printf("%u", sa_rank[i]);
+        }
+
+    }
+    printf("\n");
+    printf("---------------------------------------------------------------------------\n");
+}
+__global__ void printArrayss(char* kmer, sa_index_t* isa, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+
+        printf("[%lu] isa: %u", rank, isa[i]);
+        // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
+        for (int j = 0; j < 8;j++) {
+            printf(", %c", kmer[i * 8 + j]);
+        }
+        printf("\n");
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
+
+__global__ void printArrayss(MergeStageSuffixS12HalfValue* sk, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+        printf("[%lu] ", rank);
+        printf("%c %c %u\n", sk[i].chars[0], sk[i].chars[1], sk[i].rank_p1p2);
+        // printf("[%lu] sk[%lu]: %c, %c, %c, %c, %c, %u, %u, %u, %u, %u, %lu", rank, i, sk[i].xPrefix0, sk[i].xPrefix1, sk[i].xPrefix2, sk[i].xPrefix3, sk[i].xPrefix4, sk[i].ranks0, sk[i].ranks1, sk[i].ranks2, sk[i].ranks3, sk[i].ranks4, sk[i].index);
+        // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
+
+__global__ void printArrayss(MergeSuffixes* sk, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+        printf("[%lu] ", rank);
+        for (size_t x = 0; x < DCX::X; x++) {
+            printf("%c, ", sk[i].prefix[x]);
+        }
+        for (size_t x = 0; x < DCX::X; x++) {
+            printf("%u, ", sk[i].ranks[x]);
+        }
+        printf("%u\n", sk[i].index);
+        // printf("[%lu] sk[%lu]: %c, %c, %c, %c, %c, %u, %u, %u, %u, %u, %lu", rank, i, sk[i].xPrefix0, sk[i].xPrefix1, sk[i].xPrefix2, sk[i].xPrefix3, sk[i].xPrefix4, sk[i].ranks0, sk[i].ranks1, sk[i].ranks2, sk[i].ranks3, sk[i].ranks4, sk[i].index);
+        // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
 
 #include "prefix_doubling.hpp"
 
@@ -431,7 +509,14 @@ private:
         {
             kernels::fixup_last_four_12_kmers_64 << <1, 4, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 4);
         }
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (reinterpret_cast<char*>(mgpus[world_rank()].pd_ptr.Sa_rank), mgpus[world_rank()].pd_ptr.Isa, SDIV(mgpus[world_rank()].num_elements, DCX::X * 2) * DCX::X * 2, world_rank());
+            mcontext.sync_default_streams();
+        }
         mcontext.sync_default_streams();
+        comm_world().barrier();
+        exit(0);
     }
 
     void prepare_S12_for_merge()
