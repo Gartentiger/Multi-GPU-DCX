@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 #include <cstdint>
+#include <cuda/std/tuple>
 
 using uint = unsigned int;
 using sa_index_t = uint32_t;
