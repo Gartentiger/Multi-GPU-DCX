@@ -99,7 +99,10 @@ namespace kernels {
 
     __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, MergeSuffixes* output);
 
-
+    template<uint MAX_GPUS>
+    __global__ void sampleSort(MergeSuffixes* sk, MergeSuffixes* output, MergeSuffixes* splitter, size_t offset, size_t splitter_size, DC7Comparator comp);
+    __global__ void writeSamples(size_t* sample_pos, MergeSuffixes* data, MergeSuffixes* out);
+    __global__ void selectSplitter(MergeSuffixes* samples, size_t sample_count);
 }
 
 #endif /* SA_TEST_KERNELS_CUH_ */

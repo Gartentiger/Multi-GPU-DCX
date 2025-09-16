@@ -784,6 +784,9 @@ namespace kernels {
     }
 
 
+
+
+
     __global__ void produce_sk_tuples(const unsigned char* Input, sa_index_t* ranks, MergeSuffixes* output) {
         //     // corresponds with the index
         //     uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -807,5 +810,43 @@ namespace kernels {
         //     // printf("[%u] %u, ranks: %u, xPrefix: %c\n", tidx, i, output[tidx].ranks[i], output[tidx].xPrefix[i]);
 
 
+    }
+
+    template<uint MAX_GPUS>
+    __global__ void sampleSort(MergeSuffixes* sk, MergeSuffixes* output, MergeSuffixes splitter, size_t offset, size_t splitter_size, DC7Comparator comp) {
+        const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
+
+        __shared__ uint splitter_index[MAX_GPUS];
+        if (thidx == 0) {
+            for (size_t i = 0; i < splitter_size; i++)
+            {
+                splitter_index[i] = 0;
+            }
+        }
+        __syncthreads();
+
+        uint k = 0;
+
+        for (size_t i = 0; i < splitter_size; i++)
+        {
+            if (comp(sk[thidx], splitter)) {
+                break;
+            }
+            else {
+                k++;
+            }
+        }
+        *(output + splitter_index[k] + k * offset) = sk[thidx];
+
+    }
+
+    __global__ void writeSamples(size_t* sample_pos, MergeSuffixes* data, MergeSuffixes* out) {
+        const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
+        out[thidx] = data[sample_pos[thidx]];
+    }
+
+    __global__ void selectSplitter(MergeSuffixes* samples, size_t sample_count) {
+        const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
+        samples[tidx] = samples[sample_count * (tidx + 1)];
     }
 }

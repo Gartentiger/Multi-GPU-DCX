@@ -97,7 +97,7 @@ struct MergeSuffixes {
 };
 
 
-__constant__ uint32_t lookupNext[DCX::X][DCX::X];
+__constant__ uint32_t lookupNext[DCX::X][DCX::X][2];
 
 struct NonSampleKey {
     sa_index_t rankL;
@@ -131,7 +131,16 @@ struct DC7Comparator : public std::binary_function<sa_index_t, sa_index_t, bool>
 {
     __host__ __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const
     {
-        return false;
+        for (size_t i = 0; i < lookupNext[a.index % DCX::X][b.index % DCX::X][0]; i++)
+        {
+            if (a.prefix[i] < b.prefix[i]) {
+                return true;
+            }
+            else if (a.prefix[i] > b.prefix[i]) {
+                return true;
+            }
+        }
+        return a.ranks[lookupNext[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[lookupNext[b.index % DCX::X][a.index % DCX::X][1]];
     }
 };
 

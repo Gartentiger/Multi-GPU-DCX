@@ -645,6 +645,7 @@ private:
         }
         mcontext.sync_default_streams();
         std::array<std::array<MergeSuffixes*, DCX::X>, NUM_GPUS> skNonSample;
+        std::array<MergeSuffixes*, NUM_GPUS> skpergpu;
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
@@ -652,6 +653,9 @@ private:
             const unsigned char* next_Input = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
             size_t count = gpu.num_elements - gpu.pd_elements;
             MergeSuffixes* sk;
+            cudaMalloc(&sk, sizeof(MergeSuffixes) * 2 * count);
+            skpergpu[gpu_index] = sk;
+            size_t pointer_head = 0;
             // ASSERT(count % DCX::nonSampleCount == 0);
             for (uint32_t i = 0; i < DCX::nonSampleCount; i++) {
 
@@ -659,9 +663,9 @@ private:
                 if (i < count % DCX::nonSampleCount) {
                     count2++;
                 }
-                cudaMalloc(&sk, sizeof(MergeSuffixes) * 2 * count2);
                 // printf("[%u] count2 %lu", gpu_index, count2);
-                skNonSample[gpu_index][i] = sk;
+                skNonSample[gpu_index][i] = sk + pointer_head;
+                pointer_head += count2;
                 uint l = DCX::nextSample[DCX::nextNonSample[i]][DCX::nextNonSample[i]][0];
                 uint f = DCX::inverseSamplePosition[(DCX::nextNonSample[i] + l) % DCX::X];
                 kernels::prepare_non_sample
@@ -676,47 +680,44 @@ private:
                 mcontext.sync_default_streams();
 
             }
-
-
             mcontext.sync_default_streams();
-
         }
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU& gpu = mgpus[gpu_index];
 
-            size_t count = gpu.num_elements - gpu.pd_elements;
-            size_t count2 = (count / DCX::nonSampleCount);
+        //     size_t count = gpu.num_elements - gpu.pd_elements;
+        //     size_t count2 = (count / DCX::nonSampleCount);
 
-            for (uint32_t i = 0; i < DCX::nonSampleCount; i++) {
-                size_t count2 = (count / DCX::nonSampleCount);
-                if (i < count % DCX::nonSampleCount) {
-                    count2++;
-                }
-                uint l = DCX::nextSample[DCX::nextNonSample[i]][DCX::nextNonSample[i]][0];
-                cub::DoubleBuffer<MergeSuffixes> keys(skNonSample[gpu_index][i],
-                    skNonSample[gpu_index][i] + count2);
+        //     for (uint32_t i = 0; i < DCX::nonSampleCount; i++) {
+        //         size_t count2 = (count / DCX::nonSampleCount);
+        //         if (i < count % DCX::nonSampleCount) {
+        //             count2++;
+        //         }
+        //         uint l = DCX::nextSample[DCX::nextNonSample[i]][DCX::nextNonSample[i]][0];
+        //         cub::DoubleBuffer<MergeSuffixes> keys(skNonSample[gpu_index][i],
+        //             skNonSample[gpu_index][i] + count2);
 
-                // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (skNonSample[gpu_index][i], count2, gpu_index);
+        //         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (skNonSample[gpu_index][i], count2, gpu_index);
 
-                mcontext.sync_default_streams();
+        //         mcontext.sync_default_streams();
 
-                // sort l characters
-                size_t temp_storage_size = 0;
-                cudaError_t err = cub::DeviceRadixSort::SortKeys(nullptr, temp_storage_size, keys, count2, non_sample_prefix_decomp{ }, 0, (DCX::X + sizeof(sa_index_t)) * 8);
-                CUERR_CHECK(err);
-                void* tem;
-                cudaMalloc(&tem, temp_storage_size);
-                err = cub::DeviceRadixSort::SortKeys(tem, temp_storage_size,
-                    keys, count2, non_sample_prefix_decomp{ }, 0, (DCX::X + sizeof(sa_index_t)) * 8, mcontext.get_gpu_default_stream(gpu_index));
-                CUERR_CHECK(err);
-                cudaFreeAsync(tem, mcontext.get_gpu_default_stream(gpu_index));
-                printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (keys.Current(), count2, gpu_index);
-
-                mcontext.sync_default_streams();
-            }
-        }
+        //         // sort l characters
+        //         size_t temp_storage_size = 0;
+        //         cudaError_t err = cub::DeviceRadixSort::SortKeys(nullptr, temp_storage_size, keys, count2, non_sample_prefix_decomp{ }, 0, (DCX::X + sizeof(sa_index_t)) * 8);
+        //         CUERR_CHECK(err);
+        //         void* tem;
+        //         cudaMalloc(&tem, temp_storage_size);
+        //         err = cub::DeviceRadixSort::SortKeys(tem, temp_storage_size,
+        //             keys, count2, non_sample_prefix_decomp{ }, 0, (DCX::X + sizeof(sa_index_t)) * 8, mcontext.get_gpu_default_stream(gpu_index));
+        //         CUERR_CHECK(err);
+        //         cudaFreeAsync(tem, mcontext.get_gpu_default_stream(gpu_index));
+        //         printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (keys.Current(), count2, gpu_index);
+        //         skNonSample[gpu_index][i] = keys.Current();
+        //         mcontext.sync_default_streams();
+        //     }
+        // }
 
         exit(0);
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
@@ -726,10 +727,48 @@ private:
     }
 
 
+    template<size_t SAMPLE_COUNT>
+    void SampleSort(MergeSuffixes* sk, MergeSuffixes* output, size_t size, size_t per_gpu) {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, per_gpu - 1);
+        size_t* sample_pos = (size_t*)malloc(sizeof(size_t) * SAMPLE_COUNT);
+        size_t* sample_pos_device;
+        cudaMalloc(&sample_pos_device, sizeof(size_t) * SAMPLE_COUNT);
+        std::array<MergeSuffixes*, NUM_GPUS> samples;
+        MergeSuffixes* allSamples;
+        cudaMalloc(&allSamples, sizeof(MergeSuffixes) * SAMPLE_COUNT * NUM_GPUS);
+        for (size_t i = 0; i < NUM_GPUS; i++)
+        {
+            MergeSuffixes* samples_gpu;
+            cudaMalloc(&samples_gpu, sizeof(MergeSuffixes) * SAMPLE_COUNT);
+            samples[i] = samples_gpu;
+        }
 
-    void SampleSort(MergeSuffixes* sk, MergeSuffixes* alt) {
+
+        const int a = (int)(16 * log(NUM_GPUS) / log(2.));
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            for (size_t i = 0; i < SAMPLE_COUNT; i++)
+            {
+                sample_pos[i] = randomDist(g);
+            }
+            cudaMemcpy(sample_pos_device, sample_pos, sizeof(size_t) * SAMPLE_COUNT, cudaMemcpyHostToDevice);
+            kernels::writeSamples << <1, SAMPLE_COUNT >> > (sample_pos_device, sk[gpu_index], samples[gpu_index]);
+            cudaFree(sample_pos_device);
+            cudaMemcpy(allSamples + gpu_index * SAMPLE_COUNT, samples[gpu_index], sizeof(MergeSuffixes) * SAMPLE_COUNT, cudaMemcpyDeviceToDevice);
+            cudaFree(samples[gpu_index]);
+        }
+        free(sample_pos);
+        size_t temp_storage_size = 0;
+        cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, allSamples, SAMPLE_COUNT * NUM_GPUS, DC7Comparator());
+        void* temp;
+        cudaMalloc(&temp, temp_storage_size);
+        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, allSamples, SAMPLE_COUNT * NUM_GPUS, DC7Comparator());
+        selectSplitter << <1, NUM_GPUS - 1 >> > (allSamples, SAMPLE_COUNT);
 
 
+        // kernels::sampleSort<NUM_GPUS> << <1, size, 0, mcontext.get_gpu_default_stream(0) >> > (sk, output, sk, 0, 0, DC7Comparator{});
     }
 
     void prepare_S0_for_merge()
