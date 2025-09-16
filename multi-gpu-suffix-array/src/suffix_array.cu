@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 2;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -298,19 +298,19 @@ public:
     {
         // mper_gpu how much data for one gpu
         mper_gpu = SDIV(minput_len, NUM_GPUS);
-        ASSERT_MSG(mper_gpu >= 3, "Please give me more input.");
+        ASSERT_MSG(mper_gpu >= DCX::X, "Please give me more input.");
 
         // Ensure each gpu has a multiple of 3 because of triplets.
-        mper_gpu = SDIV(mper_gpu, 3) * 3;
+        mper_gpu = SDIV(mper_gpu, DCX::X) * DCX::X;
         printf("minput_len: %lu, mper_gpu %lu\n", minput_len, mper_gpu);
         ASSERT(minput_len > (NUM_GPUS - 1) * mper_gpu + 3); // Because of merge
         size_t last_gpu_elems = minput_len - (NUM_GPUS - 1) * mper_gpu;
         ASSERT(last_gpu_elems <= mper_gpu); // Because of merge.
 
-        mreserved_len = SDIV(std::max(last_gpu_elems, mper_gpu) + 8, 12) * 12; // Ensure there are 12 elems more space.
+        mreserved_len = SDIV(std::max(last_gpu_elems, mper_gpu) + 8, 14) * 14; // Ensure there are 12 elems more space.
         mreserved_len = std::max(mreserved_len, 1024ul);                       // Min len because of temp memory for CUB.
 
-        mpd_reserved_len = SDIV(mreserved_len, 3) * 2;
+        mpd_reserved_len = SDIV(mreserved_len, DCX::X) * DCX::C;
 
         ms0_reserved_len = mreserved_len - mpd_reserved_len;
 
@@ -322,7 +322,7 @@ public:
 
         mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true);
 
-        mpd_per_gpu = mper_gpu / 3 * 2;
+        mpd_per_gpu = mper_gpu / DCX::X * DCX::C;
         mpd_per_gpu_max_bit = std::min(sa_index_t(log2(float(mpd_per_gpu))) + 1, sa_index_t(sizeof(sa_index_t) * 8));
 
         size_t pd_total_len = 0, offset = 0, pd_offset = 0;
@@ -340,7 +340,7 @@ public:
 
         mgpus.back().num_elements = last_gpu_elems;
         // FIXME: Isn't this just...: last_gpu_elems / 3 * 2 + ((last_gpu_elems % 3) == 2);
-        mgpus.back().pd_elements = last_gpu_elems / 3 * 2 + (((last_gpu_elems % 3) != 0) ? ((last_gpu_elems - 1) % 3) : 0);
+        mgpus.back().pd_elements = last_gpu_elems / DCX::X * DCX::C + (((last_gpu_elems % DCX::X) != 0) ? ((last_gpu_elems - 1) % DCX::X) : 0);
         mgpus.back().offset = offset;
         mgpus.back().pd_offset = pd_offset;
 
@@ -1367,8 +1367,8 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    // size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
-    // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
+    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
 
@@ -1380,12 +1380,12 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3, 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     // alltoallMeasure(context);
-    ncclMeasure(context);
-    return 0;
+    // ncclMeasure(context);
+    // return 0;
 #endif
     SuffixSorter sorter(context, realLen, input);
 
