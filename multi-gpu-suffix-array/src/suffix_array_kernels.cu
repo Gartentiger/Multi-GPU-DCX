@@ -340,6 +340,7 @@ namespace kernels {
         }
         // Maybe we could have a nicer coalescing load/safe pattern with shared memory?
     }
+
     __device__ __forceinline__ ulong1 get_octet2(uint4 values, uint rem, uint indexmod) {
         uchar4 v0 = *reinterpret_cast<uchar4*>(&values.x);
         uchar4 v4 = *reinterpret_cast<uchar4*>(&values.y);
@@ -383,6 +384,7 @@ namespace kernels {
         out.x |= 7ull << 13;
         return out;
     }
+
     __global__ void produce_index_kmer_tuples_12_64_dc7(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N) {
         assert(N % 14 == 0); // No one wants to deal with the "tails" here, we just write some more and don't care.

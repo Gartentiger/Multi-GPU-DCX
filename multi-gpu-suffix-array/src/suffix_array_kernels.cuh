@@ -37,9 +37,10 @@ namespace kernels {
 
     __global__ void produce_index_kmer_tuples_12(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         sa_index_t* Output_kmers, size_t N);
-    __global__ void get_octet2(uint4 values, uint rem, uint indexmod);
+
     __global__ void produce_index_kmer_tuples_12_64_dc7(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N);
+
     __global__ void produce_index_kmer_tuples_12_64(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N);
 
