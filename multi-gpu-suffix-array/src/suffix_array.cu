@@ -45,6 +45,7 @@
 #include <curand.h>
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
+#include <thrust/host_vector.h>
 static const uint NUM_GPUS = 2;
 
 #ifdef DGX1_TOPOLOGY
@@ -288,7 +289,9 @@ public:
 
     void do_sa()
     {
-
+        thrust::device_vector<size_t> keys(10);
+        thrust::sequence(keys.begin(), keys.end());
+        SampleSort<size_t, 4>(thrust::raw_pointer_cast(keys.data()), 10);
         // TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
         //
@@ -1029,35 +1032,49 @@ private:
 #endif
 
     template<typename key, size_t SAMPLE_SIZE>
-    void SampleSort(key* keys) {
+    void SampleSort(key* keys, size_t size) {
         SaGPU gpu = mgpus[world_rank()];
-        size_t count = gpu.num_elements - gpu.pd_elements;
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, count - 1);
+        // size_t count = gpu.num_elements - gpu.pd_elements;
+        // std::random_device rd;
+        // std::mt19937 g(rd());
+        // std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, count - 1);
 
         curandGenerator_t gen;
 
-        thrust::device_vector<size_t> d_samples(SAMPLE_SIZE);
+        ASSERT(sizeof(key) >= sizeof(size_t));
+        thrust::device_vector<key> d_samples(SAMPLE_SIZE);
         if (world_rank() == 0) {
             d_samples.reserve(SAMPLE_SIZE * NUM_GPUS);
         }
 
 
         curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_MT19937);
-        curandGenerate(&gen, thrust::raw_pointer_cast(d_samples), SAMPLE_SIZE);
-        if (world_rank() != 0) {
+        curandGenerateLongLong(gen, (unsigned long long*)thrust::raw_pointer_cast(d_samples.data()), SAMPLE_SIZE);
+        // kernel::writeSamples << <1, SAMPLE_SIZE >> > (thrust::raw_pointer_cast(d_samples), keys, thrust::raw_pointer_cast(d_samples));
+        thrust::host_vector<size_t> h_samples = d_samples;
+        for (auto v : h_samples)
+        {
+            printf("[%lu] %lu", world_rank(), v);
+        }
 
-            comm_world().send(send_buf(d_samples), send_count(SAMPLE_SIZE), destination(0));
+        // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), printf("[%lu] sample %lu", world_rank(), (size_t)thrust::placeholders::_1));
+        // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), keys[thrust::placeholders::_1 % size]);
+
+
+        if (world_rank() != 0) {
+            comm_world().send(send_buf(std::span<key>(thrust::raw_pointer_cast(d_samples.data()), SAMPLE_SIZE)), send_count(SAMPLE_SIZE), destination(0));
         }
         else {
             for (size_t i = 1; i < SAMPLE_SIZE; i++)
             {
-                comm_world().recv(recv_buf(std::span<size_t>(thrust::raw_pointer_cast(d_samples) + d_samples.size(), SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), source(i));
+                comm_world().recv(recv_buf(std::span<key>(thrust::raw_pointer_cast(d_samples.data()) + d_samples.size(), SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), source(i));
             }
 
-            thrust::sort(d_samples.begin(), d_samples.end(), );
+            // thrust::sort(d_samples.begin(), d_samples.end(), DC7Comparator{});
         }
+        // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), d_s thrust::placeholders::_1 * SAMPLE_SIZE);
+
+        exit(0);
     }
 };
 
@@ -1454,6 +1471,9 @@ int main(int argc, char** argv)
     ncclComm_t nccl_comm;
     ncclUniqueId Id;
     int devices;
+
+
+
     cudaGetDeviceCount(&devices);
     printf("[%lu] device count: %d\n", world_rank(), devices);
     if (devices == 0)
@@ -1474,7 +1494,7 @@ int main(int argc, char** argv)
         Id = comm_world().bcast_single<ncclUniqueId>();
     }
 
-    NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
+    //NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
     printf("[%lu] Active nccl comm\n", world_rank());
 
     if (argc != 3)
