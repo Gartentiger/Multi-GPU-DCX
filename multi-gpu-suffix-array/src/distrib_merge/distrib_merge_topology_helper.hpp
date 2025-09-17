@@ -41,10 +41,10 @@ namespace distrib_merge {
             const DistributedArray& a, const DistributedArray& b,
             DistributedArray& out,
             bool do_values) const {
-            nvtxRangePush("do_copies_asyncDist");
+            // nvtxRangePush("do_copies_asyncDist");
             if (mcontext.is_in_node()) {
                 do_copies_async_in_node(copies, a, b, out, do_values);
-                nvtxRangePop();
+                // nvtxRangePop();
                 // printf("[%lu] do_copies_async in node \n", world_rank());
                 return;
             }
@@ -80,7 +80,7 @@ namespace distrib_merge {
                 }
             }
             ncclGroupEnd();
-            nvtxRangePop();
+            // nvtxRangePop();
         }
 
         void do_copies_async_in_node(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,

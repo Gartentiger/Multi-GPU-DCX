@@ -41,7 +41,7 @@
 #include <kamping/communicator.hpp>
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
-#include <nvToolsExt.h>
+// #include <nvToolsExt.h>
 
 static const uint NUM_GPUS = 2;
 
@@ -516,7 +516,6 @@ private:
         }
         mcontext.sync_default_streams();
         comm_world().barrier();
-        exit(0);
     }
 
     void prepare_S12_for_merge()
@@ -532,7 +531,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (world_rank() == gpu_index)
             {
-
+                printArrayss << <1, 1 >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, world_rank());
                 // //(0);
                 kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
                 CUERR;
@@ -559,7 +558,8 @@ private:
         mcontext.sync_default_streams();
         // comm_world().barrier();
         printf("[%lu] after execKVAsync s12\n", world_rank());
-
+        printArrayss << <1, 1 >> > ((sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_result_half, mgpus[world_rank()].pd_elements, world_rank());
+        exit(0);
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
@@ -1458,16 +1458,16 @@ int main(int argc, char** argv)
     CUERR;
 
 #ifdef DGX1_TOPOLOGY
-    //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
-    //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
-    //    const std::array<uint, NUM_GPUS> gpu_ids { 3, 2, 1, 0,    4, 5, 6, 7 };
+    //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1, 5, 6, 7, 4 };
+    //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0, 4, 7, 6, 5 };
+    //    const std::array<uint, NUM_GPUS> gpu_ids { 3, 2, 1, 0, 4, 5, 6, 7 };
     const std::array<uint, NUM_GPUS> gpu_ids{ 3, 2, 1, 0, 4, 7, 6, 5 };
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1 };
 
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 2);
     // alltoallMeasure(context);
     // ncclMeasure(context);
     // return 0;
@@ -1481,9 +1481,9 @@ int main(int argc, char** argv)
 
     // auto& t = kamping::measurements::timer();
     // t.synchronize_and_start(fileName);
-    nvtxRangePush("SuffixArray");
+    // nvtxRangePush("SuffixArray");
     sorter.do_sa();
-    nvtxRangePop();
+    // nvtxRangePop();
     // t.stop();
     // if (world_rank() == 0)
     //     write_array(argv[2], sorter.get_result(), realLen);
