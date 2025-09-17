@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CUDA_STANDARD 20)
 
-# find_package(NVHPC REQUIRED COMPONENTS NCCL)
+find_package(NVHPC REQUIRED COMPONENTS NCCL)
 
 add_executable(suffix_array
                src/util.h
@@ -66,10 +66,10 @@ if(DGX1_TOPOLOGY)
     target_compile_definitions(suffix_array PRIVATE DGX1_TOPOLOGY)
 endif(DGX1_TOPOLOGY)
 
-#target_link_libraries(suffix_array PRIVATE NVHPC::NCCL)
+target_link_libraries(suffix_array PRIVATE NVHPC::NCCL)
 
-set(NCCL_LIBRARY "/usr/lib/x86_64-linux-gnu/libnccl.so")
-target_link_libraries(suffix_array PRIVATE ${NCCL_LIBRARY})
+#set(NCCL_LIBRARY "/usr/lib/x86_64-linux-gnu/libnccl.so")
+#target_link_libraries(suffix_array PRIVATE ${NCCL_LIBRARY})
 
 include(FetchContent)
 FetchContent_Declare(
