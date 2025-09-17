@@ -63,6 +63,11 @@ namespace kernels {
         sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
         MergeStageSuffixS12HalfKey* out_keys, MergeStageSuffixS12HalfValue* out_values, size_t N);
 
+    __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
+        const sa_index_t* next_Isa, const unsigned char* next_Input,
+        sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
+        MergeSuffixes* out_keys, size_t N, D_DCX* dcx);
+
     __global__ void write_indices(sa_index_t* Out, size_t N);
 
     __global__ void write_S12_back(const MergeStageSuffixS12* inp, MergeStageSuffix* outp, size_t base_offset, size_t N);

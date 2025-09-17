@@ -42,7 +42,9 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 // #include <nvToolsExt.h>
-
+#include <curand.h>
+#include <thrust/device_vector.h>
+#include <thrust/sort.h>
 static const uint NUM_GPUS = 2;
 
 #ifdef DGX1_TOPOLOGY
@@ -1025,6 +1027,38 @@ private:
         }
     }
 #endif
+
+    template<typename key, size_t SAMPLE_SIZE>
+    void SampleSort(key* keys) {
+        SaGPU gpu = mgpus[world_rank()];
+        size_t count = gpu.num_elements - gpu.pd_elements;
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, count - 1);
+
+        curandGenerator_t gen;
+
+        thrust::device_vector<size_t> d_samples(SAMPLE_SIZE);
+        if (world_rank() == 0) {
+            d_samples.reserve(SAMPLE_SIZE * NUM_GPUS);
+        }
+
+
+        curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_MT19937);
+        curandGenerate(&gen, thrust::raw_pointer_cast(d_samples), SAMPLE_SIZE);
+        if (world_rank() != 0) {
+
+            comm_world().send(send_buf(d_samples), send_count(SAMPLE_SIZE), destination(0));
+        }
+        else {
+            for (size_t i = 1; i < SAMPLE_SIZE; i++)
+            {
+                comm_world().recv(recv_buf(std::span<size_t>(thrust::raw_pointer_cast(d_samples) + d_samples.size(), SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), source(i));
+            }
+
+            thrust::sort(d_samples.begin(), d_samples.end(), );
+        }
+    }
 };
 
 void print_device_info()
@@ -1408,6 +1442,9 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         outFile.close();
     }
 }
+
+
+
 
 int main(int argc, char** argv)
 {

@@ -577,6 +577,36 @@ namespace kernels {
         }
     }
 
+    __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
+        const sa_index_t* next_Isa, const unsigned char* next_Input,
+        sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
+        MergeSuffixes* out_keys, size_t N, D_DCX* dcx)
+    {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i_ = tidx; i_ < N; i_ += blockDim.x * gridDim.x) {
+            uint i = indices[i_];
+            uint index = (i / DCX::C) * DCX::X + dcx->samplePosition[i % DCX::C];
+            MergeSuffixes sk;
+            sk.index = index + offset;
+            uint nexInputIndex = 0;
+            uint nexIsaIndex = 0;
+            for (uint x = 0; x < DCX::X; x++) {
+                sk.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
+                if (i < N - 1)
+                    sk.ranks[x] = Isa[i + x];
+                else {
+                    if (next_Isa) {
+                        sk.ranks[x] = next_Isa[nexIsaIndex];
+                    }
+                    else {
+                        sk.ranks[x] = index < num_chars - 1 ? 1 : 0;
+                    }
+                    nexIsaIndex++;
+                }
+            }
+            out_keys[i_] = sk;
+        }
+    }
 
     __global__ void write_indices(sa_index_t* Out, size_t N) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
