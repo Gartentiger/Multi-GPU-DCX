@@ -363,7 +363,7 @@ public:
         }
         for (size_t i = 0; i < h_split_index.size() - 1; i++)
         {
-            h_split_index[i] = h_split_index[i + 1] - h_split_index[i]
+            h_split_index[i] = h_split_index[i + 1] - h_split_index[i];
 
         }
         h_split_index.back() = size - h_split_index.back();

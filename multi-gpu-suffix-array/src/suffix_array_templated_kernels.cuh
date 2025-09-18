@@ -245,11 +245,11 @@ namespace kernels {
         }
 
         if (comp(*splitter, samples[start])) {
-            split_index = start;
+            *split_index = start;
 
         }
         else {
-            split_index = end;
+            *split_index = end;
         }
     }
 
