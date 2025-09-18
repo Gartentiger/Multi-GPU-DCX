@@ -118,12 +118,12 @@ struct non_sample_prefix_decomp
     }
 };
 
-struct index_decomposer
+struct rank_decomposer
 {
     __host__ __device__ cuda::std::tuple<sa_index_t&> operator()(MergeSuffixes& key) const
     {
 
-        return { key.index };
+        return { key.ranks[0] };
     }
 };
 
