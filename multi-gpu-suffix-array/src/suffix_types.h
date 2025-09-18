@@ -127,7 +127,7 @@ struct index_decomposer
     }
 };
 
-struct DC7Comparator : public std::binary_function<sa_index_t, sa_index_t, bool>
+struct DC7Comparator : public std::binary_function<MergeSuffixes, MergeSuffixes, bool>
 {
     __host__ __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const
     {
@@ -137,7 +137,7 @@ struct DC7Comparator : public std::binary_function<sa_index_t, sa_index_t, bool>
                 return true;
             }
             else if (a.prefix[i] > b.prefix[i]) {
-                return true;
+                return false;
             }
         }
         return a.ranks[lookupNext[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[lookupNext[b.index % DCX::X][a.index % DCX::X][1]];

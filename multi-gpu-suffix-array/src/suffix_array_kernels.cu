@@ -1,9 +1,9 @@
 #include "suffix_array_kernels.cuh"
 #include <cassert>
 #include <iostream>
-#include <curand_kernel.h>
 
 namespace kernels {
+
 
     // TODO: const correctness, vectorizing, shared memory
 
@@ -747,15 +747,5 @@ namespace kernels {
         }
     }
 
-    template<typename key>
-    __global__ void writeSamples(size_t* sample_pos, key* data, key* out) {
-        const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
-        out[thidx] = data[sample_pos[thidx]];
-    }
 
-    template<typename key>
-    __global__ void selectSplitter(key* samples, size_t sample_count) {
-        const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
-        samples[tidx] = samples[sample_count * (tidx + 1)];
-    }
 }

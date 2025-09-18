@@ -90,10 +90,6 @@ namespace kernels {
         MergeStageSuffix* outp, size_t N);
 
     __global__ void from_merge_suffix_to_index(const MergeStageSuffix* Merge_suffixes, sa_index_t* Out, size_t N);
-    template<typename key>
-    __global__ void writeSamples(size_t* sample_pos, key* data, key* out);
-    template<typename key>
-    __global__ void selectSplitter(key* samples, size_t sample_count);
 }
 
 #endif /* SA_TEST_KERNELS_CUH_ */
