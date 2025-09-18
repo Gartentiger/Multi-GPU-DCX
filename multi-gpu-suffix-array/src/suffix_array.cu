@@ -396,6 +396,12 @@ public:
         cudaMalloc(&temp, temp_storage_size);
         cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), DC7Comparator{});
         cudaFree(temp);
+
+        printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), world_rank());
+        comm_world().barrier();
+        mcontext.sync_all_streams();
+
+
         exit(0);
     }
     void do_sa()
@@ -785,6 +791,7 @@ private:
         //
         mcontext.sync_all_streams();
         comm_world().barrier();
+        SampleSort<4>(nonSamplesRecv, mgpus[world_rank()].pd_elements);
         printArrayss << <1, 1 >> > (nonSamplesRecv, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
@@ -1177,7 +1184,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 
 
