@@ -30,7 +30,7 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table, bool use_in_node_if_possible = true) const {
-            if (context.is_in_node()) {
+            if (context.is_in_node() && use_in_node_if_possible) {
                 // nvtxRangePush("execAsyncAll2AllinNode");
                 // printf("[%lu] in node async\n", world_rank());
                 bool b = execAsyncInNode(node_info, table);
