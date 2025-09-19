@@ -301,10 +301,12 @@ public:
         cudaMalloc(&value, sizeof(sa_index_t));
 
         if (world_rank() == 0) {
-            ncclSend(&keys[0].index, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            // ncclSend(&keys[0].index, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            comm_world().send(send_buf(std::span<sa_index_t>(&keys[0].index, 1)), send_count(1), destination(1));
         }
         else {
-            ncclRecv(&keys[1].index, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            // ncclRecv(&keys[1].index, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            comm_world().recv(recv_buf(std::span<sa_index_t>(&keys[1].index, 1)), recv_count(1), source(0));
         }
         mcontext.sync_all_streams();
         comm_world().barrier();
@@ -322,26 +324,22 @@ public:
         }
         ncclGroupEnd();
         mcontext.sync_all_streams();
-        comm_world().barrier();
         sa_index_t* h_value = (sa_index_t*)malloc(sizeof(sa_index_t));
         cudaMemcpyAsync(h_value, value, sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
-        comm_world().barrier();
         printf("[%lu] value: %u\n", world_rank(), *h_value);
 
-
+        comm_world().barrier();
         sa_index_t* value2;
         cudaMalloc(&value2, sizeof(sa_index_t));
         *h_value = world_rank() + 3;
         cudaMemcpy(value2, h_value, sizeof(sa_index_t), cudaMemcpyHostToDevice);
-        ncclGroupStart();
         if (world_rank() == 0) {
             ncclSend(value2, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(1));
         }
         else {
             ncclRecv(value2, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(0));
         }
-        ncclGroupEnd();
         mcontext.sync_all_streams();
         comm_world().barrier();
         *h_value = 9;
