@@ -342,14 +342,14 @@ public:
 
         ncclGroupStart();
         if (world_rank() != 0) {
-            ncclSend(d_samples, sizeof(key) * SAMPLE_SIZE, ncclChar, 0, mcontext.get_nccl(), mcontext.get_streams(world_rank())[0]);
+            NCCLCHECK(ncclSend(d_samples, sizeof(key) * SAMPLE_SIZE, ncclChar, 0, mcontext.get_nccl(), mcontext.get_streams(world_rank())[0]));
 
             printf("[%lu] send keys\n", world_rank());
         }
         else {
             for (size_t i = 1; i < NUM_GPUS; i++)
             {
-                ncclRecv(d_samples + i * SAMPLE_SIZE, sizeof(key) * SAMPLE_SIZE, ncclChar, i, mcontext.get_nccl(), mcontext.get_streams(i)[world_rank()]);
+                NCCLCHECK(ncclRecv(d_samples + i * SAMPLE_SIZE, sizeof(key) * SAMPLE_SIZE, ncclChar, i, mcontext.get_nccl(), mcontext.get_streams(i)[world_rank()]));
             }
         }
         ncclGroupEnd();
@@ -439,13 +439,13 @@ public:
         ncclGroupStart();
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
         {
-            ncclSend(keys + send_sum, sizeof(key) * send_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]);
+            NCCLCHECK(ncclSend(keys + send_sum, sizeof(key) * send_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
             send_sum += send_sizes[dst];
         }
 
         for (size_t src = 0; src < NUM_GPUS; src++)
         {
-            ncclRecv(thrust::raw_pointer_cast(out_keys.data()) + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]);
+            NCCLCHECK(ncclRecv(thrust::raw_pointer_cast(out_keys.data()) + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
             recv_sum += recv_sizes[src];
         }
         ncclGroupEnd();
