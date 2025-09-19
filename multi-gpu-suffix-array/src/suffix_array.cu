@@ -370,7 +370,7 @@ public:
             printf("[%lu] sorted samples\n", world_rank());
             printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, SAMPLE_SIZE * NUM_GPUS, world_rank());
 
-            kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(0) >> > (d_samples, SAMPLE_SIZE * NUM_GPUS);
+            kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(0) >> > (d_samples, SAMPLE_SIZE);
             mcontext.sync_all_streams();
             printf("[%lu] picked splitters\n", world_rank());
         }
@@ -425,7 +425,7 @@ public:
         // comm_world().reduce_single(send_buf(std::span<size_t>(h_split_index.data() + world_rank(), 1)), op(ops::plus<size_t>()), root(world_rank()));
         std::vector<size_t> recv_sizes;
 
-        recv_sizes = comm_world().alltoall(send_buf(h_split_index));
+        recv_sizes = comm_world().alltoall(send_buf(send_sizes));
 
         thrust::device_vector<key> out_keys(std::accumulate(recv_sizes.begin(), recv_sizes.end(), 0));
         for (size_t i = 0; i < recv_sizes.size(); i++)
