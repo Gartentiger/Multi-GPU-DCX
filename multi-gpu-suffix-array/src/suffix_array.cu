@@ -365,7 +365,9 @@ public:
         cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys, size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
-
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         printf("[%lu] sorted keys\n", world_rank());
 
         size_t* split_index;
@@ -390,12 +392,15 @@ public:
         {
             send_sizes[i] = h_split_index[i + 1] - h_split_index[i];
         }
+        for (size_t i = 0; i < NUM_GPUS; i++)
+        {
+            printf("[%lu] send_size[%lu]: %lu\n", world_rank(), i, send_sizes[i]);
+        }
 
         // comm_world().reduce_single(send_buf(std::span<size_t>(h_split_index.data() + world_rank(), 1)), op(ops::plus<size_t>()), root(world_rank()));
         std::vector<size_t> recv_sizes;
 
         recv_sizes = comm_world().alltoall(send_buf(h_split_index));
-        printf("[%lu] send sizes\n", world_rank());
 
         thrust::device_vector<key> out_keys(std::accumulate(recv_sizes.begin(), recv_sizes.end(), 0));
         size_t send_sum = 0;

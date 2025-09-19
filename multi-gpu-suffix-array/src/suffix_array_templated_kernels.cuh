@@ -222,12 +222,13 @@ namespace kernels {
     __global__ void selectSplitter(key* samples, size_t sample_count) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
         samples[tidx] = samples[sample_count * (tidx + 1)];
+        printf("splitter: %u\n", samples.index);
     }
 
     template<typename key>
     __global__ void split(key* keys, size_t* split_index, key* splitter, size_t size, DC7Comparator comp) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
-        if (tidx >= size) {
+        if (tidx >= NUM_GPUS - 1) {
             split_index[tidx] = size - 1;
         }
         size_t start = 0;
