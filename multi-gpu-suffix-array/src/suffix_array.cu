@@ -355,7 +355,7 @@ public:
             printf("[%lu] picked splitters\n", world_rank());
         }
 
-        comm_world().bcast(send_recv_buf(std::span<key>(d_samples, SAMPLE_SIZE)), send_recv_count(SAMPLE_SIZE), root(0));
+        comm_world().bcast(send_recv_buf(std::span<key>(d_samples, NUM_GPUS - 1)), send_recv_count(NUM_GPUS - 1), root(0));
         printf("[%lu] received splitters\n", world_rank());
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), d_s thrust::placeholders::_1 * SAMPLE_SIZE);
         size_t temp_storage_size = 0;
@@ -369,46 +369,49 @@ public:
         printf("[%lu] sorted keys\n", world_rank());
 
         size_t* split_index;
-        cudaMalloc(&split_index, sizeof(size_t) * SAMPLE_SIZE);
-        std::vector<size_t> h_split_index(SAMPLE_SIZE, 0);
-        for (size_t i = 0; i < SAMPLE_SIZE; i++)
-        {
-            kernels::split << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index + i, d_samples + i, size, DC7Comparator{});
-            mcontext.sync_all_streams();
-            printf("[%lu] split index[%lu]\n", world_rank(), i);
+        cudaMalloc(&split_index, sizeof(size_t) * NUM_GPUS);
+        std::vector<size_t> h_split_index(NUM_GPUS, 0);
 
-        }
-        cudaMemcpy(h_split_index.data(), split_index, sizeof(size_t) * SAMPLE_SIZE, cudaMemcpyDeviceToHost);
-        for (size_t i = 0; i < SAMPLE_SIZE; i++)
+        kernels::split << <1, NUM_GPUS, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index, d_samples, size, DC7Comparator{});
+        mcontext.sync_all_streams();
+        printf("[%lu] split index[%lu]\n", world_rank(), i);
+
+
+        cudaMemcpy(h_split_index.data(), split_index, sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost);
+        for (size_t i = 0; i < NUM_GPUS; i++)
         {
             printf("[%lu] splitter [%lu]: %lu\n", world_rank(), i, h_split_index[i]);
         }
-        for (size_t i = 0; i < h_split_index.size() - 1; i++)
+
+        std::vector<size_t> send_sizes(NUM_GPUS, 0);
+        send_sizes[0] = h_split_index[0];
+        // last split index is size
+        for (size_t i = 1; i < NUM_GPUS; i++)
         {
-            h_split_index[i] = h_split_index[i + 1] - h_split_index[i];
+            send_sizes[i] = h_split_index[i + 1] - h_split_index[i];
         }
-        h_split_index.back() = size - h_split_index.back();
 
         // comm_world().reduce_single(send_buf(std::span<size_t>(h_split_index.data() + world_rank(), 1)), op(ops::plus<size_t>()), root(world_rank()));
-        std::vector<size_t> send_sizes;
-        send_sizes = comm_world().alltoall(send_buf(h_split_index));
+        std::vector<size_t> recv_sizes;
+
+        recv_sizes = comm_world().alltoall(send_buf(h_split_index));
         printf("[%lu] send sizes\n", world_rank());
 
-        thrust::device_vector<key> out_keys(std::accumulate(send_sizes.begin(), send_sizes.end(), 0));
+        thrust::device_vector<key> out_keys(std::accumulate(recv_sizes.begin(), recv_sizes.end(), 0));
         size_t send_sum = 0;
         size_t recv_sum = 0;
         // ALL to ALL
         ncclGroupStart();
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
         {
-            ncclSend(keys + send_sum, sizeof(key) * h_split_index[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]);
-            send_sum += h_split_index[dst];
+            ncclSend(keys + send_sum, sizeof(key) * send_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]);
+            send_sum += send_sizes[dst];
         }
 
         for (size_t src = 0; src < NUM_GPUS; src++)
         {
-            ncclRecv(thrust::raw_pointer_cast(out_keys.data()) + recv_sum, sizeof(key) * send_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]);
-            recv_sum += send_sizes[src];
+            ncclRecv(thrust::raw_pointer_cast(out_keys.data()) + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]);
+            recv_sum += recv_sizes[src];
         }
         ncclGroupEnd();
         mcontext.sync_all_streams();
@@ -1208,7 +1211,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 
 

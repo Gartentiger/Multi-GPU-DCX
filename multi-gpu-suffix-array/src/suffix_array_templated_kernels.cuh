@@ -225,16 +225,18 @@ namespace kernels {
     }
 
     template<typename key>
-    __global__ void split(key* samples, size_t* split_index, key* splitter, size_t sample_count, DC7Comparator comp) {
+    __global__ void split(key* keys, size_t* split_index, key* splitter, size_t size, DC7Comparator comp) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
-
+        if (tidx >= size) {
+            splitter[tidx] = size - 1;
+        }
         size_t start = 0;
-        size_t end = sample_count;
+        size_t end = size;
 
         size_t index = start + end / 2;
-        for (size_t i = 0; i < sample_count; i++)
+        for (size_t i = 0; i < size; i++)
         {
-            if (comp(*splitter, samples[index])) {
+            if (comp(splitter[tidx], keys[index])) {
                 end = index;
             }
             else {
@@ -246,12 +248,11 @@ namespace kernels {
             index = start + end / 2;
         }
 
-        if (comp(*splitter, samples[start])) {
-            *split_index = start;
-
+        if (comp(splitter[tidx], keys[start])) {
+            split_index[tidx] = start;
         }
         else {
-            *split_index = end;
+            split_index[tidx] = end;
         }
     }
 
