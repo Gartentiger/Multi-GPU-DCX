@@ -241,7 +241,14 @@ __global__ void printArrayss(MergeSuffixes* sk, size_t size, size_t rank)
 
 #define TIMER_START_PREPARE_FINAL_MERGE_STAGE(stage) mperf_measure.start_prepare_final_merge_stage(stage)
 #define TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(stage) mperf_measure.stop_prepare_final_merge_stage(stage)
-
+#define NCCLCHECK(cmd) do {                         \
+  ncclResult_t res = cmd;                           \
+  if (res != ncclSuccess) {                         \
+    printf("Failed, NCCL error %s:%d '%s'\n",       \
+        __FILE__,__LINE__,ncclGetErrorString(res)); \
+    exit(EXIT_FAILURE);                             \
+  }                                                 \
+} while(0)
 class SuffixSorter
 {
     static const int BLOCK_SIZE = 1024;
@@ -302,15 +309,16 @@ public:
 
         mcontext.sync_all_streams();
         comm_world().barrier();
-
+        ncclGroupStart();
         if (world_rank() == 0) {
-            ncclSend(&keys[0].index, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            NCCLCHECK(ncclSend(&keys[0].index, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank())));
             // comm_world().send(send_buf(std::span<sa_index_t>(&keys[0].index, 1)), send_count(1), destination(1));
         }
         else {
-            ncclRecv(&keys[1].index, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            NCCLCHECK(ncclRecv(&keys[1].index, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank())));
             // comm_world().recv(recv_buf(std::span<sa_index_t>(&keys[1].index, 1)), recv_count(1), source(0));
         }
+        ncclGroupEnd();
         mcontext.sync_all_streams();
         comm_world().barrier();
 
@@ -320,10 +328,10 @@ public:
 
         ncclGroupStart();
         if (world_rank() == 0) {
-            ncclSend(keys, sizeof(key), ncclChar, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            NCCLCHECK(ncclSend(keys, sizeof(key), ncclChar, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank())));
         }
         else {
-            ncclRecv(value, sizeof(key), ncclChar, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            NCCLCHECK(ncclRecv(value, sizeof(key), ncclChar, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank())));
         }
         ncclGroupEnd();
         mcontext.sync_all_streams();
@@ -345,10 +353,10 @@ public:
         comm_world().barrier();
         ncclGroupStart();
         if (world_rank() == 0) {
-            ncclSend(value2, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            NCCLCHECK(ncclSend(value2, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank())));
         }
         else {
-            ncclRecv(value2, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
+            NCCLCHECK(ncclRecv(value2, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank())));
         }
         ncclGroupEnd();
         mcontext.sync_all_streams();
@@ -1330,7 +1338,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 
 
