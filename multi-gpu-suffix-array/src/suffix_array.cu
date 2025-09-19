@@ -314,7 +314,8 @@ public:
         printf("[%lu] copied sample positions to device\n", world_rank());
 
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), printf("[%lu] sample %lu", world_rank(), thrust::placeholders::_1));
-        kernels::writeSamples << <1, SAMPLE_SIZE >> > ((size_t*)d_samples_pos, (size_t*)keys, (size_t*)thrust::raw_pointer_cast(d_samples.data()));
+        kernels::writeSamples << <1, SAMPLE_SIZE, 0, mcontext.get_gpu_default_stream(world_rank()) >> > ((size_t*)d_samples_pos, (key*)keys, (key*)thrust::raw_pointer_cast(d_samples.data()), SAMPLE_SIZE);
+        mcontext.sync_all_streams();
         printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
         thrust::host_vector<key> h_samples(d_samples.begin(), d_samples.end());
         for (auto v : h_samples)
@@ -336,10 +337,12 @@ public:
             cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, (MergeSuffixes*)thrust::raw_pointer_cast(d_samples.data()), d_samples.size(), DC7Comparator{});
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
-            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, (MergeSuffixes*)thrust::raw_pointer_cast(d_samples.data()), d_samples.size(), DC7Comparator{});
-            cudaFree(temp);
+            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, (MergeSuffixes*)thrust::raw_pointer_cast(d_samples.data()), d_samples.size(), DC7Comparator{}, mcontext.get_gpu_default_stream(0));
+
+            cudaFreeAsync(temp, mcontext.get_gpu_default_stream(0));
             printf("[%lu] sorted samples\n", world_rank());
-            kernels::selectSplitter << <1, NUM_GPUS - 1 >> > (thrust::raw_pointer_cast(d_samples.data()), d_samples.size());
+            kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(0) >> > (thrust::raw_pointer_cast(d_samples.data()), d_samples.size());
+            mcontext.sync_all_streams();
             printf("[%lu] picked splitters\n", world_rank());
             d_samples.resize(SAMPLE_SIZE);
         }
@@ -351,8 +354,10 @@ public:
         cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys, size, DC7Comparator{});
         void* temp;
         cudaMalloc(&temp, temp_storage_size);
-        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys, size, DC7Comparator{});
-        cudaFree(temp);
+        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys, size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
+        cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+        mcontext.sync_all_streams();
+
         printf("[%lu] sorted keys\n", world_rank());
 
         size_t* split_index;
@@ -360,8 +365,8 @@ public:
         std::vector<size_t> h_split_index(SAMPLE_SIZE, 0);
         for (size_t i = 0; i < SAMPLE_SIZE; i++)
         {
-
-            kernels::split << <1, 1 >> > (keys, split_index + i, thrust::raw_pointer_cast(d_samples.data()) + i, size, DC7Comparator{});
+            kernels::split << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index + i, thrust::raw_pointer_cast(d_samples.data()) + i, size, DC7Comparator{});
+            mcontext.sync_all_streams();
             printf("[%lu] split index[%lu]\n", world_rank(), i);
 
         }
@@ -403,13 +408,14 @@ public:
 
         cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), DC7Comparator{});
         cudaMalloc(&temp, temp_storage_size);
-        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), DC7Comparator{});
-        cudaFree(temp);
+        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
+        cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
         printf("[%lu] reordered keys sorted\n", world_rank());
-
-        printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), world_rank());
-        comm_world().barrier();
         mcontext.sync_all_streams();
+
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
 
 
         exit(0);
