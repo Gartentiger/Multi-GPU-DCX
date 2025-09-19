@@ -336,16 +336,22 @@ public:
 
         ncclGroupStart();
         if (world_rank() != 0) {
-            ncclSend(reinterpret_cast<const char*>(d_samples), sizeof(key) * SAMPLE_SIZE, ncclChar, 0, mcontext.get_nccl(), mcontext.get_streams(world_rank())[0]);
+            for (size_t i = 0; i < SAMPLE_SIZE; i++)
+            {
+                ncclSend(reinterpret_cast<const char*>(d_samples[i].prefix), sizeof(char) * DCX::X, ncclChar, 0, mcontext.get_nccl(), mcontext.get_streams(world_rank())[0]);
+            }
+
             printf("[%lu] send keys\n", world_rank());
             // comm_world().isend(send_buf(std::span<key>(d_samples, SAMPLE_SIZE)), send_count(SAMPLE_SIZE), tag(world_rank()), destination(0));
         }
         else {
             for (size_t i = 1; i < NUM_GPUS; i++)
             {
-                MergeSuffixes* mr = d_samples + i * SAMPLE_SIZE;
-
-                ncclRecv(reinterpret_cast<char*>(mr), sizeof(key) * SAMPLE_SIZE, ncclChar, i, mcontext.get_nccl(), mcontext.get_streams(i)[world_rank()]);
+                // MergeSuffixes* mr = d_samples + i * SAMPLE_SIZE;
+                for (size_t i = 0; i < SAMPLE_SIZE; i++)
+                {
+                    ncclRecv(reinterpret_cast<char*>(d_samples[i * SAMPLE_SIZE + i].prefix), sizeof(char) * DCX::X, ncclChar, i, mcontext.get_nccl(), mcontext.get_streams(i)[world_rank()]);
+                }
                 // comm_world().irecv(recv_buf(std::span<key>(d_samples + i * SAMPLE_SIZE, SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), tag(i), source(i));
             }
         }
