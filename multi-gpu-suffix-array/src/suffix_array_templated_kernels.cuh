@@ -209,6 +209,13 @@ namespace kernels {
             }
         }
     }
+    template<typename key>
+    __global__ void writeSamples(size_t* sample_pos, key* data, key* out, size_t sample_size) {
+        const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
+        if (thidx < sample_size) {
+            out[thidx] = data[thidx];
+        }
+    }
 }
 
 #endif // SUFFIX_ARRAY_TEMPLATED_KERNELS_CUH
