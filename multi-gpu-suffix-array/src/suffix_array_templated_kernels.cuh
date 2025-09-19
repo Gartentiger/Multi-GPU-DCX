@@ -214,7 +214,7 @@ namespace kernels {
     __global__ void writeSamples(size_t* sample_pos, key* data, key* out, size_t sample_size) {
         const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
         if (thidx < sample_size) {
-            out[thidx] = data[sample_pos[thidx]];
+            out[thidx] = data[thidx];
         }
     }
 

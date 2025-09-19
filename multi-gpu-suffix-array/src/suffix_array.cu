@@ -296,7 +296,8 @@ public:
         std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, size - 1);
 
         ASSERT(sizeof(key) >= sizeof(size_t));
-        thrust::device_vector<key> d_samples(SAMPLE_SIZE);
+        thrust::device_vector<key> d_samples;
+        d_samples.reserve(SAMPLE_SIZE);
         if (world_rank() == 0) {
             d_samples.reserve(SAMPLE_SIZE * NUM_GPUS);
         }
@@ -305,7 +306,7 @@ public:
         {
             h_samples_pos[i] = randomDist(g);
         }
-        printf("[%lu] picked sample positions\n", world_rank());
+        printf("[%lu] picked sample positions, cap d_samples: %lu\n", world_rank(), d_samples.capacity());
 
         size_t* d_samples_pos;
         cudaMalloc(&d_samples_pos, sizeof(size_t) * SAMPLE_SIZE);
