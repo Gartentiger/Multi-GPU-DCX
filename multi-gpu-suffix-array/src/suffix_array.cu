@@ -323,7 +323,7 @@ public:
         mcontext.sync_all_streams();
         sa_index_t* h_value = (sa_index_t*)malloc(sizeof(sa_index_t));
         cudaMemcpy(h_value, value, sizeof(sa_index_t), cudaMemcpyDeviceToHost);
-        printf("[%lu] value %u\n", world_rank(), h_value);
+        printf("[%lu] value %u\n", world_rank(), *h_value);
 
         *h_value = world_rank();
         cudaMemcpy(value, h_value, sizeof(sa_index_t), cudaMemcpyHostToDevice);
@@ -339,7 +339,7 @@ public:
         mcontext.sync_all_streams();
         *h_value = 9;
         cudaMemcpy(h_value, value, sizeof(sa_index_t), cudaMemcpyDeviceToHost);
-        printf("[%lu] value 2 %u\n", world_rank(), h_value);
+        printf("[%lu] value 2 %u\n", world_rank(), *h_value);
         exit(0);
 
         key* d_samples;
