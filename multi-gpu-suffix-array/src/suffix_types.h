@@ -127,19 +127,20 @@ struct rank_decomposer
     }
 };
 
-struct DC7Comparator : public std::binary_function<MergeSuffixes, MergeSuffixes, bool>
+struct DC7Comparator
 {
-    __host__ __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const
+    __host__ __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
     {
         for (size_t i = 0; i < lookupNext[a.index % DCX::X][b.index % DCX::X][0]; i++)
         {
             if (a.prefix[i] < b.prefix[i]) {
-                return false;
-            }
-            else if (a.prefix[i] > b.prefix[i]) {
                 return true;
             }
+            else if (a.prefix[i] > b.prefix[i]) {
+                return false;
+            }
         }
+
         return a.ranks[lookupNext[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[lookupNext[b.index % DCX::X][a.index % DCX::X][1]];
     }
 };
