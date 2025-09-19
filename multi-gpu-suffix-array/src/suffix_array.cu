@@ -295,11 +295,12 @@ public:
         std::mt19937 g(rd());
         std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, size - 1);
 
-        ASSERT(sizeof(key) >= sizeof(size_t));
-        thrust::device_vector<key> d_samples;
-        d_samples.reserve(SAMPLE_SIZE);
+        key* d_samples;
         if (world_rank() == 0) {
-            d_samples.reserve(SAMPLE_SIZE * NUM_GPUS);
+            cudaMalloc(&d_samples, sizeof(key) * SAMPLE_SIZE * NUM_GPUS);
+        }
+        else {
+            cudaMalloc(&d_samples, sizeof(key) * SAMPLE_SIZE);
         }
         size_t* h_samples_pos = (size_t*)malloc(sizeof(size_t) * SAMPLE_SIZE);
         for (size_t i = 0; i < SAMPLE_SIZE; i++)
@@ -310,12 +311,15 @@ public:
 
         size_t* d_samples_pos;
         cudaMalloc(&d_samples_pos, sizeof(size_t) * SAMPLE_SIZE);
+        CUERR;
         cudaMemcpy(d_samples_pos, h_samples_pos, SAMPLE_SIZE * sizeof(size_t), cudaMemcpyHostToDevice);
+        CUERR;
         free(h_samples_pos);
+        CUERR;
         printf("[%lu] copied sample positions to device\n", world_rank());
 
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), printf("[%lu] sample %lu", world_rank(), thrust::placeholders::_1));
-        kernels::writeSamples << <1, SAMPLE_SIZE, 0, mcontext.get_gpu_default_stream(world_rank()) >> > ((size_t*)d_samples_pos, (key*)keys, (key*)thrust::raw_pointer_cast(d_samples.data()), SAMPLE_SIZE);
+        kernels::writeSamples << <1, SAMPLE_SIZE, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples, SAMPLE_SIZE);
         mcontext.sync_all_streams();
         printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
         thrust::host_vector<key> h_samples(d_samples.begin(), d_samples.end());
@@ -769,6 +773,7 @@ private:
             printArrayss << <1, 1 >> > (nonSamples, mgpus[world_rank()].pd_elements, world_rank());
             mcontext.sync_all_streams();
             cudaFree(dcx);
+            SampleSort<4>(nonSamples, mgpus[world_rank()].pd_elements);
 
         }
         comm_world().barrier();
@@ -808,7 +813,6 @@ private:
         //
         mcontext.sync_all_streams();
         comm_world().barrier();
-        SampleSort<4>(nonSamplesRecv, mgpus[world_rank()].pd_elements);
         printArrayss << <1, 1 >> > (nonSamplesRecv, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();

@@ -214,8 +214,7 @@ namespace kernels {
     __global__ void writeSamples(size_t* sample_pos, key* data, key* out, size_t sample_size) {
         const uint thidx = blockDim.x * blockIdx.x + threadIdx.x;
         if (thidx < sample_size) {
-            printf("%u data %u\n", thidx, data[thidx].index);
-            //     out[thidx] = data[thidx];
+            out[thidx] = data[sample_pos[thidx]];
         }
     }
 
