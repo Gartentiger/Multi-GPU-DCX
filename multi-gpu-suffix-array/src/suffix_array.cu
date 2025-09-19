@@ -297,8 +297,8 @@ public:
         printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
-        sa_index_t* value;
-        cudaMalloc(&value, sizeof(sa_index_t));
+        key* value;
+        cudaMalloc(&value, sizeof(key));
 
         mcontext.sync_all_streams();
         comm_world().barrier();
@@ -320,13 +320,17 @@ public:
 
         ncclGroupStart();
         if (world_rank() == 0) {
-            ncclSend(&keys[0].index, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_streams(0)[1]);
+            ncclSend(keys, sizeof(key), ncclChar, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
         }
         else {
-            ncclRecv(value, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_streams(1)[0]);
+            ncclRecv(value, sizeof(key), ncclChar, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
         }
         ncclGroupEnd();
         mcontext.sync_all_streams();
+        comm_world().barrier();
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (value, 1, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         sa_index_t* h_value = (sa_index_t*)malloc(sizeof(sa_index_t));
         cudaMemcpyAsync(h_value, value, sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
@@ -339,12 +343,14 @@ public:
         cudaMemcpy(value2, h_value, sizeof(sa_index_t), cudaMemcpyHostToDevice);
         mcontext.sync_all_streams();
         comm_world().barrier();
+        ncclGroupStart();
         if (world_rank() == 0) {
-            ncclSend(value2, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(1));
+            ncclSend(value2, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
         }
         else {
-            ncclRecv(value2, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(0));
+            ncclRecv(value2, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
         }
+        ncclGroupEnd();
         mcontext.sync_all_streams();
         comm_world().barrier();
         *h_value = 9;
@@ -1324,7 +1330,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 
 
