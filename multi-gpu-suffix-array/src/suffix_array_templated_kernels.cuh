@@ -228,34 +228,27 @@ namespace kernels {
     template<typename key>
     __global__ void split(key* keys, size_t* split_index, key* splitter, size_t size, DC7Comparator comp) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
+        // for the send sizes
         if (tidx >= NUM_GPUS - 1) {
-            split_index[tidx] = size - 1;
+            split_index[tidx] = size;
             return;
         }
         size_t start = 0;
         size_t end = size;
+        size_t index = 0;
 
-        size_t index = start + end / 2;
-        for (size_t i = 0; i < size; i++)
+        while (start < end)
         {
+            index = start + end / 2;
             if (comp(splitter[tidx], keys[index])) {
                 end = index;
             }
-            else {
-                start = index;
+            else
+            {
+                start = index + 1;
             }
-            if (end - start < 1) {
-                break;
-            }
-            index = start + end / 2;
         }
-
-        if (comp(splitter[tidx], keys[start])) {
-            split_index[tidx] = start;
-        }
-        else {
-            split_index[tidx] = end;
-        }
+        split_index[tidx] = start;
     }
 
 }
