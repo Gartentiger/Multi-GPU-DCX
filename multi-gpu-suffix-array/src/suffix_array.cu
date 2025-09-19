@@ -307,7 +307,7 @@ public:
         {
             h_samples_pos[i] = randomDist(g);
         }
-        printf("[%lu] picked sample positions, cap d_samples: %lu\n", world_rank(), d_samples.capacity());
+        printf("[%lu] picked sample positions\n", world_rank());
 
         size_t* d_samples_pos;
         cudaMalloc(&d_samples_pos, sizeof(size_t) * SAMPLE_SIZE);
