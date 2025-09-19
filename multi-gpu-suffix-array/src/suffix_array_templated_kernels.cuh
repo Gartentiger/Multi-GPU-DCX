@@ -230,6 +230,7 @@ namespace kernels {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
         if (tidx >= NUM_GPUS - 1) {
             split_index[tidx] = size - 1;
+            return;
         }
         size_t start = 0;
         size_t end = size;
