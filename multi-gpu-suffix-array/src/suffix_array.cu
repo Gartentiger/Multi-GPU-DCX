@@ -390,7 +390,7 @@ public:
         // last split index is size
         for (size_t i = 1; i < NUM_GPUS; i++)
         {
-            send_sizes[i] = h_split_index[i + 1] - h_split_index[i];
+            send_sizes[i] = h_split_index[i] - h_split_index[i - 1];
         }
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
