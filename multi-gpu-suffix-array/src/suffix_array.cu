@@ -328,7 +328,7 @@ public:
         //     printf("[%lu] sample: %lu\n", world_rank(), v);
         // }
         if (world_rank() != 0) {
-            ncclSend(reinterpret_cast<char>(d_samples), sizeof(key) * SAMPLE_SIZE, ncclChar, 0, mcontext.get_nccl(), mcontext.get_streams(world_rank())[0]);
+            ncclSend(d_samples, sizeof(key) * SAMPLE_SIZE, ncclChar, 0, mcontext.get_nccl(), mcontext.get_streams(world_rank())[0]);
 
             // comm_world().isend(send_buf(std::span<key>(d_samples, SAMPLE_SIZE)), send_count(SAMPLE_SIZE), tag(world_rank()), destination(0));
         }
@@ -336,7 +336,7 @@ public:
             ncclGroupStart();
             for (size_t i = 1; i < SAMPLE_SIZE; i++)
             {
-                ncclRecv(reinterpret_cast<char>(d_samples + i * SAMPLE_SIZE), sizeof(key) * SAMPLE_SIZE, ncclChar, i, mcontext.get_nccl(), mcontext.get_streams(i)[world_rank()]);
+                ncclRecv(d_samples + i * SAMPLE_SIZE, sizeof(key) * SAMPLE_SIZE, ncclChar, i, mcontext.get_nccl(), mcontext.get_streams(i)[world_rank()]);
                 // comm_world().irecv(recv_buf(std::span<key>(d_samples + i * SAMPLE_SIZE, SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), tag(i), source(i));
             }
             ncclGroupEnd();
@@ -416,13 +416,13 @@ public:
         ncclGroupStart();
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
         {
-            ncclSend(reinterpret_cast<char>(keys + send_sum), sizeof(key) * send_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]);
+            ncclSend(keys + send_sum, sizeof(key) * send_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]);
             send_sum += send_sizes[dst];
         }
 
         for (size_t src = 0; src < NUM_GPUS; src++)
         {
-            ncclRecv(reinterpret_cast<char>(thrust::raw_pointer_cast(out_keys.data())) + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]);
+            ncclRecv(thrust::raw_pointer_cast(out_keys.data()) + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]);
             recv_sum += recv_sizes[src];
         }
         ncclGroupEnd();
