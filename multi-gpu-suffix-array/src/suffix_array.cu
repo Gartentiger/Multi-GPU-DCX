@@ -327,15 +327,19 @@ public:
         // {
         //     printf("[%lu] sample: %lu\n", world_rank(), v);
         // }
-
         if (world_rank() != 0) {
-            comm_world().send(send_buf(std::span<key>(d_samples, SAMPLE_SIZE)), send_count(SAMPLE_SIZE), tag(world_rank()), destination(0));
+            ncclSend(d_samples, sizeof(key) * SAMPLE_SIZE, ncclChar, 0, mcontext.get_nccl(), mcontext.get_streams(world_rank())[0]);
+
+            // comm_world().isend(send_buf(std::span<key>(d_samples, SAMPLE_SIZE)), send_count(SAMPLE_SIZE), tag(world_rank()), destination(0));
         }
         else {
+            ncclGroupStart();
             for (size_t i = 1; i < SAMPLE_SIZE; i++)
             {
-                comm_world().recv(recv_buf(std::span<key>(d_samples + i * SAMPLE_SIZE, SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), tag(i), source(i));
+                ncclRecv(d_samples + i * SAMPLE_SIZE, sizeof(key) * SAMPLE_SIZE, ncclChar, i, mcontext.get_nccl(), mcontext.get_streams(i)[world_rank()]);
+                // comm_world().irecv(recv_buf(std::span<key>(d_samples + i * SAMPLE_SIZE, SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), tag(i), source(i));
             }
+            ncclGroupEnd();
             // thrust::sort(d_samples.begin(), d_samples.end(), DC7Comparator{});
             printf("[%lu] received all samples\n", world_rank());
             size_t temp_storage_size = 0;
@@ -1204,7 +1208,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 
 
