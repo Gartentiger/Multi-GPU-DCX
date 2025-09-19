@@ -374,7 +374,7 @@ public:
 
         kernels::split << <1, NUM_GPUS, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index, d_samples, size, DC7Comparator{});
         mcontext.sync_all_streams();
-        printf("[%lu] split index[%lu]\n", world_rank(), i);
+        printf("[%lu] split index\n", world_rank());
 
 
         cudaMemcpy(h_split_index.data(), split_index, sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost);
