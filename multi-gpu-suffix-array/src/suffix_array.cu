@@ -294,6 +294,53 @@ public:
         std::random_device rd;
         std::mt19937 g(rd());
         std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, size - 1);
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        sa_index_t* value;
+        cudaMalloc(&value, sizeof(sa_index_t));
+        ncclGroupStart();
+        if (world_rank() == 0) {
+            ncclSend(&keys[0].index, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_streams(0)[1]);
+        }
+        else {
+            ncclRecv(&keys[1].index, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_streams(1)[0]);
+        }
+        ncclGroupEnd();
+        mcontext.sync_all_streams();
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+
+        ncclGroupStart();
+        if (world_rank() == 0) {
+            ncclSend(&keys[0].index, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_streams(0)[1]);
+        }
+        else {
+            ncclRecv(value, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_streams(1)[0]);
+        }
+        ncclGroupEnd();
+        mcontext.sync_all_streams();
+        sa_index_t* h_value = (sa_index_t*)malloc(sizeof(sa_index_t));
+        cudaMemcpy(h_value, value, sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+        printf("[%lu] value %u\n", world_rank(), h_value);
+
+        *h_value = world_rank();
+        cudaMemcpy(value, h_value, sizeof(sa_index_t), cudaMemcpyHostToDevice);
+
+        ncclGroupStart();
+        if (world_rank() == 0) {
+            ncclSend(value, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_streams(0)[1]);
+        }
+        else {
+            ncclRecv(value, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_streams(1)[0]);
+        }
+        ncclGroupEnd();
+        mcontext.sync_all_streams();
+        *h_value = 9;
+        cudaMemcpy(h_value, value, sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+        printf("[%lu] value 2 %u\n", world_rank(), h_value);
+        exit(0);
 
         key* d_samples;
         if (world_rank() == 0) {
