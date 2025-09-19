@@ -306,6 +306,7 @@ public:
         for (size_t i = 0; i < SAMPLE_SIZE; i++)
         {
             h_samples_pos[i] = randomDist(g);
+            printf("[%lu] samples pos[%lu]: %lu\n", world_rank(), i, h_samples_pos[i]);
         }
         printf("[%lu] picked sample positions\n", world_rank());
 
@@ -322,6 +323,9 @@ public:
         kernels::writeSamples << <1, SAMPLE_SIZE, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples, SAMPLE_SIZE);
         mcontext.sync_all_streams();
         printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, SAMPLE_SIZE * NUM_GPUS, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         // thrust::host_vector<key> h_samples(d_samples.begin(), d_samples.end());
         // for (auto v : h_samples)
         // {
@@ -330,11 +334,11 @@ public:
         ncclGroupStart();
         if (world_rank() != 0) {
             ncclSend(d_samples, sizeof(key) * SAMPLE_SIZE, ncclChar, 0, mcontext.get_nccl(), mcontext.get_streams(world_rank())[0]);
-            printf("send key\n");
+            printf("[%lu] send keys\n", world_rank());
             // comm_world().isend(send_buf(std::span<key>(d_samples, SAMPLE_SIZE)), send_count(SAMPLE_SIZE), tag(world_rank()), destination(0));
         }
         else {
-            for (size_t i = 1; i < SAMPLE_SIZE; i++)
+            for (size_t i = 1; i < NUM_GPUS; i++)
             {
                 ncclRecv(d_samples + i * SAMPLE_SIZE, sizeof(key) * SAMPLE_SIZE, ncclChar, i, mcontext.get_nccl(), mcontext.get_streams(i)[world_rank()]);
                 // comm_world().irecv(recv_buf(std::span<key>(d_samples + i * SAMPLE_SIZE, SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), tag(i), source(i));
@@ -354,7 +358,10 @@ public:
             cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, (MergeSuffixes*)d_samples, SAMPLE_SIZE * NUM_GPUS, DC7Comparator{}, mcontext.get_gpu_default_stream(0));
 
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(0));
+            mcontext.sync_all_streams();
             printf("[%lu] sorted samples\n", world_rank());
+            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, SAMPLE_SIZE * NUM_GPUS, world_rank());
+
             kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(0) >> > (d_samples, SAMPLE_SIZE * NUM_GPUS);
             mcontext.sync_all_streams();
             printf("[%lu] picked splitters\n", world_rank());
