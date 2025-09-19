@@ -228,7 +228,7 @@ namespace kernels {
     __global__ void split(key* keys, size_t* split_index, key* splitter, size_t size, DC7Comparator comp) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
         if (tidx >= size) {
-            splitter[tidx] = size - 1;
+            split_index[tidx] = size - 1;
         }
         size_t start = 0;
         size_t end = size;
