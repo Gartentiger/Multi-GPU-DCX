@@ -305,19 +305,22 @@ public:
         {
             h_samples_pos[i] = randomDist(g);
         }
+        printf("[%lu] picked sample positions\n", world_rank());
+
         size_t* d_samples_pos;
         cudaMalloc(&d_samples_pos, sizeof(size_t) * SAMPLE_SIZE);
         cudaMemcpy(d_samples_pos, h_samples_pos, SAMPLE_SIZE * sizeof(size_t), cudaMemcpyHostToDevice);
         free(h_samples_pos);
+        printf("[%lu] copied sample positions to device\n", world_rank());
 
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), printf("[%lu] sample %lu", world_rank(), thrust::placeholders::_1));
         kernels::writeSamples << <1, SAMPLE_SIZE >> > ((size_t*)d_samples_pos, (size_t*)keys, (size_t*)thrust::raw_pointer_cast(d_samples.data()));
-        thrust::host_vector<key> h_samples = d_samples;
+        printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
+        thrust::host_vector<key> h_samples(d_samples.begin(), d_samples.end());
         for (auto v : h_samples)
         {
-            printf("[%lu] %lu", world_rank(), v);
+            printf("[%lu] sample: %lu\n", world_rank(), v);
         }
-
 
         if (world_rank() != 0) {
             comm_world().send(send_buf(std::span<key>(thrust::raw_pointer_cast(d_samples.data()), SAMPLE_SIZE)), send_count(SAMPLE_SIZE), destination(0));
@@ -328,19 +331,21 @@ public:
                 comm_world().recv(recv_buf(std::span<key>(thrust::raw_pointer_cast(d_samples.data()) + i * SAMPLE_SIZE, SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), source(i));
             }
             // thrust::sort(d_samples.begin(), d_samples.end(), DC7Comparator{});
-
+            printf("[%lu] received all samples\n", world_rank());
             size_t temp_storage_size = 0;
             cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, (MergeSuffixes*)thrust::raw_pointer_cast(d_samples.data()), d_samples.size(), DC7Comparator{});
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
             cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, (MergeSuffixes*)thrust::raw_pointer_cast(d_samples.data()), d_samples.size(), DC7Comparator{});
             cudaFree(temp);
+            printf("[%lu] sorted samples\n", world_rank());
             kernels::selectSplitter << <1, NUM_GPUS - 1 >> > (thrust::raw_pointer_cast(d_samples.data()), d_samples.size());
+            printf("[%lu] picked splitters\n", world_rank());
             d_samples.resize(SAMPLE_SIZE);
         }
 
         comm_world().bcast(send_recv_buf(std::span<key>(thrust::raw_pointer_cast(d_samples.data()), SAMPLE_SIZE)), send_recv_count(SAMPLE_SIZE), root(0));
-
+        printf("[%lu] received splitters\n", world_rank());
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), d_s thrust::placeholders::_1 * SAMPLE_SIZE);
         size_t temp_storage_size = 0;
         cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys, size, DC7Comparator{});
@@ -348,36 +353,39 @@ public:
         cudaMalloc(&temp, temp_storage_size);
         cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys, size, DC7Comparator{});
         cudaFree(temp);
+        printf("[%lu] sorted keys\n", world_rank());
 
         size_t* split_index;
         cudaMalloc(&split_index, sizeof(size_t) * SAMPLE_SIZE);
         std::vector<size_t> h_split_index(SAMPLE_SIZE, 0);
         for (size_t i = 0; i < SAMPLE_SIZE; i++)
         {
+
             kernels::split << <1, 1 >> > (keys, split_index + i, thrust::raw_pointer_cast(d_samples.data()) + i, size, DC7Comparator{});
+            printf("[%lu] split index[%lu]\n", world_rank(), i);
+
         }
         cudaMemcpy(h_split_index.data(), split_index, sizeof(size_t) * SAMPLE_SIZE, cudaMemcpyDeviceToHost);
         for (size_t i = 0; i < SAMPLE_SIZE; i++)
         {
-            printf("[%lu] splitter [%lu]: %lu", world_rank(), i, h_split_index[i]);
+            printf("[%lu] splitter [%lu]: %lu\n", world_rank(), i, h_split_index[i]);
         }
         for (size_t i = 0; i < h_split_index.size() - 1; i++)
         {
             h_split_index[i] = h_split_index[i + 1] - h_split_index[i];
-
         }
         h_split_index.back() = size - h_split_index.back();
 
         // comm_world().reduce_single(send_buf(std::span<size_t>(h_split_index.data() + world_rank(), 1)), op(ops::plus<size_t>()), root(world_rank()));
         std::vector<size_t> send_sizes;
         send_sizes = comm_world().alltoall(send_buf(h_split_index));
+        printf("[%lu] send sizes\n", world_rank());
 
         thrust::device_vector<key> out_keys(std::accumulate(send_sizes.begin(), send_sizes.end(), 0));
-        // ALL to ALL
-        ncclGroupStart();
         size_t send_sum = 0;
         size_t recv_sum = 0;
-
+        // ALL to ALL
+        ncclGroupStart();
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
         {
             ncclSend(keys + send_sum, sizeof(key) * h_split_index[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]);
@@ -389,13 +397,15 @@ public:
             ncclRecv(thrust::raw_pointer_cast(out_keys.data()) + recv_sum, sizeof(key) * send_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]);
             recv_sum += send_sizes[src];
         }
-
         ncclGroupEnd();
         mcontext.sync_all_streams();
+        printf("[%lu] reordered keys with splitter\n", world_rank());
+
         cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), DC7Comparator{});
         cudaMalloc(&temp, temp_storage_size);
         cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), DC7Comparator{});
         cudaFree(temp);
+        printf("[%lu] reordered keys sorted\n", world_rank());
 
         printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(out_keys.data()), out_keys.size(), world_rank());
         comm_world().barrier();
