@@ -299,14 +299,13 @@ public:
         comm_world().barrier();
         sa_index_t* value;
         cudaMalloc(&value, sizeof(sa_index_t));
-        ncclGroupStart();
+
         if (world_rank() == 0) {
-            ncclSend(&keys[0].index, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_streams(0)[1]);
+            ncclSend(&keys[0].index, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
         }
         else {
-            ncclRecv(&keys[1].index, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_streams(1)[0]);
+            ncclRecv(&keys[1].index, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(world_rank()));
         }
-        ncclGroupEnd();
         mcontext.sync_all_streams();
         comm_world().barrier();
 
@@ -335,14 +334,14 @@ public:
         cudaMalloc(&value2, sizeof(sa_index_t));
         *h_value = world_rank() + 3;
         cudaMemcpy(value2, h_value, sizeof(sa_index_t), cudaMemcpyHostToDevice);
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+        ncclGroupStart();
         if (world_rank() == 0) {
             ncclSend(value2, sizeof(uint32_t), ncclUint32, 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(1));
         }
         else {
             ncclRecv(value2, sizeof(uint32_t), ncclUint32, 0, mcontext.get_nccl(), mcontext.get_gpu_default_stream(0));
         }
+        ncclGroupEnd();
         mcontext.sync_all_streams();
         comm_world().barrier();
         *h_value = 9;
@@ -355,22 +354,17 @@ public:
         cudaMalloc(&value3, sizeof(sa_index_t));
         *h_value = world_rank() + 10;
         cudaMemcpy(value3, h_value, sizeof(sa_index_t), cudaMemcpyHostToDevice);
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+
         if (world_rank() == 0) {
             comm_world().send(send_buf(std::span<sa_index_t>(value3, 1)), send_count(1), destination(1));
         }
         else {
             comm_world().recv(recv_buf(std::span<sa_index_t>(value3, 1)), recv_count(1), source(0));
         }
-        mcontext.sync_all_streams();
-        comm_world().barrier();
         *h_value = 9;
         cudaMemcpyAsync(h_value, value3, sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
-        comm_world().barrier();
         printf("[%lu] 3 value: %u\n", world_rank(), *h_value);
-
         exit(0);
 
         key* d_samples;
