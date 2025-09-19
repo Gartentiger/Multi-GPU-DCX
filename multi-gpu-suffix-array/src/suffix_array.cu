@@ -301,6 +301,10 @@ public:
         std::random_device rd;
         std::mt19937 g(rd());
         std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, size - 1);
+
+        cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 2, 0, cudaMemcpyHostToDevice);
+        CUERR;
+
         key* d_samples;
         if (world_rank() == 0) {
             cudaMalloc(&d_samples, sizeof(key) * SAMPLE_SIZE * NUM_GPUS);
