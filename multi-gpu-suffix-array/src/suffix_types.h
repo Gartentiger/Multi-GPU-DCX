@@ -134,10 +134,10 @@ struct DC7Comparator : public std::binary_function<MergeSuffixes, MergeSuffixes,
         for (size_t i = 0; i < lookupNext[a.index % DCX::X][b.index % DCX::X][0]; i++)
         {
             if (a.prefix[i] < b.prefix[i]) {
-                return true;
+                return false;
             }
             else if (a.prefix[i] > b.prefix[i]) {
-                return false;
+                return true;
             }
         }
         return a.ranks[lookupNext[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[lookupNext[b.index % DCX::X][a.index % DCX::X][1]];

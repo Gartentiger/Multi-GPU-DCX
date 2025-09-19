@@ -304,7 +304,16 @@ public:
 
         cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 2, 0, cudaMemcpyHostToDevice);
         CUERR;
-
+        size_t temp_storage_size = 0;
+        cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys, size, DC7Comparator{});
+        void* temp;
+        cudaMalloc(&temp, temp_storage_size);
+        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys, size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
+        cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+        mcontext.sync_all_streams();
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         key* d_samples;
         if (world_rank() == 0) {
             cudaMalloc(&d_samples, sizeof(key) * SAMPLE_SIZE * NUM_GPUS);
@@ -363,9 +372,8 @@ public:
             // thrust::sort(d_samples.begin(), d_samples.end(), DC7Comparator{});
             printf("[%lu] received all samples\n", world_rank());
             printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, SAMPLE_SIZE * NUM_GPUS, world_rank());
-            size_t temp_storage_size = 0;
+            temp_storage_size = 0;
             cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, (MergeSuffixes*)d_samples, SAMPLE_SIZE * NUM_GPUS, DC7Comparator{});
-            void* temp;
             cudaMalloc(&temp, temp_storage_size);
             cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, (MergeSuffixes*)d_samples, SAMPLE_SIZE * NUM_GPUS, DC7Comparator{}, mcontext.get_gpu_default_stream(0));
 
@@ -387,16 +395,7 @@ public:
         comm_world().barrier();
         printf("[%lu] received splitters\n", world_rank());
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), d_s thrust::placeholders::_1 * SAMPLE_SIZE);
-        size_t temp_storage_size = 0;
-        cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys, size, DC7Comparator{});
-        void* temp;
-        cudaMalloc(&temp, temp_storage_size);
-        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys, size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
-        cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
-        mcontext.sync_all_streams();
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+
         printf("[%lu] sorted keys\n", world_rank());
 
         size_t* split_index;
