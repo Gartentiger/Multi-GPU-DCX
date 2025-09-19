@@ -322,37 +322,36 @@ public:
         kernels::writeSamples << <1, SAMPLE_SIZE, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples, SAMPLE_SIZE);
         mcontext.sync_all_streams();
         printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
-        thrust::host_vector<key> h_samples(d_samples.begin(), d_samples.end());
-        for (auto v : h_samples)
-        {
-            printf("[%lu] sample: %lu\n", world_rank(), v);
-        }
+        // thrust::host_vector<key> h_samples(d_samples.begin(), d_samples.end());
+        // for (auto v : h_samples)
+        // {
+        //     printf("[%lu] sample: %lu\n", world_rank(), v);
+        // }
 
         if (world_rank() != 0) {
-            comm_world().send(send_buf(std::span<key>(thrust::raw_pointer_cast(d_samples.data()), SAMPLE_SIZE)), send_count(SAMPLE_SIZE), destination(0));
+            comm_world().send(send_buf(std::span<key>(d_samples, SAMPLE_SIZE)), send_count(SAMPLE_SIZE), destination(0));
         }
         else {
             for (size_t i = 1; i < SAMPLE_SIZE; i++)
             {
-                comm_world().recv(recv_buf(std::span<key>(thrust::raw_pointer_cast(d_samples.data()) + i * SAMPLE_SIZE, SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), source(i));
+                comm_world().recv(recv_buf(std::span<key>(d_samples + i * SAMPLE_SIZE, SAMPLE_SIZE)), recv_count(SAMPLE_SIZE), source(i));
             }
             // thrust::sort(d_samples.begin(), d_samples.end(), DC7Comparator{});
             printf("[%lu] received all samples\n", world_rank());
             size_t temp_storage_size = 0;
-            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, (MergeSuffixes*)thrust::raw_pointer_cast(d_samples.data()), d_samples.size(), DC7Comparator{});
+            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, (MergeSuffixes*)d_samples, SAMPLE_SIZE * NUM_GPUS, DC7Comparator{});
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
-            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, (MergeSuffixes*)thrust::raw_pointer_cast(d_samples.data()), d_samples.size(), DC7Comparator{}, mcontext.get_gpu_default_stream(0));
+            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, (MergeSuffixes*)d_samples, SAMPLE_SIZE * NUM_GPUS, DC7Comparator{}, mcontext.get_gpu_default_stream(0));
 
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(0));
             printf("[%lu] sorted samples\n", world_rank());
-            kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(0) >> > (thrust::raw_pointer_cast(d_samples.data()), d_samples.size());
+            kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(0) >> > (d_samples, SAMPLE_SIZE * NUM_GPUS);
             mcontext.sync_all_streams();
             printf("[%lu] picked splitters\n", world_rank());
-            d_samples.resize(SAMPLE_SIZE);
         }
 
-        comm_world().bcast(send_recv_buf(std::span<key>(thrust::raw_pointer_cast(d_samples.data()), SAMPLE_SIZE)), send_recv_count(SAMPLE_SIZE), root(0));
+        comm_world().bcast(send_recv_buf(std::span<key>(d_samples, SAMPLE_SIZE)), send_recv_count(SAMPLE_SIZE), root(0));
         printf("[%lu] received splitters\n", world_rank());
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), d_s thrust::placeholders::_1 * SAMPLE_SIZE);
         size_t temp_storage_size = 0;
@@ -370,7 +369,7 @@ public:
         std::vector<size_t> h_split_index(SAMPLE_SIZE, 0);
         for (size_t i = 0; i < SAMPLE_SIZE; i++)
         {
-            kernels::split << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index + i, thrust::raw_pointer_cast(d_samples.data()) + i, size, DC7Comparator{});
+            kernels::split << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index + i, d_samples + i, size, DC7Comparator{});
             mcontext.sync_all_streams();
             printf("[%lu] split index[%lu]\n", world_rank(), i);
 
