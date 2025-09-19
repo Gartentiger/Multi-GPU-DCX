@@ -222,7 +222,7 @@ namespace kernels {
     __global__ void selectSplitter(key* samples, size_t sample_count) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
         samples[tidx] = samples[sample_count * (tidx + 1)];
-        printf("splitter: %u\n", samples.index);
+        printf("splitter: %u\n", samples[tidx].index);
     }
 
     template<typename key>
