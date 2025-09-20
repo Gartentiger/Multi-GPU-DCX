@@ -593,7 +593,7 @@ namespace kernels {
             uint nexIsaIndex = 0;
             for (uint x = 0; x < DCX::X; x++) {
                 sk.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
-                if (i < N - 1)
+                if (i < N)
                     sk.ranks[x] = Isa[i + x];
                 else {
                     if (next_Isa) {
