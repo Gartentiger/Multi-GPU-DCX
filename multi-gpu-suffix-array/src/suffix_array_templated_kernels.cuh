@@ -243,7 +243,7 @@ namespace kernels {
         // 4, 4 return 4
         while (start < end)
         {
-            print("start: %lu, end: %lu, index: %lu, key: %u, comp: %s\n", start, end, index, keys[index].index, comp(splitter[tidx], keys[index]) ? "true" : "false");
+            printf("start: %lu, end: %lu, index: %lu, key: %u, comp: %s\n", start, end, index, keys[index].index, comp(splitter[tidx], keys[index]) ? "true" : "false");
             index = start + end / 2;
             if (comp(splitter[tidx], keys[index])) {
                 end = index;
