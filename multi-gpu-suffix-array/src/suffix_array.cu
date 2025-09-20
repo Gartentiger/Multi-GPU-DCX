@@ -867,8 +867,12 @@ private:
         size_t out_num_elements;
         SampleSort(merge_tuple, merge_tuple_out, gpu.num_elements, out_num_elements, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2));
         cudaFree(merge_tuple);
-
-        kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements);
+        sa_index_t* out_sa = reinterpret_cast<sa_index_t*>(merge_tuple);
+        if (out_num_elements * sizeof(sa_index_t) > sizeof(MergeSuffixes) * gpu.num_elements) {
+            cudaFreeAsync(merge_tuple, mcontext.get_gpu_default_stream(gpu_index));
+            cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
+        }
+        kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, out_sa, out_num_elements);
         sa_index_t* sa = (sa_index_t*)malloc(sizeof(sa_index_t) * out_num_elements);
         cudaMemcpyAsync(sa, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         cudaFreeAsync(merge_tuple_out, mcontext.get_gpu_default_stream(gpu_index));
