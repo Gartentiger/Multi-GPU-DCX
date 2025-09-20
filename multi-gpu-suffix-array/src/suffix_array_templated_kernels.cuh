@@ -228,6 +228,7 @@ namespace kernels {
     __global__ void split(key* keys, size_t* split_index, key* splitter, size_t size, DC7Comparator comp) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
         // for the send sizes
+        printf("splitter: %u\n", splitter[tidx].index);
         if (tidx >= NUM_GPUS - 1) {
             split_index[tidx] = size;
             return;
@@ -236,8 +237,13 @@ namespace kernels {
         size_t end = size;
         size_t index = 0;
 
+        // 0, 7 index 3
+        // 4, 7 index 5
+        // 4, 5 index 4
+        // 4, 4 return 4
         while (start < end)
         {
+            print("start: %lu, end: %lu, index: %lu, key: %u, comp: %s\n", start, end, index, keys[index].index, comp(splitter[tidx], keys[index]) ? "true" : "false");
             index = start + end / 2;
             if (comp(splitter[tidx], keys[index])) {
                 end = index;
