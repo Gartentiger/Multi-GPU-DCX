@@ -304,6 +304,9 @@ public:
 
         cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 2, 0, cudaMemcpyHostToDevice);
         CUERR;
+        printf("[%lu] copied to symbol\n", world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         size_t temp_storage_size = 0;
         cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys, size, DC7Comparator{});
         void* temp;
