@@ -90,7 +90,6 @@ using MergeStageSuffix = MergeStageSuffixS0;
 using DCX = DC7;
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
-    sa_index_t l;
     sa_index_t index;
     sa_index_t ranks[DCX::X];
     unsigned char prefix[DCX::X];
