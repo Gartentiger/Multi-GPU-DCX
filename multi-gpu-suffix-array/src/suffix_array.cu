@@ -873,135 +873,21 @@ private:
 
 
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
-            const sa_index_t* next_Isa = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
-            const unsigned char* next_Input = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
-            size_t count = gpu.num_elements - gpu.pd_elements;
-            MergeSuffixes* sk;
-            cudaMalloc(&sk, sizeof(MergeSuffixes) * 2 * count);
-            skpergpu[gpu_index] = sk;
-            size_t pointer_head = 0;
-            // ASSERT(count % DCX::nonSampleCount == 0);
-            for (uint32_t i = 0; i < DCX::nonSampleCount; i++) {
 
-                size_t count2 = (count / DCX::nonSampleCount);
-                if (i < count % DCX::nonSampleCount) {
-                    count2++;
-                }
-                // printf("[%u] count2 %lu", gpu_index, count2);
-                skNonSample[gpu_index][i] = sk + pointer_head;
-                pointer_head += count2;
-
-                kernels::prepare_non_sample
-                    _KLC_SIMPLE_(count2, mcontext.get_gpu_default_stream(gpu_index))
-                    // << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> >
-
-                    (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, next_Input, gpu.offset, gpu.num_elements,
-                        mpd_per_gpu,
-                        (MergeSuffixes*)skNonSample[gpu_index][i], count2, DCX::nextNonSample[i], f, l);
-                CUERR;
-                printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (skNonSample[gpu_index][i], count2, gpu_index);
-                mcontext.sync_default_streams();
-
-            }
-            mcontext.sync_default_streams();
-        }
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
-            //                printf("GPU %u, sr    c: %u, dest: %u.\n", gpu_index, src_lens[gpu_index], dest_lens[gpu_index]);
-            all2all_node_info[gpu_index].src_keys = merge_tuple;
-            all2all_node_info[gpu_index].src_values = nullptr;
-            all2all_node_info[gpu_index].src_len = gpu.pd_elements;
-
-            all2all_node_info[gpu_index].dest_keys = SamplesRecv;
-            all2all_node_info[gpu_index].dest_values = nullptr;
-            all2all_node_info[gpu_index].dest_len = gpu.pd_elements;
-
-            // all2all_node_info[gpu_index].temp_keys = reinterpret_cast<MergeStageSuffixS12HalfKey*>(gpu.prepare_S12_ptr.S12_result);
-            // all2all_node_info[gpu_index].temp_values = gpu.prepare_S12_ptr.S12_result_half;
-            // all2all_node_info[gpu_index].temp_len = mpd_reserved_len; // not sure...
-        }
-        mcontext.sync_default_streams();
-        //
-        // mcontext.get_device_temp_allocator(world_rank()).reset();
-        //
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
-        //            dump_prepare_s12("After split");
-        comm_world().barrier();
-        printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
-        mall2all.execAsync(all2all_node_info, split_table, false);
-        mcontext.sync_all_streams_mpi_safe();
-        comm_world().barrier();
-        TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
-        printf("[%lu] all2all s12\n", world_rank());
-        //            dump_prepare_s12("After all2all");
-        //
-        mcontext.sync_all_streams();
-        comm_world().barrier();
-        printArrayss << <1, 1 >> > (SamplesRecv, mgpus[world_rank()].pd_elements, world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
-        exit(0);
+
         //
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        // {
-        //     uint gpu_index = world_rank();
-        //     const uint SORT_DOWN_TO_BIT = 0;
-
-        //     SaGPU& gpu = mgpus[gpu_index];
-        //     //(mcontext.get_device_id(gpu_index));
-
-        //     cub::DoubleBuffer<MergeSuffixes> keys(reinterpret_cast<MergeSuffixes*>(SamplesRecv),
-        //         reinterpret_cast<MergeSuffixes*>(merge_tuple));
-        //     // cub::DoubleBuffer<uint64_t> values(reinterpret_cast<uint64_t*>(gpu.prepare_S12_ptr.S12_buffer2_half),
-        //     //     reinterpret_cast<uint64_t*>(gpu.prepare_S12_ptr.S12_buffer1_half));
-        //     // if (SORT_DOWN_TO_BIT < mpd_per_gpu_max_bit)
-        //     // {
-        //     size_t temp_storage_size = 0;
-        //     cudaError_t err = cub::DeviceRadixSort::SortKeys(nullptr, temp_storage_size, keys, gpu.pd_elements, rank_decomposer{}, SORT_DOWN_TO_BIT, sizeof(sa_index_t) * 8);
-        //     CUERR_CHECK(err);
-        //     //                printf("Needed temp storage: %zu, provided %zu.\n", temp_storage_size, ms0_reserved_len*sizeof(MergeStageSuffix));
-        //     // ASSERT(temp_storage_size <= mpd_reserved_len * sizeof(MergeStageSuffix));
-        //     void* temp;
-        //     cudaMalloc(&temp, temp_storage_size);
-        //     err = cub::DeviceRadixSort::SortKeys(temp, temp_storage_size,
-        //         keys, gpu.pd_elements, rank_decomposer{}, SORT_DOWN_TO_BIT, sizeof(sa_index_t) * 8,
-        //         mcontext.get_gpu_default_stream(gpu_index));
-        //     CUERR_CHECK(err);
-        //     // }
-
-        //     printf("[%lu] S12_Write_Into_Place\n", world_rank());
-        //     // mcontext.sync_default_stream_mpi_safe();
-        //     // comm_world().barrier();
-        //     //                kernels::combine_S12_kv_non_coalesced _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
-        //     //                        (reinterpret_cast<MergeStageSuffixS12HalfKey*> (gpu.prepare_S12_ptr.S12_buffer2),
-        //     //                         reinterpret_cast<MergeStageSuffixS12HalfValue*> ( gpu.prepare_S12_ptr.S12_buffer2_half),
-        //     //                         gpu.prepare_S12_ptr.S12_result, gpu.pd_elements); CUERR
-
-        //     // kernels::combine_S12_kv_shared<BLOCK_SIZE, 2> _KLC_SIMPLE_ITEMS_PER_THREAD_(gpu.pd_elements, 2, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<MergeStageSuffixS12HalfKey*>(keys.Current()),
-        //     //     reinterpret_cast<MergeStageSuffixS12HalfValue*>(values.Current()),
-        //     //     gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
-        //     // CUERR;
-        //     mcontext.sync_default_stream_mpi_safe();
-        //     comm_world().barrier();
-        //     printArrayss << <1, 1 >> > (keys.Current(), mgpus[world_rank()].pd_elements, world_rank());
-        // }
         mcontext.sync_all_streams();
         comm_world().barrier();
         exit(0);
-        // mcontext.sync_default_streams();
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
-        //            dump_prepare_s12("After preparing S12");
-        //            dump_final_merge("After preparing S12");
+
     }
 
     void prepare_S0_for_merge()
