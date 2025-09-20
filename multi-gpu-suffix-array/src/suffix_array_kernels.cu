@@ -618,6 +618,7 @@ namespace kernels {
     __global__ void write_sa(MergeSuffixes* In, sa_index_t* Out, size_t N) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+            printf("In[%u]:%u\n", i, In[i].index);
             Out[i] = In[i].index;
         }
     }

@@ -872,7 +872,8 @@ private:
         cudaFreeAsync(merge_tuple, mcontext.get_gpu_default_stream(gpu_index));
         cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
-        printf("[%lu] malloc result\n", world_rank());
+        printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (merge_tuple_out, out_num_elements, gpu_index);
 
         kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, out_sa, out_num_elements);
         mcontext.sync_all_streams();
