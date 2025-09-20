@@ -322,7 +322,7 @@ public:
     {
     }
 
-    void SampleSort(MergeSuffixes* keys, MergeSuffixes* keys_out, size_t size, size_t& out_size, size_t sample_size) {
+    void SampleSort(MergeSuffixes* keys, MergeSuffixes*& keys_out, size_t size, size_t& out_size, size_t sample_size) {
         using key = MergeSuffixes;
         ASSERT(sample_size < size);
         // SaGPU gpu = mgpus[world_rank()];
