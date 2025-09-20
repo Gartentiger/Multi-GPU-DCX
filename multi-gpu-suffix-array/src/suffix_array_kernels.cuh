@@ -69,7 +69,7 @@ namespace kernels {
         MergeSuffixes* out_keys, size_t N, D_DCX* dcx);
 
     __global__ void write_indices(sa_index_t* Out, size_t N);
-    __global__ void write_sa(MergeSuffixes* InOut, size_t N);
+    __global__ void write_sa(MergeSuffixes* In, sa_index_t* Out, size_t N);
     __global__ void write_S12_back(const MergeStageSuffixS12* inp, MergeStageSuffix* outp, size_t base_offset, size_t N);
 
     __global__ void prepare_S0(const sa_index_t* Isa, const unsigned char* Input,

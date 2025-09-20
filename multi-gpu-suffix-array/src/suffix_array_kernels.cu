@@ -615,10 +615,10 @@ namespace kernels {
             Out[i] = i;
         }
     }
-    __global__ void write_sa(MergeSuffixes* InOut, size_t N) {
+    __global__ void write_sa(MergeSuffixes* In, sa_index_t* Out, size_t N) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
-            ((sa_index_t*)InOut)[i] = InOut[i].index;
+            Out[i] = In[i].index;
         }
     }
     __global__ void write_S12_back(const MergeStageSuffixS12* inp, MergeStageSuffix* outp, size_t base_offset, size_t N)
