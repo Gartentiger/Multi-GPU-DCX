@@ -491,9 +491,8 @@ public:
         cudaMalloc(&temp, temp_storage_size);
         cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys_out, out_size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
-        printf("[%lu] keys sorted\n", world_rank());
         mcontext.sync_all_streams();
-
+        printf("[%lu] keys sorted\n", world_rank());
         printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys_out, out_size, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
@@ -866,11 +865,15 @@ private:
 
         size_t out_num_elements;
         SampleSort(merge_tuple, merge_tuple_out, gpu.num_elements, out_num_elements, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2));
-        sa_index_t* out_sa = reinterpret_cast<sa_index_t*>(merge_tuple);
-        if (out_num_elements * sizeof(sa_index_t) > sizeof(MergeSuffixes) * gpu.num_elements) {
-            cudaFreeAsync(merge_tuple, mcontext.get_gpu_default_stream(gpu_index));
-            cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
-        }
+        mcontext.sync_all_streams();
+        printf("[%lu] sample sorted\n", world_rank());
+
+        sa_index_t* out_sa;;
+        cudaFreeAsync(merge_tuple, mcontext.get_gpu_default_stream(gpu_index));
+        cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
+        mcontext.sync_all_streams();
+        printf("[%lu] malloc result\n", world_rank());
+
         kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, out_sa, out_num_elements);
         mcontext.sync_all_streams();
         printf("[%lu] write sa\n", world_rank());
