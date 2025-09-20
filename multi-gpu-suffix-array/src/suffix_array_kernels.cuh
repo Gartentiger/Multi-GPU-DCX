@@ -64,7 +64,7 @@ namespace kernels {
         MergeStageSuffixS12HalfKey* out_keys, MergeStageSuffixS12HalfValue* out_values, size_t N);
 
     __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
-        const sa_index_t* next_Isa, const unsigned char* next_Input,
+        sa_index_t* next_Isa, unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
         MergeSuffixes* out_keys, size_t N, D_DCX* dcx);
 
