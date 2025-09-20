@@ -77,6 +77,11 @@ namespace kernels {
         MergeStageSuffixS0HalfKey* Out_key,
         MergeStageSuffixS0HalfValue* Out_value, size_t N);
 
+    __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
+        sa_index_t* next_Isa, unsigned char* next_Input,
+        sa_index_t offset, size_t num_chars, size_t isa_size,
+        MergeSuffixes* out_keys, size_t N, sa_index_t non_sample_pos, sa_index_t f, sa_index_t l);
+
     __global__ void combine_S0_kv(const MergeStageSuffixS0HalfKey* Keys,
         const MergeStageSuffixS0HalfValue* Values,
         MergeStageSuffix* Out, size_t N);

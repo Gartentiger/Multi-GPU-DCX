@@ -676,7 +676,41 @@ namespace kernels {
             Out_value[i] = value;
         }
     }
+    __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
+        sa_index_t* next_Isa, unsigned char* next_Input,
+        sa_index_t offset, size_t num_chars, size_t isa_size,
+        MergeSuffixes* out_keys, size_t N, sa_index_t non_sample_pos, sa_index_t f, sa_index_t l)
+    {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+            uint index = non_sample_pos + i * DCX::X;
+            // uint index = (i / (DCX::X - DCX::C)) * DCX::X + dcx->nextNonSample[i % (DCX::X - DCX::C)];
+            MergeSuffixes sv;
+            sv.l = l;
+            sv.index = index + offset;
+            uint nexInputIndex = 0;
+            uint nexIsaIndex = 0;
 
+            uint starting_isa_index = i * DCX::C + f;
+
+            for (uint x = 0; x < DCX::X; x++) {
+                sv.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
+                if (starting_isa_index < isa_size) {
+                    sv.ranks[x] = Isa[starting_isa_index++];
+                }
+                else {
+                    if (next_Isa) {
+                        sv.ranks[x] = next_Isa[nexIsaIndex];
+                    }
+                    else {
+                        sv.ranks[x] = index < num_chars - 1 ? 1 : 0;
+                    }
+                    nexIsaIndex++;
+                }
+            }
+            out_keys[i] = sv;
+        }
+    }
     __global__ void combine_S0_kv(const MergeStageSuffixS0HalfKey* Keys,
         const MergeStageSuffixS0HalfValue* Values,
         MergeStageSuffix* Out, size_t N) {
