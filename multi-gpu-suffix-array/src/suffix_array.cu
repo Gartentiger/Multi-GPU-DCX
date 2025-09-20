@@ -879,7 +879,7 @@ private:
         mcontext.sync_all_streams();
         printf("[%lu] write sa\n", world_rank());
         sa_index_t* sa = (sa_index_t*)malloc(sizeof(sa_index_t) * out_num_elements);
-        cudaMemcpyAsync(sa, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
+        cudaMemcpyAsync(sa, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         cudaFreeAsync(merge_tuple_out, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
         comm_world().barrier();
