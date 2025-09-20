@@ -195,6 +195,34 @@ __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, 
     printf("\n");
     printf("---------------------------------------------------------------------------\n");
 }
+__global__ void printArrayss(sa_index_t* isa, unsigned char* sa_rank, const size_t size, size_t rank)
+{
+    printf("[%lu] isa: ", rank);
+    for (size_t i = 0; i < size; i++) {
+        if (i + 1 < size) {
+
+            printf("%u, ", isa[i]);
+        }
+        else {
+            printf("%u", isa[i]);
+        }
+
+    }
+    printf("\n");
+    printf("[%lu]  sa: ", rank);
+    for (size_t i = 0; i < size; i++) {
+        if (i + 1 < size) {
+
+            printf("%c, ", sa_rank[i]);
+        }
+        else {
+            printf("%c", sa_rank[i]);
+        }
+
+    }
+    printf("\n");
+    printf("---------------------------------------------------------------------------\n");
+}
 __global__ void printArrayss(char* kmer, sa_index_t* isa, size_t size, size_t rank)
 {
     for (size_t i = 0; i < size; i++) {
@@ -767,8 +795,8 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             //(mcontext.get_device_id(gpu_index));
 
-            const sa_index_t* next_Isa = nullptr;      //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
-            const unsigned char* next_Input = nullptr; //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
+            sa_index_t* next_Isa = nullptr;      //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
+            unsigned char* next_Input = nullptr; //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
 
             ncclGroupStart();
             if (gpu_index > 0)
@@ -783,13 +811,13 @@ private:
             }
             if (gpu_index + 1 < NUM_GPUS)
             {
-                sa_index_t* next_Isa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(DCX::X);
+                next_Isa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(DCX::X);
                 // std::span<sa_index_t> rbIsa(tempIsa, 1);
                 ncclRecv(next_Isa, DCX::X, ncclUint32, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
 
                 // comm_world().recv(recv_buf(rbIsa), tag(0), recv_count(1));
                 // next_Isa = tempIsa;
-                unsigned char* next_Input = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(DCX::X);
+                next_Input = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(DCX::X);
                 // std::span<unsigned char> rbInput(tempInput, 1);
                 ncclRecv(next_Input, DCX::X, ncclChar, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
                 // comm_world().recv(recv_buf(rbInput), tag(1), recv_count(1));
@@ -802,6 +830,7 @@ private:
             //     mpd_per_gpu,
             //     gpu.prepare_S12_ptr.S12_buffer1, gpu.prepare_S12_ptr.S12_buffer1_half, gpu.pd_elements);
             // CUERR;
+
             D_DCX* dcx;
             cudaMalloc(&dcx, sizeof(D_DCX));
             cudaMemcpy(dcx->inverseSamplePosition, DCX::inverseSamplePosition, DCX::X * sizeof(uint32_t), cudaMemcpyHostToDevice);
