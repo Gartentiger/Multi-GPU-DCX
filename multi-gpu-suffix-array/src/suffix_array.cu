@@ -888,6 +888,18 @@ private:
             printf("[%lu] sa[%lu]: %u\n", world_rank(), i, sa[i]);
         }
 
+        std::vector<size_t> recv_sizes(NUM_GPUS);
+        comm_world().allgather(send_buf(std::span<size_t>(&out_num_elements, 1)), recv_buf(recv_sizes), send_count(1));
+        size_t acc = std::accumulate(recv_sizes.begin(), recv_sizes.begin() + world_rank(), 0);
+        printf("[%lu] acc: %lu\n", world_rank(), acc);
+        MPI_File outputFile;
+        MPI_File_open(MPI_COMM_WORLD, "outputData",
+            MPI_MODE_CREATE | MPI_MODE_WRONLY,
+            MPI_INFO_NULL, &outputFile);
+        MPI_File_write_at_all(outputFile, acc, sa, out_num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        // MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+
+        MPI_File_close(&outputFile);
         exit(0);
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
