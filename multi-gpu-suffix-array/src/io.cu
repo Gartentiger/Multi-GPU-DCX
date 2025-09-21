@@ -45,7 +45,7 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
     }
 
     size_t mper_gpu = SDIV(len, num_gpus);
-    mper_gpu = SDIV(mper_gpu, 3) * 3;
+    mper_gpu = SDIV(mper_gpu, DCX::X) * DCX::X;
     size_t offset = mper_gpu * kamping::world_rank();
 
     if (kamping::world_rank() == num_gpus - 1)
