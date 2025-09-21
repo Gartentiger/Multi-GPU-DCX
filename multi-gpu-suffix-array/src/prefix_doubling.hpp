@@ -1186,7 +1186,7 @@ private:
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
         //
-        printArray << <1, 1 >> > (Sa_index, Sa_rank, mgpus[world_rank()].working_len, world_rank());
+        printArray << <1, 1 >> > (mgpus[world_rank()].Sa_index, mgpus[world_rank()].Sa_rank, mgpus[world_rank()].working_len, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         //
@@ -1860,7 +1860,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
