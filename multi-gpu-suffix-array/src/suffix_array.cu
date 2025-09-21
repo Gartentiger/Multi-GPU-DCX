@@ -897,7 +897,7 @@ private:
         MPI_File_open(MPI_COMM_WORLD, "outputData",
             MPI_MODE_CREATE | MPI_MODE_WRONLY,
             MPI_INFO_NULL, &outputFile);
-        MPI_File_write_at_all(outputFile, acc, sa, out_num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        MPI_File_write_at_all(outputFile, acc * sizeof(MPI_UINT32_T), sa, out_num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
         // MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
 
         MPI_File_close(&outputFile);
@@ -1246,7 +1246,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 
 
@@ -1718,7 +1718,7 @@ int main(int argc, char** argv)
     // t.stop();
     // if (world_rank() == 0)
     //     write_array(argv[2], sorter.get_result(), realLen);
-
+    comm_world().barrier();
     sorter.done();
 
     if (world_rank() == 0)
