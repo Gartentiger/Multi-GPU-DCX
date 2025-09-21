@@ -893,15 +893,21 @@ private:
         comm_world().allgather(send_buf(std::span<size_t>(&out_num_elements, 1)), recv_buf(recv_sizes), send_count(1));
         size_t acc = std::accumulate(recv_sizes.begin(), recv_sizes.begin() + world_rank(), 0);
         printf("[%lu] acc: %lu\n", world_rank(), acc);
-        MPI_File outputFile;
-        MPI_File_open(MPI_COMM_WORLD, "outputData",
-            MPI_MODE_CREATE | MPI_MODE_WRONLY,
-            MPI_INFO_NULL, &outputFile);
-        MPI_File_write_at_all(outputFile, acc * sizeof(MPI_UINT32_T), sa, out_num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
-        // MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        FILE* fp = fopen("outputData", "wb");
+        if (!fp)
+        {
+            error("Couldn't open file for writing!");
+        }
+        fseek(fp, acc * sizeof(uint32_t), SEEK_SET);
+        if (fwrite(sa, sizeof(sa_index_t), out_num_elements, fp) != out_num_elements)
+        {
+            fclose(fp);
+            error("Error writing file!");
+        }
 
-        MPI_File_close(&outputFile);
-
+        fclose(fp);
+        printf("[%lu] wrote in file\n", world_rank());
+        comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
