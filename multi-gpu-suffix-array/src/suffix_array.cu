@@ -542,6 +542,7 @@ public:
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
+        return;
         //
         // mcontext.sync_all_streams();
         printf("[%lu] prepare s12 for merge done\n", world_rank());
@@ -900,7 +901,7 @@ private:
         // MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
 
         MPI_File_close(&outputFile);
-        exit(0);
+
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
@@ -1245,7 +1246,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 
 
