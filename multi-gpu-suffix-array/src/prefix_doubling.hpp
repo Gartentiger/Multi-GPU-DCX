@@ -1215,7 +1215,12 @@ private:
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-
+        printf("[%lu] after multi split write to isa len: %lu\n", world_rank(), mgpus[world_rank()].isa_len);
+        //
+        printArray << <1, 1 >> > (mgpus[world_rank()].Temp1, mgpus[world_rank()].Temp2, mgpus[world_rank()].working_len, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        //
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
 
         //            dump("After split");
