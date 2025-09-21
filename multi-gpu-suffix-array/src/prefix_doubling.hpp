@@ -44,9 +44,9 @@ __global__ void printArray(key_* key, key_* value, size_t size, size_t rank)
 {
     for (size_t i = 0; i < size; i++) {
 
-        // printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
+        printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
 
-        auto r = key[i] + value[i];
+        // auto r = key[i] + value[i];
     }
     printf("---------------------------------------------------------------------------\n");
 }
@@ -1185,6 +1185,12 @@ private:
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
+        //
+        printArray << <1, 1 >> > (Sa_index, Sa_rank, mgpus[world_rank()].working_len, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        //
+
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
         // Can be initialized upfront.
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -1854,7 +1860,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
