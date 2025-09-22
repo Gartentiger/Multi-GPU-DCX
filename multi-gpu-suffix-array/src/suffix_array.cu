@@ -428,7 +428,7 @@ public:
 
         comm_world().bcast(send_recv_buf(std::span<key>(d_samples, NUM_GPUS - 1)), send_recv_count(NUM_GPUS - 1), root(0));
 
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, NUM_GPUS - 1, world_rank());
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, NUM_GPUS - 1, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         printf("[%lu] received splitters\n", world_rank());
@@ -499,7 +499,7 @@ public:
         cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
         printf("[%lu] keys sorted\n", world_rank());
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys_out, out_size, world_rank());
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys_out, out_size, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
 
@@ -1701,8 +1701,8 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
-    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    // size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
+    // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
 
@@ -1732,7 +1732,7 @@ int main(int argc, char** argv)
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, 255);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
-    for (size_t round = 0; round < 26; round++)
+    for (size_t round = 0; round < 20; round++)
     {
         randomDataSize *= 2;
         MergeSuffixes* randomvalue = (MergeSuffixes*)malloc(sizeof(MergeSuffixes) * randomDataSize);
