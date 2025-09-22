@@ -1185,11 +1185,6 @@ private:
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
-        //
-        printArray << <1, 1 >> > (mgpus[world_rank()].Sa_index, mgpus[world_rank()].Sa_rank, mgpus[world_rank()].working_len, world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
-        //
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
         // Can be initialized upfront.
@@ -1248,9 +1243,14 @@ private:
         // comm_world().barrier();
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
+        //
+        comm_world().barrier();
         printf("[%lu] mall2all isa stage\n", world_rank());
-        // comm_world().barrier();
-
+        //
+        printArray << <1, 1 >> > (mgpus[world_rank()].Old_ranks, mgpus[world_rank()].Segment_heads, mgpus[world_rank()].isa_len, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        //
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
 
         TIMER_START_WRITE_ISA_STAGE(WriteISAStages::Sort);
@@ -1262,9 +1262,11 @@ private:
         {
             uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
+            printf("[%lu] dst length %u\n", world_rank(), dest_lens[gpu_index]);
 
             if (dest_lens[gpu_index] > sort_threshold)
             {
+                printf("[%lu] sorting\n", world_rank());
                 sorting = true;
                 //(mcontext.get_device_id(gpu_index));
                 kernels::sub_value _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Old_ranks, gpu.Temp1, gpu.offset, dest_lens[gpu_index]);
@@ -1323,6 +1325,7 @@ private:
                 }
                 else if (dest_lens[gpu_index] > 0)
                 {
+                    printf("[%lu] offset: %lu, gpu.isa_len: %lu\n", world_rank(), gpu.offset, gpu.isa_len);
                     kernels::write_to_isa_sub_offset _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Segment_heads, gpu.Old_ranks,
                         gpu.Isa, gpu.offset, dest_lens[gpu_index], gpu.isa_len);
                     CUERR;

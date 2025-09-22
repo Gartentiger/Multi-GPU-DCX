@@ -156,7 +156,7 @@ namespace kernels {
             tidx < N; tidx += blockDim.x * gridDim.x) {
             sa_index_t index = Target_index[tidx] - Isa_base_offset;
             sa_index_t rank = Input_ranks[tidx];
-            assert(index < ISA_N);
+            assert(index < ISA_N && index >= 0);
             Isa[index] = rank;
         }
     }
