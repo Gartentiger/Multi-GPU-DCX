@@ -91,7 +91,7 @@ using DCX = DC7;
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
     sa_index_t index;
-    sa_index_t ranks[DCX::X];
+    sa_index_t ranks[DCX::C];
     unsigned char prefix[DCX::X];
 };
 

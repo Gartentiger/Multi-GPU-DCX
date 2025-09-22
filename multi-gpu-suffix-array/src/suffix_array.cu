@@ -334,25 +334,30 @@ public:
 
         cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 2, 0, cudaMemcpyHostToDevice);
         CUERR;
-        printf("[%lu] copied to symbol\n", world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
+        printf("[%lu] copied to symbol\n", world_rank());
         size_t temp_storage_size = 0;
         cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys, size, DC7Comparator{});
         void* temp;
         cudaMalloc(&temp, temp_storage_size);
+        CUERR;
         cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys, size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
+
+        printf("[%lu] sorted keys\n", world_rank());
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         key* d_samples;
         if (world_rank() == 0) {
             cudaMalloc(&d_samples, sizeof(key) * sample_size * NUM_GPUS);
+            CUERR;
         }
         else {
             cudaMalloc(&d_samples, sizeof(key) * sample_size);
+            CUERR;
         }
         size_t* h_samples_pos = (size_t*)malloc(sizeof(size_t) * sample_size);
         for (size_t i = 0; i < sample_size; i++)
@@ -796,7 +801,7 @@ private:
 
         MergeSuffixes* merge_tuple;
         cudaMalloc(&merge_tuple, sizeof(MergeSuffixes) * mgpus[world_rank()].num_elements);
-
+        CUERR;
         MergeSuffixes* merge_tuple_out;
 
         uint gpu_index = world_rank();
@@ -809,16 +814,16 @@ private:
         if (gpu_index > 0)
         {
             std::span<sa_index_t> sbIsa(gpu.prepare_S12_ptr.Isa, 1);
-            ncclSend(gpu.prepare_S12_ptr.Isa, DCX::X, ncclUint32, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]);
-            ncclSend(gpu.prepare_S12_ptr.Input, DCX::X, ncclChar, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]);
+            NCCLCHECK(ncclSend(gpu.prepare_S12_ptr.Isa, DCX::X, ncclUint32, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]));
+            NCCLCHECK(ncclSend(gpu.prepare_S12_ptr.Input, DCX::X, ncclChar, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]));
         }
         if (gpu_index + 1 < NUM_GPUS)
         {
             next_Isa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(DCX::X);
-            ncclRecv(next_Isa, DCX::X, ncclUint32, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
+            NCCLCHECK(ncclRecv(next_Isa, DCX::X, ncclUint32, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index)));
 
             next_Input = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(DCX::X);
-            ncclRecv(next_Input, DCX::X, ncclChar, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
+            NCCLCHECK(ncclRecv(next_Input, DCX::X, ncclChar, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index)));
         }
         ncclGroupEnd();
 
@@ -835,7 +840,6 @@ private:
             mpd_per_gpu,
             merge_tuple, gpu.pd_elements, dcx);
         CUERR;
-        mcontext.sync_all_streams();
         // printArrayss << <1, 1 >> > (merge_tuple, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
         printf("[%lu] non samples-------------------------------------------\n", world_rank());
@@ -1714,12 +1718,56 @@ int main(int argc, char** argv)
 
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, nullptr, NUM_GPUS_PER_NODE);
+
+
+
     // alltoallMeasure(context);
     // ncclMeasure(context);
     // return 0;
 #endif
     SuffixSorter sorter(context, realLen, input);
+    uint32_t randomDataSize = 1024;
+    CUERR;
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, 255);
+    std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
+    for (size_t round = 0; round < 26; round++)
+    {
+        randomDataSize *= 2;
+        MergeSuffixes* randomvalue = (MergeSuffixes*)malloc(sizeof(MergeSuffixes) * randomDataSize);
+        for (uint32_t i = 0; i < randomDataSize; i++)
+        {
+            MergeSuffixes ms;
+            ms.index = i;
+            for (size_t c = 0; c < DCX::X; c++)
+            {
+                ms.prefix[c] = randomDistChar(g);
+            }
+            for (size_t r = 0; r < DCX::C; r++)
+            {
+                ms.ranks[r] = randomDistUint(g);
+            }
+            randomvalue[i] = ms;
+        }
 
+        MergeSuffixes* suffixes;
+        cudaMalloc(&suffixes, sizeof(MergeSuffixes) * randomDataSize);
+        cudaMemcpy(suffixes, randomvalue, sizeof(MergeSuffixes) * randomDataSize, cudaMemcpyHostToDevice);
+        CUERR;
+        MergeSuffixes* keys_out;
+        size_t out_size = 0;
+        double start = MPI_Wtime();
+        sorter.SampleSort(suffixes, keys_out, randomDataSize, out_size, 16ULL * log(NUM_GPUS) / log(2.));
+        context.sync_all_streams();
+        comm_world().barrier();
+        double end = MPI_Wtime();
+        size_t bytes = sizeof(MergeSuffixes) * randomDataSize;
+        size_t gb = 1 << 30;
+        double num_GB = (double)gb / (double)bytes;
+        printf("[%lu] elements: %u bytes: %10li, time: %15.9f", world_rank(), randomDataSize, num_GB, (end - start));
+    }
+    return;
     sorter.alloc();
     // auto stringPath = ((std::string)argv[3]);
     // int pos = stringPath.find_last_of("/\\");
