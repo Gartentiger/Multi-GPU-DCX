@@ -47,7 +47,7 @@
 #include <thrust/sort.h>
 #include <thrust/host_vector.h>
 static const uint NUM_GPUS = 4;
-static const uint NUM_GPUS_PER_NODE = 2;
+static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -709,9 +709,6 @@ private:
         // Need the halo to the right for kmers...
         size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
 
-        printf("[%lu] copy len: %lu\n", world_rank(), copy_len);
-
-        //(mcontext.get_device_id(gpu_index));
         cudaMemcpyAsync(gpu.pd_ptr.Input, minput, copy_len, cudaMemcpyHostToDevice,
             mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
@@ -744,11 +741,7 @@ private:
         {
             kernels::fixup_last_four_12_kmers_64 << <1, 4, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 4);
         }
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (reinterpret_cast<char*>(mgpus[world_rank()].pd_ptr.Sa_rank), mgpus[world_rank()].pd_ptr.Isa, SDIV(mgpus[world_rank()].num_elements, DCX::X * 2) * DCX::X * 2, world_rank());
-            mcontext.sync_default_streams();
-        }
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (reinterpret_cast<char*>(gpu.pd_ptr.Sa_rank), gpu.pd_ptr.Isa, SDIV(gpu.num_elements, DCX::X * 2) * DCX::X * 2, world_rank());
         mcontext.sync_default_streams();
         comm_world().barrier();
     }
@@ -766,7 +759,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (world_rank() == gpu_index)
             {
-                printArrayss << <1, 1 >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, world_rank());
+                // printArrayss << <1, 1 >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, world_rank());
                 // //(0);
                 kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
                 CUERR;
@@ -793,7 +786,7 @@ private:
         mcontext.sync_default_streams();
         // comm_world().barrier();
         printf("[%lu] after execKVAsync s12\n", world_rank());
-        printArrayss << <1, 1 >> > ((sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_result_half, mgpus[world_rank()].pd_elements, world_rank());
+        // printArrayss << <1, 1 >> > ((sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_result_half, mgpus[world_rank()].pd_elements, world_rank());
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
 
@@ -843,7 +836,7 @@ private:
             merge_tuple, gpu.pd_elements, dcx);
         CUERR;
         mcontext.sync_all_streams();
-        printArrayss << <1, 1 >> > (merge_tuple, mgpus[world_rank()].pd_elements, world_rank());
+        // printArrayss << <1, 1 >> > (merge_tuple, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
         printf("[%lu] non samples-------------------------------------------\n", world_rank());
         comm_world().barrier();
@@ -870,9 +863,9 @@ private:
             noSampleCount += count2;
         }
         mcontext.sync_default_streams();
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (nonSamples, count, gpu_index);
-        mcontext.sync_default_streams();
-        comm_world().barrier();
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (nonSamples, count, gpu_index);
+        // mcontext.sync_default_streams();
+        // comm_world().barrier();
 
         cudaFree(dcx);
 
@@ -887,7 +880,7 @@ private:
         cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
         printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (merge_tuple_out, out_num_elements, gpu_index);
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (merge_tuple_out, out_num_elements, gpu_index);
 
         kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements);
         mcontext.sync_all_streams();
@@ -899,7 +892,7 @@ private:
         comm_world().barrier();
         for (size_t i = 0; i < out_num_elements; i++)
         {
-            printf("[%lu] sa[%lu]: %u\n", world_rank(), i, sa[i]);
+            // printf("[%lu] sa[%lu]: %u\n", world_rank(), i, sa[i]);
         }
 
         std::vector<size_t> recv_sizes(NUM_GPUS);

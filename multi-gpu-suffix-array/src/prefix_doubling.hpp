@@ -1212,9 +1212,9 @@ private:
         mcontext.sync_default_streams();
         printf("[%lu] after multi split write to isa len: %lu\n", world_rank(), mgpus[world_rank()].isa_len);
         //
-        printArray << <1, 1 >> > (mgpus[world_rank()].Temp1, mgpus[world_rank()].Temp2, mgpus[world_rank()].working_len, world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+        // printArray << <1, 1 >> > (mgpus[world_rank()].Temp1, mgpus[world_rank()].Temp2, mgpus[world_rank()].working_len, world_rank());
+        // mcontext.sync_all_streams();
+        // comm_world().barrier();
         //
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
 
@@ -1247,9 +1247,9 @@ private:
         comm_world().barrier();
         printf("[%lu] mall2all isa stage\n", world_rank());
         //
-        printArray << <1, 1 >> > (mgpus[world_rank()].Old_ranks, mgpus[world_rank()].Segment_heads, mgpus[world_rank()].isa_len, world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+        // printArray << <1, 1 >> > (mgpus[world_rank()].Old_ranks, mgpus[world_rank()].Segment_heads, mgpus[world_rank()].isa_len, world_rank());
+        // mcontext.sync_all_streams();
+        // comm_world().barrier();
         //
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
 
