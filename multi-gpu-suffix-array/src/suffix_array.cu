@@ -47,7 +47,8 @@
 #include <thrust/sort.h>
 #include <thrust/host_vector.h>
 static const uint NUM_GPUS = 4;
-
+static const uint NUM_GPUS_PER_NODE = 2;
+static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
 static_assert(NUM_GPUS == 8, "DGX-1 topology can only be used with 8 GPUs");
@@ -1259,14 +1260,14 @@ private:
                 if (i == 10 && (gpu.num_elements - gpu.pd_elements) > 20)
                     i = (gpu.num_elements - gpu.pd_elements) - 10;
                 print_final_merge_suffix(i, arr.S0_result[i]);
-    }
+            }
             //                printf("Buffer:\n");
             //                for (int i = 0; i < gpu.num_elements; ++i) {
             //                    if (i == 10 && gpu.num_elements > 20)
             //                        i = gpu.num_elements-10;
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
-}
+        }
     }
 #endif
 
@@ -1668,7 +1669,6 @@ int main(int argc, char** argv)
     int devices;
 
 
-
     cudaGetDeviceCount(&devices);
     printf("[%lu] device count: %d\n", world_rank(), devices);
     if (devices == 0)
@@ -1717,9 +1717,10 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
+    // std::array<uint, NUM_GPUS> gpu_ids2{0,1,0,1};
 
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
+
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, nullptr, NUM_GPUS_PER_NODE);
     // alltoallMeasure(context);
     // ncclMeasure(context);
     // return 0;

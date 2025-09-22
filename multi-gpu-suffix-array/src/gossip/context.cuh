@@ -62,7 +62,7 @@ public:
 
         for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu)
         {
-            device_ids[src_gpu] = device_ids_ ? (*device_ids_)[src_gpu] : src_gpu;
+            device_ids[src_gpu] = device_ids_ ? (*device_ids_)[src_gpu] : (src_gpu % num_per_node);
         }
 
         // Create num_gpus^2 streams where streams[gpu*num_gpus+part]
@@ -120,7 +120,7 @@ public:
 
         CUERR;
 
-        //for (uint src_gpu = 0; src_gpu < NUM_PER_NODE; ++src_gpu)
+        //for (uint src_gpu = 0; src_gpu < NUM_GPUS_PER_NODE; ++src_gpu)
         {
             uint src_gpu = world_rank();
             const device_id_t src = get_device_id(src_gpu);
