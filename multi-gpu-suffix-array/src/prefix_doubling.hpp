@@ -578,24 +578,25 @@ private:
 
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        // {
-        //     SaGPU gpu = mgpus[gpu_index];
-        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
-        //     mcontext.sync_default_streams();
-        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
-        //     mcontext.sync_default_streams();
-        // }
+        printf("before init merging\n");
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU gpu = mgpus[gpu_index];
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
+            mcontext.sync_default_streams();
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
+            mcontext.sync_default_streams();
+        }
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
-
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        // {
-        //     SaGPU gpu = mgpus[gpu_index];
-        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
-        //     mcontext.sync_default_streams();
-        //     printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
-        //     mcontext.sync_default_streams();
-        // }
+        printf("after init merging\n");
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU gpu = mgpus[gpu_index];
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
+            mcontext.sync_default_streams();
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
+            mcontext.sync_default_streams();
+        }
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 
@@ -905,6 +906,8 @@ private:
             multi_split_node_info[gpu_index].dest_values = gpu.Temp2;
             multi_split_node_info[gpu_index].dest_len = gpu.working_len;
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
+            printArray << <1, 1 >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
+            mcontext.sync_all_streams();
         }
 
 
@@ -913,6 +916,13 @@ private:
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
+
+            printArray << <1, 1 >> > (gpu.Temp1, gpu.Temp2, gpu.working_len, gpu_index);
+            mcontext.sync_all_streams();
+        }
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
 

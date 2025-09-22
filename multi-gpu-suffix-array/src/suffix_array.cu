@@ -22,7 +22,7 @@
 // #include <nvToolsExt.h>
 #include "thrust/device_vector.h"
 #include "thrust/device_ptr.h"
-static const uint NUM_GPUS = 2;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -371,8 +371,20 @@ public:
         }
 
         mgpus.back().num_elements = last_gpu_elems;
-        // FIXME: Isn't this just...: last_gpu_elems / 3 * 2 + ((last_gpu_elems % 3) == 2);
-        mgpus.back().pd_elements = last_gpu_elems / DCX::X * DCX::C + (((last_gpu_elems % DCX::X) != 0) ? ((last_gpu_elems - 1) % DCX::X) : 0);
+
+        size_t last_gpu_add_pd_elements = 0;
+        // if last_gpu_elems = 9 elements left and X=7 then we have 3+1 sample positions, last_gpu_elems = 10 3+2, last_gpu_elems = 11 3+2...
+        if (last_gpu_elems % DCX::X != 0) {
+            for (size_t sample = 0; sample < DCX::C; sample++)
+            {
+                if ((last_gpu_elems % DCX::X) > (size_t)DCX::nextSample[sample]) {
+                    last_gpu_add_pd_elements++;
+                }
+            }
+        }
+
+        mgpus.back().pd_elements = (last_gpu_elems / DCX::X) * DCX::C + last_gpu_add_pd_elements;
+
         mgpus.back().offset = offset;
         mgpus.back().pd_offset = pd_offset;
 
@@ -1104,7 +1116,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0 };
+    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #endif
     SuffixSorter sorter(context, realLen, input);
