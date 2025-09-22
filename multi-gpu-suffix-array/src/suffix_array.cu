@@ -22,7 +22,7 @@
 #include <chrono>
 // #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 2;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -839,7 +839,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 };
 
@@ -1060,7 +1060,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0 };
+    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
     // alltoallMeasure(context, std::stoi(argv[1]));
     // return 0;
