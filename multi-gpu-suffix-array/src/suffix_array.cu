@@ -1774,7 +1774,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
-            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[world_rank()] + data_size, d_values_gpu[world_rank()] + data_size, d_keys_gpu[world_rank()], d_values_gpu[world_rank()] , nullptr, nullptr };
+            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[gpu_index] + data_size, d_values_gpu[gpu_index] + data_size, d_keys_gpu[gpu_index], d_values_gpu[gpu_index] , nullptr, nullptr };
         }
 
         QDAllocator host_pinned_allocator(h_temp_mem, data_size);
