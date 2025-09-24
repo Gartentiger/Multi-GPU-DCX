@@ -1728,7 +1728,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         cudaIpcGetMemHandle(&handleSend, d_keys_gpu[world_rank()]);
         cudaIpcGetMemHandle(&handleVSend, d_values_gpu[world_rank()]);
         for (size_t dst = 0; dst < NUM_GPUS; dst++) {
-            if (context.get_peer_status(world_rank(), dst) != 1) {
+            if (mcontext.get_peer_status(world_rank(), dst) != 1) {
                 continue;
             }
             comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleSend, 1)), send_count(1), tag(0), destination(dst));
@@ -1736,7 +1736,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
 
         }
         for (size_t src = 0; src < NUM_GPUS; src++) {
-            if (context.get_peer_status(world_rank(), src) != 1) {
+            if (mcontext.get_peer_status(world_rank(), src) != 1) {
                 continue;
             }
             cudaIpcMemHandle_t other_handleRecv;
