@@ -1708,7 +1708,7 @@ void share_gpu_ptr(std::array<T*, NUM_GPUS>& ptrs, MultiGPUContext<NUM_GPUS>& co
         cudaIpcOpenMemHandle(&ptrHandleRecv, other_handleRecv, cudaIpcMemLazyEnablePeerAccess);
         CUERR;
 
-        printf("[%lu] opened mem handles from %d\n", world_rank(), src);
+        // printf("[%lu] opened mem handles from %d\n", world_rank(), src);
         ptrs[src] = reinterpret_cast<T*>(ptrHandleRecv);
     }
 }
