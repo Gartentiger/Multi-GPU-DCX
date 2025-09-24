@@ -1721,7 +1721,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 1;
+    size_t rounds = 20;
     size_t data_size = 128;
     for (size_t i = 0; i < rounds; i++)
     {
@@ -1762,13 +1762,13 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         CUERR_CHECK(err);
         mcontext.sync_all_streams();
         uint64_t* h_temp_mem = (uint64_t*)malloc(sizeof(uint64_t) * data_size);
-        cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
+        // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
 
-        for (size_t i = 0; i < data_size; i++)
-        {
-            if (world_rank() == 0)
-                printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
-        }
+        // for (size_t i = 0; i < data_size; i++)
+        // {
+        //     if (world_rank() == 0)
+        //         printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
+        // }
 
 
         mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
@@ -1792,12 +1792,13 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         size_t bytes = sizeof(uint64_t) * data_size;
         size_t gb = 1 << 10;
         double num_GB = (double)bytes / (double)gb;
-        printf("[%lu] elements: %lu KB: %15.9f, time: %15.9f\n", world_rank(), data_size, num_GB, (end - start));
-        cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
-        for (size_t i = 0; i < data_size; i++)
-        {
-            printf("[%lu] merged key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
-        }
+        if (world_rank() == 0)
+            printf("[%lu] elements: %lu KB: %15.9f, time: %15.9f\n", world_rank(), data_size, num_GB, (end - start));
+        // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
+        // for (size_t i = 0; i < data_size; i++)
+        // {
+        //     printf("[%lu] merged key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
+        // }
 
         free(h_temp_mem);
         cudaFree(temp);
