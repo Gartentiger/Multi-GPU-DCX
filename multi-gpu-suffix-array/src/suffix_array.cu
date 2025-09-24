@@ -335,8 +335,8 @@ public:
 
 
         // pre sort for easy splitter index binary search 
-        size_t temp_storage_size = 0;
-        mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(MergeSuffixes) * 2);
+        // size_t temp_storage_size = 0;
+        mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(MergeSuffixes) * size * 2);
         mgpu::mergesort(keys, size, DC7Comparator{}, mcontext.get_mgpu_default_context_for_device(world_rank()));
         mcontext.sync_all_streams();
         printf("[%lu] sorted keys\n", world_rank());
@@ -372,7 +372,7 @@ public:
         printf("[%lu] copied sample positions to device\n", world_rank());
         // sample position to sample element
         kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples, sample_size);
-        mcontext.sync_all_streams();
+        cudaFreeAsync(d_samples_pos, mcontext.get_gpu_default_stream(world_rank()));
         printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size, world_rank());
         mcontext.sync_all_streams();
@@ -434,6 +434,7 @@ public:
         kernels::find_split_index << <1, NUM_GPUS, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index, d_samples, size, DC7Comparator{});
         std::vector<size_t> h_split_index(NUM_GPUS, 0);
         cudaMemcpyAsync(h_split_index.data(), split_index, sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
+        cudaFreeAsync(d_samples, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
@@ -451,14 +452,14 @@ public:
         {
             printf("[%lu] send size[%lu]: %lu\n", world_rank(), i, send_sizes[i]);
         }
-
+        cudaFreeAsync(split_index, mcontext.get_gpu_default_stream(world_rank()));
         // comm_world().reduce_single(send_buf(std::span<size_t>(h_split_index.data() + world_rank(), 1)), op(ops::plus<size_t>()), root(world_rank()));
         std::vector<size_t> recv_sizes;
 
         recv_sizes = comm_world().alltoall(send_buf(send_sizes));
 
         out_size = std::accumulate(recv_sizes.begin(), recv_sizes.end(), 0);
-        // cudaMalloc(&keys_out, sizeof(MergeSuffixes) * out_size);
+        cudaMalloc(&keys_out, sizeof(MergeSuffixes) * out_size);
 
 
         size_t send_sum = 0;
@@ -484,11 +485,12 @@ public:
         // cudaMalloc(&temp, temp_storage_size);
         // cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys_out, out_size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
         // cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
-        mgpu::mergesort(d_samples, sample_size * NUM_GPUS, DC7Comparator{}, mcontext.get_mgpu_default_context_for_device(world_rank()));
-        mcontext.sync_all_streams();
-        printf("[%lu] keys sorted\n", world_rank());
+
+        mcontext.get_mgpu_default_context_for_device(world_rank()).reset_temp_memory();
+        mgpu::mergesort(keys_out, out_size, DC7Comparator{}, mcontext.get_mgpu_default_context_for_device(world_rank()));
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys_out, out_size, world_rank());
         mcontext.sync_all_streams();
+        printf("[%lu] keys sorted\n", world_rank());
         comm_world().barrier();
 
     }
@@ -1793,7 +1795,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         comm_world().barrier();
         double end = MPI_Wtime();
         size_t bytes = sizeof(uint64_t) * data_size;
-        size_t gb = 1 << 30;
+        size_t gb = 30 << 1;
         double num_GB = (double)bytes / (double)gb;
         if (world_rank() == 0)
             printf("[%lu] elements: %lu, %10li GB, time: %15.9f\n", world_rank(), data_size, num_GB, (end - start));
@@ -1876,8 +1878,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, nullptr, NUM_GPUS_PER_NODE);
 
-    segmented_sort_measure(context);
-    return;
+    // segmented_sort_measure(context);
+    // return;
     // alltoallMeasure(context);
     // ncclMeasure(context);
     // return 0;
@@ -1922,19 +1924,20 @@ int main(int argc, char** argv)
         // std::vector<MergeSuffixes> keys_out_host;
         // sorter.HostSampleSort(randomvalue, keys_out_host, randomDataSize, a);
         const int a = (int)(16 * log(NUM_GPUS) / log(2.));
-        context.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_storage, sizeof(MergeSuffixes) * randomDataSize * 2);
+        // context.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_storage, sizeof(MergeSuffixes) * randomDataSize * 2);
         double start = MPI_Wtime();
-
+        MergeSuffixes* keys_out;
         // mgpu::mergesort(suffixes, randomDataSize, DC7Comparator{}, context.get_mgpu_default_context_for_device(world_rank()));
-        // sorter.SampleSort(suffixes, keys_out, randomDataSize, out_size, a + 1);
+        sorter.SampleSort(suffixes, keys_out, randomDataSize, out_size, a + 1);
         context.sync_all_streams();
         double end = MPI_Wtime();
         size_t bytes = sizeof(MergeSuffixes) * randomDataSize;
-        size_t gb = 1 << 30;
+        size_t gb = 30 << 1;
         double num_GB = (double)bytes / (double)gb;
         printf("[%lu] elements: %u bytes: %10li, time: %15.9f\n", world_rank(), randomDataSize, num_GB, (end - start));
         cudaFree(suffixes);
         cudaFree(temp_storage);
+        cudaFree(keys_out);
     }
     return;
     sorter.alloc();
