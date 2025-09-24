@@ -1752,8 +1752,8 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
             CUERR;
 
             printf("[%lu] opened mem handles from %d\n", world_rank(), src);
-            d_keys_gpu[src] = reinterpret_cast<T*>(ptrHandleRecv);
-            d_values_gpu[src] = reinterpret_cast<T*>(ptrHandleVRecv);
+            d_keys_gpu[src] = reinterpret_cast<uint64_t*>(ptrHandleRecv);
+            d_values_gpu[src] = reinterpret_cast<uint64_t*>(ptrHandleVRecv);
 
         }
         comm_world().barrier();
