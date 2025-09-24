@@ -72,7 +72,6 @@ public:
         {
             if (world_rank() == src_gpu)
             {
-                ////(0); // get_device_id(src_gpu));
                 cudaDeviceSynchronize();
             }
             for (uint part = 0; part < num_gpus; ++part)
@@ -89,7 +88,6 @@ public:
 
 
         // compute the connectivity matrix
-
 
         uint src = get_device_id(world_rank());
         for (uint dst_gpu = 0; dst_gpu < num_gpus; dst_gpu++) {

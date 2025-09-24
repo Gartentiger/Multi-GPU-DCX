@@ -86,6 +86,7 @@ struct DC7 {
 
 };
 
+
 using MergeStageSuffix = MergeStageSuffixS0;
 using DCX = DC7;
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
@@ -95,19 +96,21 @@ struct MergeSuffixes {
     unsigned char prefix[DCX::X];
 };
 
+__host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffixes& b)
+{
+    for (size_t i = 0; i < DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0]; i++)
+    {
+        if (a.prefix[i] < b.prefix[i]) {
+            return true;
+        }
+        else if (a.prefix[i] > b.prefix[i]) {
+            return false;
+        }
+    }
+    return a.ranks[DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[DCX::nextSample[b.index % DCX::X][a.index % DCX::X][1]];
 
+}
 __constant__ uint32_t lookupNext[DCX::X][DCX::X][2];
-
-struct NonSampleKey {
-    sa_index_t rankL;
-    unsigned char prefix[DCX::X];
-};
-
-
-struct NonSampleValue {
-    sa_index_t index;
-    sa_index_t ranks[DCX::X];
-};
 
 struct non_sample_prefix_decomp
 {
@@ -144,4 +147,21 @@ struct DC7Comparator
     }
 };
 
+struct DC7ComparatorTest
+{
+    __host__ __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
+    {
+        for (size_t i = 0; i < lookupNext[a.index % DCX::X][b.index % DCX::X][0]; i++)
+        {
+            if (a.prefix[i] < b.prefix[i]) {
+                return true;
+            }
+            else if (a.prefix[i] > b.prefix[i]) {
+                return false;
+            }
+        }
+        return false;
+        // return a.ranks[lookupNext[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[lookupNext[b.index % DCX::X][a.index % DCX::X][1]];
+    }
+};
 #endif // CONFIG_H
