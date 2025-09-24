@@ -1756,7 +1756,13 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
             d_values_gpu[src] = reinterpret_cast<uint64_t*>(ptrHandleVRecv);
 
         }
+        uint64_t* h_temp_mem = (uint64_t*)malloc(sizeof(uint64_t) * data_size);
+        cudaMemcpy(h_temp_mem, d_keys_gpu[0], sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
         comm_world().barrier();
+        for (size_t i = 0; i < data_size; i++)
+        {
+            printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
+        }
 
         size_t temp_storage_size = 0;
         cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size, d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8);
@@ -1768,14 +1774,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
             d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8, mcontext.get_gpu_default_stream(world_rank()));
         CUERR_CHECK(err);
         mcontext.sync_all_streams();
-        uint64_t* h_temp_mem = (uint64_t*)malloc(sizeof(uint64_t) * data_size);
-        cudaMemcpy(h_temp_mem, d_keys_gpu[world_rank()] + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
 
-        for (size_t i = 0; i < data_size; i++)
-        {
-            if (world_rank() == 0)
-                printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
-        }
 
 
         mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
