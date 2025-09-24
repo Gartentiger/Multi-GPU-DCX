@@ -1706,18 +1706,16 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         data_size *= 2;
         std::array<MergeNodeInfo, NUM_GPUS> merge_nodes_info;
 
-        std::vector<uint64_t> h_keys(data_size * 2);
-        std::vector<uint64_t> h_values(data_size * 2);
+        std::vector<uint64_t> h_keys(data_size);
+        std::vector<uint64_t> h_values(data_size);
 
         for (auto& h : h_values) {
             h = randomDistChar(g);
         }
         uint64_t* d_keys;
         cudaMalloc(&d_keys, sizeof(uint64_t) * 2 * data_size);
-        cudaMemcpy(d_keys, h_keys.data(), data_size * 2 * sizeof(uint64_t), cudaMemcpyHostToDevice);
         uint64_t* d_values;
         cudaMalloc(&d_values, sizeof(uint64_t) * 2 * data_size);
-        cudaMemcpy(d_values, h_values.data(), data_size * 2 * sizeof(uint64_t), cudaMemcpyHostToDevice);
 
         std::array<uint64_t*, NUM_GPUS> d_keys_gpu;
         std::array<uint64_t*, NUM_GPUS> d_values_gpu;
@@ -1756,6 +1754,8 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
             d_values_gpu[src] = reinterpret_cast<uint64_t*>(ptrHandleVRecv);
 
         }
+        cudaMemcpy(d_keys_gpu[world_rank()], h_keys.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_values_gpu[world_rank()], h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
         uint64_t* h_temp_mem = (uint64_t*)malloc(sizeof(uint64_t) * data_size);
         cudaMemcpy(h_temp_mem, d_keys_gpu[0], sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
         comm_world().barrier();
