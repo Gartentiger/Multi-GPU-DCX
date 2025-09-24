@@ -1721,7 +1721,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 22;
+    size_t rounds = 21;
     size_t data_size = 128;
     for (size_t i = 0; i < rounds; i++)
     {
@@ -1757,10 +1757,9 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         void* temp;
         temp_storage_size = std::max(temp_storage_size, sizeof(uint64_t) * data_size);
         cudaMalloc(&temp, temp_storage_size);
-        err = cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
-            d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8, mcontext.get_gpu_default_stream(world_rank()));
-        CUERR_CHECK(err);
-        mcontext.sync_all_streams();
+
+
+
         uint64_t* h_temp_mem = (uint64_t*)malloc(sizeof(uint64_t) * data_size);
         // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
 
@@ -1785,6 +1784,10 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)(data_size) });
         mcontext.sync_all_streams();
         double start = MPI_Wtime();
+        err = cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
+            d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8, mcontext.get_gpu_default_stream(world_rank()));
+        CUERR_CHECK(err);
+        mcontext.sync_all_streams();
         merge_manager.merge(ranges, std::less<uint64_t>());
         mcontext.sync_all_streams();
         comm_world().barrier();
