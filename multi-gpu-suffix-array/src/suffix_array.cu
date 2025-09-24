@@ -1688,7 +1688,29 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
 template<typename T>
 void share_gpu_ptr(std::array<T*, NUM_GPUS>& ptrs, MultiGPUContext<NUM_GPUS>& context) {
 
+    cudaIpcMemHandle_t handleSend;
+    cudaIpcGetMemHandle(&handleSend, ptrs[world_rank()]);
 
+    for (size_t dst = 0; dst < NUM_GPUS; dst++) {
+        if (context.get_peer_status(world_rank(), dst) != 1) {
+            continue;
+        }
+        comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleSend, 1)), send_count(1), tag(0), destination(dst));
+    }
+    for (size_t src = 0; src < NUM_GPUS; src++) {
+        if (context.get_peer_status(world_rank(), src) != 1) {
+            continue;
+        }
+        cudaIpcMemHandle_t other_handleRecv;
+        comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleRecv, 1)), recv_count(1), tag(0), source(src));
+        void* ptrHandleRecv;
+
+        cudaIpcOpenMemHandle(&ptrHandleRecv, other_handleRecv, cudaIpcMemLazyEnablePeerAccess);
+        CUERR;
+
+        printf("[%lu] opened mem handles from %d\n", world_rank(), src);
+        ptrs[src] = reinterpret_cast<T*>(ptrHandleRecv);
+    }
 }
 
 void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
@@ -1708,61 +1730,26 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
 
         std::vector<uint64_t> h_keys(data_size);
         std::vector<uint64_t> h_values(data_size);
-
-        for (auto& h : h_values) {
-            h = randomDistChar(g);
+        for (size_t i = 0; i < data_size; i++)
+        {
+            h_keys[i] = randomDistChar(g);
+            h_values[i] = randomDistChar(g);
         }
         uint64_t* d_keys;
         cudaMalloc(&d_keys, sizeof(uint64_t) * 2 * data_size);
+        cudaMemcpy(d_keys, h_keys.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
         uint64_t* d_values;
         cudaMalloc(&d_values, sizeof(uint64_t) * 2 * data_size);
+        cudaMemcpy(d_values, h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
 
         std::array<uint64_t*, NUM_GPUS> d_keys_gpu;
         std::array<uint64_t*, NUM_GPUS> d_values_gpu;
         d_keys_gpu[world_rank()] = d_keys;
         d_values_gpu[world_rank()] = d_values;
-        cudaIpcMemHandle_t handleSend;
-        cudaIpcMemHandle_t handleVSend;
-        cudaIpcGetMemHandle(&handleSend, d_keys_gpu[world_rank()]);
-        cudaIpcGetMemHandle(&handleVSend, d_values_gpu[world_rank()]);
-        for (size_t dst = 0; dst < NUM_GPUS; dst++) {
-            if (mcontext.get_peer_status(world_rank(), dst) != 1) {
-                continue;
-            }
-            comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleSend, 1)), send_count(1), tag(0), destination(dst));
-            comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleVSend, 1)), send_count(1), tag(1), destination(dst));
-
-        }
-        for (size_t src = 0; src < NUM_GPUS; src++) {
-            if (mcontext.get_peer_status(world_rank(), src) != 1) {
-                continue;
-            }
-            cudaIpcMemHandle_t other_handleRecv;
-            cudaIpcMemHandle_t other_handleVRecv;
-            comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleRecv, 1)), recv_count(1), tag(0), source(src));
-            comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleVRecv, 1)), recv_count(1), tag(1), source(src));
-            void* ptrHandleRecv;
-            void* ptrHandleVRecv;
-
-            cudaIpcOpenMemHandle(&ptrHandleRecv, other_handleRecv, cudaIpcMemLazyEnablePeerAccess);
-            CUERR;
-            cudaIpcOpenMemHandle(&ptrHandleVRecv, other_handleVRecv, cudaIpcMemLazyEnablePeerAccess);
-            CUERR;
-
-            printf("[%lu] opened mem handles from %d\n", world_rank(), src);
-            d_keys_gpu[src] = reinterpret_cast<uint64_t*>(ptrHandleRecv);
-            d_values_gpu[src] = reinterpret_cast<uint64_t*>(ptrHandleVRecv);
-
-        }
-        cudaMemcpy(d_keys_gpu[world_rank()], h_keys.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_values_gpu[world_rank()], h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
-        uint64_t* h_temp_mem = (uint64_t*)malloc(sizeof(uint64_t) * data_size);
-        cudaMemcpy(h_temp_mem, d_keys_gpu[0], sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
+        share_gpu_ptr(d_keys_gpu, mcontext);
         comm_world().barrier();
-        for (size_t i = 0; i < data_size; i++)
-        {
-            printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
-        }
+        share_gpu_ptr(d_values_gpu, mcontext);
+        comm_world().barrier();
 
         size_t temp_storage_size = 0;
         cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size, d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8);
@@ -1774,13 +1761,20 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
             d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8, mcontext.get_gpu_default_stream(world_rank()));
         CUERR_CHECK(err);
         mcontext.sync_all_streams();
+        uint64_t* h_temp_mem = (uint64_t*)malloc(sizeof(uint64_t) * data_size);
+        cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
 
+        for (size_t i = 0; i < data_size; i++)
+        {
+            if (world_rank() == 0)
+                printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
+        }
 
 
         mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
-            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[gpu_index] + data_size, d_values_gpu[gpu_index] + data_size, d_keys_gpu[gpu_index], d_values_gpu[gpu_index] , nullptr, nullptr };
+            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[world_rank()] + data_size, d_values_gpu[world_rank()] + data_size, d_keys_gpu[world_rank()], d_values_gpu[world_rank()] , nullptr, nullptr };
         }
 
         QDAllocator host_pinned_allocator(h_temp_mem, data_size);
@@ -1799,7 +1793,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         size_t gb = 1 << 10;
         double num_GB = (double)bytes / (double)gb;
         printf("[%lu] elements: %lu KB: %15.9f, time: %15.9f\n", world_rank(), data_size, num_GB, (end - start));
-        cudaMemcpy(h_temp_mem, d_keys_gpu[world_rank()] + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
         for (size_t i = 0; i < data_size; i++)
         {
             printf("[%lu] merged key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
