@@ -1990,6 +1990,7 @@ int main(int argc, char** argv)
         cudaFree(temp_storage);
         cudaFree(keys_out);
     }
+    auto& t = kamping::measurements::timer();
     t.aggregate_and_print(
         kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
     std::cout << std::endl;
