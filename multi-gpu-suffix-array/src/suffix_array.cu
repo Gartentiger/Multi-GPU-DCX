@@ -460,7 +460,6 @@ public:
         {
             printf("[%lu] splitter index [%lu]: %lu\n", world_rank(), i, h_split_index[i]);
         }
-
         std::vector<size_t> send_sizes(NUM_GPUS, 0);
         send_sizes[0] = h_split_index[0];
         // last split index is size
@@ -473,6 +472,13 @@ public:
             printf("[%lu] send size[%lu]: %lu\n", world_rank(), i, send_sizes[i]);
         }
         cudaFreeAsync(split_index, mcontext.get_gpu_default_stream(world_rank()));
+        comm_world().barrier();
+
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+
+
         // comm_world().reduce_single(send_buf(std::span<size_t>(h_split_index.data() + world_rank(), 1)), op(ops::plus<size_t>()), root(world_rank()));
         std::vector<size_t> recv_sizes;
 
