@@ -1840,6 +1840,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         //     d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8, mcontext.get_gpu_default_stream(world_rank()));
         // CUERR_CHECK(err);
         mcontext.sync_all_streams();
+        mcontext.get_mgpu_default_context_for_device(world_rank()).reset_temp_memory();
         t.stop();
         t.start("merge");
         merge_manager.merge(ranges, std::less<uint64_t>());
