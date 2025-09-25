@@ -1939,9 +1939,9 @@ int main(int argc, char** argv)
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, 255);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
-    std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, 599);
+    std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
     using T = uint64_t;
-    for (size_t round = 8; round < 9; round++)
+    for (size_t round = 1; round < 2; round++)
     {
         uint32_t randomDataSize = 32;
         randomDataSize *= 2 << round;
