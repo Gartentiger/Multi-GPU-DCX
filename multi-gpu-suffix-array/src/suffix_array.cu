@@ -384,7 +384,7 @@ public:
         CUERR;
         // printf("[%lu] copied sample positions to device\n", world_rank());
         // sample position to sample element
-        kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples + world_rank() * sample_size, sample_size);
+        kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples, sample_size);
         cudaFreeAsync(d_samples_pos, mcontext.get_gpu_default_stream(world_rank()));
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size, world_rank());
         mcontext.sync_all_streams();
@@ -1941,7 +1941,7 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
     using T = uint64_t;
-    for (size_t round = 1; round < 2; round++)
+    for (size_t round = 3; round < 4; round++)
     {
         uint32_t randomDataSize = 32;
         randomDataSize *= 2 << round;
