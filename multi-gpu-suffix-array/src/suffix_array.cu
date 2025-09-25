@@ -1985,7 +1985,6 @@ int main(int argc, char** argv)
         size_t gb = 1 << 30;
         size_t num_GB = bytes / gb;
         // printf("[%lu] elements: %10u,  %5lu GB, time: %15.9f\n", world_rank(), randomDataSize, num_GB, (end - start));
-        auto& t = kamping::measurements::timer();
         t.aggregate_and_print(
             kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
         std::cout << std::endl;
