@@ -1972,7 +1972,7 @@ int main(int argc, char** argv)
         // context.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_storage, sizeof(MergeSuffixes) * randomDataSize * 2);
         size_t bytes = sizeof(T) * randomDataSize;
         auto& t = kamping::measurements::timer();
-        const char sf[30];
+        char sf[30];
         sprintf(sf, "sample_sort_%lu", bytes);
         t.synchronize_and_start(sf);
         T* keys_out;
