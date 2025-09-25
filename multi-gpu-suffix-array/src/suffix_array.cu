@@ -1818,7 +1818,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
-            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[gpu_index] + data_size, d_values_gpu[gpu_index] + data_size, d_keys_gpu[gpu_index], d_values_gpu[gpu_index] , nullptr, nullptr };
+            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index,d_keys_gpu[gpu_index], d_values_gpu[gpu_index] , d_keys_gpu[gpu_index] + data_size, d_values_gpu[gpu_index] + data_size,  nullptr, nullptr };
         }
 
         QDAllocator host_pinned_allocator(h_temp_mem, data_size);
@@ -1834,9 +1834,11 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         sprintf(sf, "sample_sort_%lu", bytes);
         t.synchronize_and_start(sf);
         t.start("init_sort");
-        err = cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
-            d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8, mcontext.get_gpu_default_stream(world_rank()));
-        CUERR_CHECK(err);
+        mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp, temp_storage_size);
+        mgpu::mergesort(d_keys, data_size, std::less<uint64_t>(), mcontext.get_mgpu_default_context_for_device(world_rank()));
+        // err = cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
+        //     d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8, mcontext.get_gpu_default_stream(world_rank()));
+        // CUERR_CHECK(err);
         mcontext.sync_all_streams();
         t.stop();
         t.start("merge");
