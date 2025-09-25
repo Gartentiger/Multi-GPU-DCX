@@ -1939,7 +1939,7 @@ int main(int argc, char** argv)
     for (size_t round = 20; round < 21; round++)
     {
         uint32_t randomDataSize = 32;
-        randomDataSize *= round << 2;
+        randomDataSize *= 2 << round;
         std::vector<T> randomvalue(randomDataSize);
         for (uint32_t i = 0; i < randomDataSize; i++)
         {
