@@ -1941,7 +1941,7 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, 599);
     using T = uint64_t;
-    for (size_t round = 22; round < 23; round++)
+    for (size_t round = 21; round < 22; round++)
     {
         uint32_t randomDataSize = 32;
         randomDataSize *= 2 << round;
