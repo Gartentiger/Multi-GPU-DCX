@@ -379,7 +379,7 @@ public:
         CUERR;
         printf("[%lu] copied sample positions to device\n", world_rank());
         // sample position to sample element
-        kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples, sample_size);
+        kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples + world_rank() * sample_size, sample_size);
         cudaFreeAsync(d_samples_pos, mcontext.get_gpu_default_stream(world_rank()));
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size, world_rank());
         mcontext.sync_all_streams();
@@ -393,13 +393,19 @@ public:
 
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
         {
-            NCCLCHECK(ncclSend(d_samples, sizeof(key) * sample_size, ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
+            if (dst == world_rank()) {
+                continue;
+            }
+
+            NCCLCHECK(ncclSend(d_samples + world_rank() * sample_size, sizeof(key) * sample_size, ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
             // comm_world().isend(send_buf(std::span<key>(d_samples, sample_size)), send_count(sample_size), destination(dst));;
-            printf("[%lu] send keys\n", world_rank());
         }
 
         for (size_t src = 0; src < NUM_GPUS; src++)
         {
+            if (src == world_rank()) {
+                continue;
+            }
             // comm_world().irecv(recv_buf(std::span<key>(d_samples + src * sample_size, sample_size)), recv_count(sample_size), source(src));;
 
             NCCLCHECK(ncclRecv(d_samples + src * sample_size, sizeof(key) * sample_size, ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
