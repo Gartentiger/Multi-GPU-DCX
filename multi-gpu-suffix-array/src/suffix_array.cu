@@ -1937,7 +1937,7 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
     using T = uint64_t;
-    for (size_t round = 0; round < 20; round++)
+    for (size_t round = 18; round < 22; round++)
     {
         uint32_t randomDataSize = 32;
         randomDataSize *= 2 << round;
@@ -1985,15 +1985,22 @@ int main(int argc, char** argv)
         size_t gb = 1 << 30;
         size_t num_GB = bytes / gb;
         // printf("[%lu] elements: %10u,  %5lu GB, time: %15.9f\n", world_rank(), randomDataSize, num_GB, (end - start));
-        t.aggregate_and_print(
-            kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
-        std::cout << std::endl;
-        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        std::cout << std::endl;
+
         cudaFree(suffixes);
         cudaFree(temp_storage);
         cudaFree(keys_out);
     }
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
+    std::ofstream outFile(argv[1], std::ios::app);
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
     return;
     sorter.alloc();
     // auto stringPath = ((std::string)argv[3]);
