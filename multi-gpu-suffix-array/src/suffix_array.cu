@@ -373,24 +373,27 @@ public:
         // sample position to sample element
         kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples, sample_size);
         cudaFreeAsync(d_samples_pos, mcontext.get_gpu_default_stream(world_rank()));
-        printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size, world_rank());
         mcontext.sync_all_streams();
+        printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
         comm_world().barrier();
 
 
         // send samples
 
         ncclGroupStart();
+
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
         {
             NCCLCHECK(ncclSend(d_samples, sizeof(key) * sample_size, ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
-
+            // comm_world().isend(send_buf(std::span<key>(d_samples, sample_size)), send_count(sample_size), destination(dst));;
             printf("[%lu] send keys\n", world_rank());
         }
 
         for (size_t src = 0; src < NUM_GPUS; src++)
         {
+            // comm_world().irecv(recv_buf(std::span<key>(d_samples + src * sample_size, sample_size)), recv_count(sample_size), source(src));;
+
             NCCLCHECK(ncclRecv(d_samples + src * sample_size, sizeof(key) * sample_size, ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
         }
 
@@ -468,12 +471,16 @@ public:
         ncclGroupStart();
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
         {
+            // comm_world().isend(send_buf(std::span<key>(keys + send_sum, send_sizes[dst])), send_count(send_sizes[dst]), destination(dst));;
+
             NCCLCHECK(ncclSend(keys + send_sum, sizeof(key) * send_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
             send_sum += send_sizes[dst];
         }
 
         for (size_t src = 0; src < NUM_GPUS; src++)
         {
+            // comm_world().irecv(recv_buf(std::span<key>(keys_out + recv_sum, recv_sizes[src])), recv_count(recv_sizes[src]), source(src));;
+
             NCCLCHECK(ncclRecv(keys_out + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
             recv_sum += recv_sizes[src];
         }
@@ -1845,7 +1852,7 @@ int main(int argc, char** argv)
         Id = comm_world().bcast_single<ncclUniqueId>();
     }
 
-    NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
+    // NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
     printf("[%lu] Active nccl comm\n", world_rank());
 
     if (argc != 3)
@@ -1873,7 +1880,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    // std::array<uint, NUM_GPUS> gpu_ids2{ 0,0 };
+    // std::array<uint, NUM_GPUS> gpu_ids2{ 0,0,0,0 };
 
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, nullptr, NUM_GPUS_PER_NODE);
@@ -1887,7 +1894,7 @@ int main(int argc, char** argv)
     cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 2, 0, cudaMemcpyHostToDevice);
     CUERR;
     SuffixSorter sorter(context, realLen, input);
-    uint32_t randomDataSize = 128;
+    uint32_t randomDataSize = 32;
     CUERR;
     std::random_device rd;
     std::mt19937 g(rd());
