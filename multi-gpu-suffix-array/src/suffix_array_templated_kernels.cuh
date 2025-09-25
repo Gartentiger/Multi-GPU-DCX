@@ -224,8 +224,8 @@ namespace kernels {
         samples[tidx] = samples[sample_count * (tidx + 1)];
     }
 
-    template<typename key>
-    __global__ void find_split_index(key* keys, size_t* split_index, key* splitter, size_t size, DC7Comparator comp) {
+    template<typename key, typename Compare>
+    __global__ void find_split_index(key* keys, size_t* split_index, key* splitter, size_t size, Compare comp) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
         // for the send sizes
         printf("splitter: %u\n", splitter[tidx].index);

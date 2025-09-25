@@ -324,8 +324,8 @@ public:
     {
     }
 
-    void SampleSort(MergeSuffixes* keys, MergeSuffixes*& keys_out, void* temp_mem, size_t size, size_t& out_size, size_t sample_size) {
-        using key = MergeSuffixes;
+    template<typename key, typename Compare>
+    void SampleSort(key* keys, key*& keys_out, void* temp_mem, size_t size, size_t& out_size, size_t sample_size, Compare cmp) {
         ASSERT(sample_size < size);
         // SaGPU gpu = mgpus[world_rank()];
         // size_t count = gpu.num_elements - gpu.pd_elements;
@@ -336,8 +336,8 @@ public:
 
         // pre sort for easy splitter index binary search 
         // size_t temp_storage_size = 0;
-        mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(MergeSuffixes) * size * 2);
-        mgpu::mergesort(keys, size, DC7Comparator{}, mcontext.get_mgpu_default_context_for_device(world_rank()));
+        mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(key) * size * 2);
+        mgpu::mergesort(keys, size, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
         mcontext.sync_all_streams();
         printf("[%lu] sorted keys\n", world_rank());
 
@@ -410,7 +410,7 @@ public:
         // Sort samples
 
         mcontext.get_mgpu_default_context_for_device(world_rank()).reset_temp_memory();
-        mgpu::mergesort(d_samples, sample_size * NUM_GPUS, DC7Comparator{}, mcontext.get_mgpu_default_context_for_device(world_rank()));
+        mgpu::mergesort(d_samples, sample_size * NUM_GPUS, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
         mcontext.sync_all_streams();
 
         printf("[%lu] sorted samples\n", world_rank());
@@ -431,7 +431,7 @@ public:
 
         size_t* split_index;
         cudaMalloc(&split_index, sizeof(size_t) * NUM_GPUS);
-        kernels::find_split_index << <1, NUM_GPUS, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index, d_samples, size, DC7Comparator{});
+        kernels::find_split_index << <1, NUM_GPUS, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index, d_samples, size, cmp);
         std::vector<size_t> h_split_index(NUM_GPUS, 0);
         cudaMemcpyAsync(h_split_index.data(), split_index, sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(d_samples, mcontext.get_gpu_default_stream(world_rank()));
@@ -459,7 +459,7 @@ public:
         recv_sizes = comm_world().alltoall(send_buf(send_sizes));
 
         out_size = std::accumulate(recv_sizes.begin(), recv_sizes.end(), 0);
-        cudaMalloc(&keys_out, sizeof(MergeSuffixes) * out_size);
+        cudaMalloc(&keys_out, sizeof(key) * out_size);
 
 
         size_t send_sum = 0;
@@ -487,7 +487,7 @@ public:
         // cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
 
         mcontext.get_mgpu_default_context_for_device(world_rank()).reset_temp_memory();
-        mgpu::mergesort(keys_out, out_size, DC7Comparator{}, mcontext.get_mgpu_default_context_for_device(world_rank()));
+        mgpu::mergesort(keys_out, out_size, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys_out, out_size, world_rank());
         mcontext.sync_all_streams();
         printf("[%lu] keys sorted\n", world_rank());
@@ -1887,54 +1887,64 @@ int main(int argc, char** argv)
     cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 2, 0, cudaMemcpyHostToDevice);
     CUERR;
     SuffixSorter sorter(context, realLen, input);
-    uint32_t randomDataSize = 1024;
+    uint32_t randomDataSize = 128;
     CUERR;
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, 255);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
-    for (size_t round = 0; round < 6; round++)
+    std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
+    using T = uint64_t;
+    for (size_t round = 0; round < 1; round++)
     {
         randomDataSize *= 2;
-        std::vector<MergeSuffixes> randomvalue(randomDataSize);
+        std::vector<T> randomvalue(randomDataSize);
         for (uint32_t i = 0; i < randomDataSize; i++)
         {
-            MergeSuffixes ms;
-            ms.index = i;
+            // MergeSuffixes ms;
+            // ms.index = i;
 
-            for (size_t c = 0; c < DCX::X; c++)
-            {
-                ms.prefix[c] = randomDistChar(g);
-            }
-            for (size_t r = 0; r < DCX::C; r++)
-            {
-                ms.ranks[r] = randomDistUint(g);
-            }
-            randomvalue[i] = ms;
+            // for (size_t c = 0; c < DCX::X; c++)
+            // {
+            //     ms.prefix[c] = randomDistChar(g);
+            // }
+            // for (size_t r = 0; r < DCX::C; r++)
+            // {
+            //     ms.ranks[r] = randomDistUint(g);
+            // }
+            randomvalue[i] = randomDistSize(g);
         }
 
-        MergeSuffixes* suffixes;
-        cudaMalloc(&suffixes, sizeof(MergeSuffixes) * randomDataSize);
-        cudaMemcpy(suffixes, randomvalue.data(), sizeof(MergeSuffixes) * randomDataSize, cudaMemcpyHostToDevice);
+        T* suffixes;
+        cudaMalloc(&suffixes, sizeof(T) * randomDataSize);
+        cudaMemcpy(suffixes, randomvalue.data(), sizeof(T) * randomDataSize, cudaMemcpyHostToDevice);
 
         CUERR;
-        MergeSuffixes* temp_storage;
-        cudaMalloc(&temp_storage, sizeof(MergeSuffixes) * randomDataSize * 2);
+        T* temp_storage;
+        cudaMalloc(&temp_storage, sizeof(T) * randomDataSize * 2);
         size_t out_size = 0;
         // std::vector<MergeSuffixes> keys_out_host;
         // sorter.HostSampleSort(randomvalue, keys_out_host, randomDataSize, a);
         const int a = (int)(16 * log(NUM_GPUS) / log(2.));
         // context.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_storage, sizeof(MergeSuffixes) * randomDataSize * 2);
         double start = MPI_Wtime();
-        MergeSuffixes* keys_out;
+        T* keys_out;
         // mgpu::mergesort(suffixes, randomDataSize, DC7Comparator{}, context.get_mgpu_default_context_for_device(world_rank()));
-        sorter.SampleSort(suffixes, keys_out, randomDataSize, out_size, a + 1);
+        sorter.SampleSort(suffixes, keys_out, temp_storage, randomDataSize, out_size, a + 1, std::less<uint64_t>());
         context.sync_all_streams();
         double end = MPI_Wtime();
-        size_t bytes = sizeof(MergeSuffixes) * randomDataSize;
+        size_t bytes = sizeof(T) * randomDataSize;
         size_t gb = 30 << 1;
         double num_GB = (double)bytes / (double)gb;
         printf("[%lu] elements: %u bytes: %10li, time: %15.9f\n", world_rank(), randomDataSize, num_GB, (end - start));
+        randomvalue.reserve(out_size);
+        cudaMemcpy(randomvalue.data(), suffixes, sizeof(T) * out_size, cudaMemcpyDeviceToHost);
+
+        for (size_t i = 0; i < out_size; i++)
+        {
+            printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, randomvalue[i]);
+        }
+
         cudaFree(suffixes);
         cudaFree(temp_storage);
         cudaFree(keys_out);
