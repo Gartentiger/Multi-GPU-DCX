@@ -346,7 +346,7 @@ public:
         // pre sort for easy splitter index binary search 
         // size_t temp_storage_size = 0;
         t.synchronize_and_start("init_sort");
-        mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(key) * size * 2);
+        mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(key) * size * 3);
         mgpu::mergesort(keys, size, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
         mcontext.sync_all_streams();
         t.stop();
@@ -1941,7 +1941,7 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, 599);
     using T = uint64_t;
-    for (size_t round = 20; round < 21; round++)
+    for (size_t round = 8; round < 9; round++)
     {
         uint32_t randomDataSize = 32;
         randomDataSize *= 2 << round;
@@ -1968,7 +1968,7 @@ int main(int argc, char** argv)
 
         CUERR;
         T* temp_storage;
-        cudaMalloc(&temp_storage, sizeof(T) * randomDataSize * 2);
+        cudaMalloc(&temp_storage, sizeof(T) * randomDataSize * 3);
         size_t out_size = 0;
         // std::vector<MergeSuffixes> keys_out_host;
         // sorter.HostSampleSort(randomvalue, keys_out_host, randomDataSize, a);
