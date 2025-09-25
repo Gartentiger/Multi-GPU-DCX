@@ -169,6 +169,15 @@ __global__ void printArrayss(const unsigned char* input, size_t size, size_t ran
     }
     printf("---------------------------------------------------------------------------\n");
 }
+__global__ void printArrayss(uint64_t* input, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+
+        printf("[%lu] data: %c\n", rank, input[i]);
+        // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
 __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, size_t rank)
 {
     printf("[%lu] isa: ", rank);
