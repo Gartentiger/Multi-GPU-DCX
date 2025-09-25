@@ -228,7 +228,7 @@ namespace kernels {
     __global__ void find_split_index(key* keys, size_t* split_index, key* splitter, size_t size, Compare comp) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
         // for the send sizes
-        printf("splitter: %u\n", splitter[tidx].index);
+        // printf("splitter: %u\n", splitter[tidx].index);
         if (tidx >= NUM_GPUS - 1) {
             split_index[tidx] = size;
             return;
@@ -244,7 +244,7 @@ namespace kernels {
         while (start < end)
         {
             index = (start + end) / 2;
-            printf("start: %lu, end: %lu, index: %lu, key: %u, comp: %s\n", start, end, index, keys[index].index, comp(splitter[tidx], keys[index]) ? "true" : "false");
+            // printf("start: %lu, end: %lu, index: %lu, key: %u, comp: %s\n", start, end, index, keys[index].index, comp(splitter[tidx], keys[index]) ? "true" : "false");
             if (comp(splitter[tidx], keys[index])) {
                 end = index;
             }
