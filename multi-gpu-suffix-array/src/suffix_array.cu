@@ -347,7 +347,7 @@ public:
         mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(key) * size * 2);
         mgpu::mergesort(keys, size, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
         mcontext.sync_all_streams();
-        printf("[%lu] sorted keys\n", world_rank());
+        // printf("[%lu] sorted keys\n", world_rank());
 
         // cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys, size, DC7Comparator{});
         // void* temp;
@@ -366,9 +366,9 @@ public:
         for (size_t i = 0; i < sample_size; i++)
         {
             h_samples_pos[i] = randomDist(g);
-            printf("[%lu] samples pos[%lu]: %lu\n", world_rank(), i, h_samples_pos[i]);
+            // printf("[%lu] samples pos[%lu]: %lu\n", world_rank(), i, h_samples_pos[i]);
         }
-        printf("[%lu] picked sample positions\n", world_rank());
+        // printf("[%lu] picked sample positions\n", world_rank());
 
         size_t* d_samples_pos;
         cudaMalloc(&d_samples_pos, sizeof(size_t) * sample_size);
@@ -377,14 +377,14 @@ public:
         CUERR;
         free(h_samples_pos);
         CUERR;
-        printf("[%lu] copied sample positions to device\n", world_rank());
+        // printf("[%lu] copied sample positions to device\n", world_rank());
         // sample position to sample element
         kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples + world_rank() * sample_size, sample_size);
         cudaFreeAsync(d_samples_pos, mcontext.get_gpu_default_stream(world_rank()));
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size, world_rank());
         mcontext.sync_all_streams();
-        printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
+        // comm_world().barrier();
 
 
         // send samples
@@ -416,7 +416,7 @@ public:
         mcontext.sync_all_streams();
         comm_world().barrier();
 
-        printf("[%lu] received all samples\n", world_rank());
+        // printf("[%lu] received all samples\n", world_rank());
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
 
         // cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, (MergeSuffixes*)d_samples, sample_size * NUM_GPUS, DC7Comparator{});
@@ -430,22 +430,22 @@ public:
         mgpu::mergesort(d_samples, sample_size * NUM_GPUS, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
         mcontext.sync_all_streams();
 
-        printf("[%lu] sorted samples\n", world_rank());
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+        // printf("[%lu] sorted samples\n", world_rank());
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
+        // mcontext.sync_all_streams();
+        // comm_world().barrier();
 
         kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size);
         mcontext.sync_all_streams();
-        printf("[%lu] picked splitters\n", world_rank());
+        // printf("[%lu] picked splitters\n", world_rank());
 
 
 
         // comm_world().bcast(send_recv_buf(std::span<key>(d_samples, NUM_GPUS - 1)), send_recv_count(NUM_GPUS - 1), root(0));
 
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, NUM_GPUS - 1, world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, NUM_GPUS - 1, world_rank());
+        // mcontext.sync_all_streams();
+        // comm_world().barrier();
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), d_s thrust::placeholders::_1 * sample_size);
 
 
@@ -456,10 +456,10 @@ public:
         cudaMemcpyAsync(h_split_index.data(), split_index, sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(d_samples, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
-        for (size_t i = 0; i < NUM_GPUS; i++)
-        {
-            printf("[%lu] splitter index [%lu]: %lu\n", world_rank(), i, h_split_index[i]);
-        }
+        // for (size_t i = 0; i < NUM_GPUS; i++)
+        // {
+        //     printf("[%lu] splitter index [%lu]: %lu\n", world_rank(), i, h_split_index[i]);
+        // }
         std::vector<size_t> send_sizes(NUM_GPUS, 0);
         send_sizes[0] = h_split_index[0];
         // last split index is size
@@ -467,16 +467,16 @@ public:
         {
             send_sizes[i] = h_split_index[i] - h_split_index[i - 1];
         }
-        for (size_t i = 0; i < NUM_GPUS; i++)
-        {
-            printf("[%lu] send size[%lu]: %lu\n", world_rank(), i, send_sizes[i]);
-        }
+        // for (size_t i = 0; i < NUM_GPUS; i++)
+        // {
+        //     printf("[%lu] send size[%lu]: %lu\n", world_rank(), i, send_sizes[i]);
+        // }
         cudaFreeAsync(split_index, mcontext.get_gpu_default_stream(world_rank()));
-        comm_world().barrier();
+        // comm_world().barrier();
 
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
+        // mcontext.sync_all_streams();
+        // comm_world().barrier();
 
 
         // comm_world().reduce_single(send_buf(std::span<size_t>(h_split_index.data() + world_rank(), 1)), op(ops::plus<size_t>()), root(world_rank()));
@@ -510,7 +510,7 @@ public:
         ncclGroupEnd();
         mcontext.sync_all_streams();
         comm_world().barrier();
-        printf("[%lu] reordered keys with splitter\n", world_rank());
+        // printf("[%lu] reordered keys with splitter\n", world_rank());
         // cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys_out, out_size, DC7Comparator{});
         // cudaMalloc(&temp, temp_storage_size);
         // cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys_out, out_size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
@@ -520,7 +520,7 @@ public:
         mgpu::mergesort(keys_out, out_size, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys_out, out_size, world_rank());
         mcontext.sync_all_streams();
-        printf("[%lu] keys sorted\n", world_rank());
+        // printf("[%lu] keys sorted\n", world_rank());
         comm_world().barrier();
 
     }
@@ -1961,15 +1961,15 @@ int main(int argc, char** argv)
         T* keys_out;
         // mgpu::mergesort(suffixes, randomDataSize, DC7Comparator{}, context.get_mgpu_default_context_for_device(world_rank()));
         sorter.SampleSort(suffixes, keys_out, temp_storage, randomDataSize, out_size, a + 1, std::less<uint64_t>());
-        context.sync_all_streams();
+        // context.sync_all_streams();
         double end = MPI_Wtime();
         size_t bytes = sizeof(T) * randomDataSize;
         size_t gb = 30 << 1;
         double num_GB = (double)bytes / (double)gb;
         printf("[%lu] elements: %u bytes: %10li, time: %15.9f\n", world_rank(), randomDataSize, num_GB, (end - start));
         randomvalue.reserve(out_size);
-        cudaMemcpy(randomvalue.data(), suffixes, sizeof(T) * out_size, cudaMemcpyDeviceToHost);
-
+        cudaMemcpy(randomvalue.data(), keys_out, sizeof(T) * out_size, cudaMemcpyDeviceToHost);
+        comm_world().barrier();
         for (size_t i = 0; i < out_size; i++)
         {
             printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, randomvalue[i]);
