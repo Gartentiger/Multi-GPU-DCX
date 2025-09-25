@@ -86,7 +86,7 @@ public:
         }
         CUERR;
 
-
+        return;
         // compute the connectivity matrix
 
         uint src = get_device_id(world_rank());
@@ -133,7 +133,7 @@ public:
                     if (THROW_EXCEPTIONS)
                     {
                         if (src == dst) {
-                            // continue;
+                            continue;
                             throw std::invalid_argument("Device identifiers are not unique inside a node.");
                         }
                     }
