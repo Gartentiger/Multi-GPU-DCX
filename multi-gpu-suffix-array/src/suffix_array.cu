@@ -1929,7 +1929,6 @@ int main(int argc, char** argv)
     cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 2, 0, cudaMemcpyHostToDevice);
     CUERR;
     SuffixSorter sorter(context, realLen, input);
-    uint32_t randomDataSize = 32;
     CUERR;
     std::random_device rd;
     std::mt19937 g(rd());
@@ -1937,9 +1936,10 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, 599);
     using T = uint64_t;
-    for (size_t round = 9; round < 10; round++)
+    for (size_t round = 10; round < 11; round++)
     {
-        randomDataSize *= 2;
+        uint32_t randomDataSize = 32;
+        randomDataSize *= round << 2;
         std::vector<T> randomvalue(randomDataSize);
         for (uint32_t i = 0; i < randomDataSize; i++)
         {
@@ -1977,8 +1977,8 @@ int main(int argc, char** argv)
         double end = MPI_Wtime();
         size_t bytes = sizeof(T) * randomDataSize;
         size_t gb = 30 << 1;
-        double num_GB = (double)bytes / (double)gb;
-        printf("[%lu] elements: %10u,  %5.2f GB, time: %15.9f\n", world_rank(), randomDataSize, num_GB, (end - start));
+        size_t num_GB = bytes / gb;
+        printf("[%lu] elements: %10u,  %5lu GB, time: %15.9f\n", world_rank(), randomDataSize, num_GB, (end - start));
         auto& t = kamping::measurements::timer();
         t.aggregate_and_print(
             kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
