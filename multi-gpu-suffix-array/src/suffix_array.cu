@@ -363,9 +363,7 @@ public:
         // pick random sample positions
         t.synchronize_and_start("sampling");
         key* d_samples;
-        cudaMalloc(&d_samples, sizeof(key) * sample_size);
-        key* d_samples_recv;
-        cudaMalloc(&d_samples_recv, sizeof(key) * sample_size * NUM_GPUS);
+        cudaMalloc(&d_samples, sizeof(key) * sample_size * NUM_GPUS);
         CUERR;
         size_t* h_samples_pos = (size_t*)malloc(sizeof(size_t) * sample_size);
         for (size_t i = 0; i < sample_size; i++)
@@ -384,7 +382,7 @@ public:
         CUERR;
         // printf("[%lu] copied sample positions to device\n", world_rank());
         // sample position to sample element
-        kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples, sample_size);
+        kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples + world_rank() * sample_size, sample_size);
         cudaFreeAsync(d_samples_pos, mcontext.get_gpu_default_stream(world_rank()));
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size, world_rank());
         mcontext.sync_all_streams();
@@ -398,28 +396,26 @@ public:
 
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
         {
-            // if (dst == world_rank()) {
-            //     continue;
-            // }
+            if (dst == world_rank()) {
+                continue;
+            }
 
-            NCCLCHECK(ncclSend(d_samples, sizeof(key) * sample_size, ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
+            NCCLCHECK(ncclSend(d_samples + world_rank() * sample_size, sizeof(key) * sample_size, ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
             // comm_world().isend(send_buf(std::span<key>(d_samples, sample_size)), send_count(sample_size), destination(dst));;
         }
 
         for (size_t src = 0; src < NUM_GPUS; src++)
         {
-            // if (src == world_rank()) {
-            //     continue;
-            // }
+            if (src == world_rank()) {
+                continue;
+            }
             // comm_world().irecv(recv_buf(std::span<key>(d_samples + src * sample_size, sample_size)), recv_count(sample_size), source(src));;
 
-            NCCLCHECK(ncclRecv(d_samples_recv + src * sample_size, sizeof(key) * sample_size, ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
+            NCCLCHECK(ncclRecv(d_samples + src * sample_size, sizeof(key) * sample_size, ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
         }
 
         ncclGroupEnd();
         mcontext.sync_all_streams();
-        cudaFree(d_samples);
-        d_samples = d_samples_recv;
         comm_world().barrier();
 
         t.stop();
@@ -1941,7 +1937,7 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
     using T = uint64_t;
-    for (size_t round = 3; round < 4; round++)
+    for (size_t round = 0; round < 10; round++)
     {
         uint32_t randomDataSize = 32;
         randomDataSize *= 2 << round;
