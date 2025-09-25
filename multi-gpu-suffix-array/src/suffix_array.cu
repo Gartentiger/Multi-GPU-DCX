@@ -1837,7 +1837,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         comm_world().barrier();
         double end = MPI_Wtime();
         size_t bytes = sizeof(uint64_t) * data_size;
-        size_t gb = 30 << 1;
+        size_t gb = 1 << 30;
         double num_GB = (double)bytes / (double)gb;
         if (world_rank() == 0)
             printf("[%lu] elements: %lu, %10li GB, time: %15.9f\n", world_rank(), data_size, num_GB, (end - start));
@@ -1934,9 +1934,9 @@ int main(int argc, char** argv)
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, 255);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
-    std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
+    std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, 599);
     using T = uint64_t;
-    for (size_t round = 10; round < 11; round++)
+    for (size_t round = 20; round < 21; round++)
     {
         uint32_t randomDataSize = 32;
         randomDataSize *= round << 2;
@@ -1976,7 +1976,7 @@ int main(int argc, char** argv)
         // context.sync_all_streams();
         double end = MPI_Wtime();
         size_t bytes = sizeof(T) * randomDataSize;
-        size_t gb = 30 << 1;
+        size_t gb = 1 << 30;
         size_t num_GB = bytes / gb;
         printf("[%lu] elements: %10u,  %5lu GB, time: %15.9f\n", world_rank(), randomDataSize, num_GB, (end - start));
         auto& t = kamping::measurements::timer();
