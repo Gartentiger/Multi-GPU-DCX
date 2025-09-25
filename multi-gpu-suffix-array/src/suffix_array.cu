@@ -1828,7 +1828,11 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)(data_size) });
         mcontext.sync_all_streams();
-        double start = MPI_Wtime();
+        auto& t = kamping::measurements::timer();
+        char sf[30];
+        size_t bytes = sizeof(uint64_t) * data_size;
+        sprintf(sf, "sample_sort_%lu", bytes);
+        t.synchronize_and_start(sf);
         err = cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
             d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8, mcontext.get_gpu_default_stream(world_rank()));
         CUERR_CHECK(err);
@@ -1836,12 +1840,11 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         merge_manager.merge(ranges, std::less<uint64_t>());
         mcontext.sync_all_streams();
         comm_world().barrier();
-        double end = MPI_Wtime();
-        size_t bytes = sizeof(uint64_t) * data_size;
+        t.stop();
         size_t gb = 1 << 30;
         double num_GB = (double)bytes / (double)gb;
-        if (world_rank() == 0)
-            printf("[%lu] elements: %lu, %10li GB, time: %15.9f\n", world_rank(), data_size, num_GB, (end - start));
+        // if (world_rank() == 0)
+        //     printf("[%lu] elements: %lu, %10li GB, time: %15.9f\n", world_rank(), data_size, num_GB, (end - start));
         // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
         // for (size_t i = 0; i < data_size; i++)
         // {
@@ -1852,9 +1855,9 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         cudaFree(temp);
         cudaFree(d_keys);
         cudaFree(d_values);
-
-
     }
+
+
 }
 
 
@@ -1921,8 +1924,20 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, nullptr, NUM_GPUS_PER_NODE);
 
-    // segmented_sort_measure(context);
-    // return;
+    segmented_sort_measure(context);
+    auto& t = kamping::measurements::timer();
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
+    std::ofstream outFile(argv[1], std::ios::app);
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
+    return;
     // alltoallMeasure(context);
     // ncclMeasure(context);
     // return 0;
@@ -1971,7 +1986,7 @@ int main(int argc, char** argv)
         const int a = (int)(16 * log(NUM_GPUS) / log(2.));
         // context.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_storage, sizeof(MergeSuffixes) * randomDataSize * 2);
         size_t bytes = sizeof(T) * randomDataSize;
-        auto& t = kamping::measurements::timer();
+        // auto& t = kamping::measurements::timer();
         char sf[30];
         sprintf(sf, "sample_sort_%lu", bytes);
         t.synchronize_and_start(sf);
@@ -1990,7 +2005,7 @@ int main(int argc, char** argv)
         cudaFree(temp_storage);
         cudaFree(keys_out);
     }
-    auto& t = kamping::measurements::timer();
+    // auto& t = kamping::measurements::timer();
     t.aggregate_and_print(
         kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
     std::cout << std::endl;
