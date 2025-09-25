@@ -1925,7 +1925,7 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistUint(0, UINT32_MAX);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, 599);
     using T = uint64_t;
-    for (size_t round = 0; round < 1; round++)
+    for (size_t round = 0; round < 10; round++)
     {
         randomDataSize *= 2;
         std::vector<T> randomvalue(randomDataSize);
@@ -1970,9 +1970,11 @@ int main(int argc, char** argv)
         randomvalue.reserve(out_size);
         cudaMemcpy(randomvalue.data(), keys_out, sizeof(T) * out_size, cudaMemcpyDeviceToHost);
         comm_world().barrier();
-        for (size_t i = 0; i < out_size; i++)
-        {
-            printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, randomvalue[i]);
+        if (round == 0) {
+            for (size_t i = 0; i < out_size; i++)
+            {
+                printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, randomvalue[i]);
+            }
         }
 
         cudaFree(suffixes);
