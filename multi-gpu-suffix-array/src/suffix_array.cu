@@ -1766,7 +1766,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 15;
+    size_t rounds = 20;
     size_t data_size = 128;
     for (size_t i = 0; i < rounds; i++)
     {
@@ -1833,18 +1833,22 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         size_t bytes = sizeof(uint64_t) * data_size;
         sprintf(sf, "sample_sort_%lu", bytes);
         t.synchronize_and_start(sf);
+        t.start("init_sort");
         err = cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
             d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8, mcontext.get_gpu_default_stream(world_rank()));
         CUERR_CHECK(err);
         mcontext.sync_all_streams();
+        t.stop();
+        t.start("merge");
         merge_manager.merge(ranges, std::less<uint64_t>());
         mcontext.sync_all_streams();
+        t.stop();
         comm_world().barrier();
         t.stop_and_append();
         size_t gb = 1 << 30;
         double num_GB = (double)bytes / (double)gb;
         if (world_rank() == 0)
-            printf("[%lu] elements: %lu, %10li GB\n", world_rank(), data_size, num_GB);
+            printf("[%lu] elements: %lu, %15.3f GB\n", world_rank(), data_size, num_GB);
         // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
         // for (size_t i = 0; i < data_size; i++)
         // {
