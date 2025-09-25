@@ -2011,9 +2011,9 @@ int main(int argc, char** argv)
     std::cout << std::endl;
     t.aggregate_and_print(kamping::measurements::FlatPrinter{});
     std::cout << std::endl;
-    std::ofstream outFile(argv[1], std::ios::app);
+    std::ofstream outFile2(argv[1], std::ios::app);
     t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+        kamping::measurements::SimpleJsonPrinter{ outFile2, {} });
     std::cout << std::endl;
     t.aggregate_and_print(kamping::measurements::FlatPrinter{});
     std::cout << std::endl;
