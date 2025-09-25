@@ -173,8 +173,7 @@ __global__ void printArrayss(uint64_t* input, size_t size, size_t rank)
 {
     for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu] data: %c\n", rank, input[i]);
-        // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
+        printf("[%lu] data: %lu\n", rank, input[i]);
     }
     printf("---------------------------------------------------------------------------\n");
 }
@@ -426,7 +425,9 @@ public:
         mcontext.sync_all_streams();
 
         printf("[%lu] sorted samples\n", world_rank());
-        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
 
         kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size);
         mcontext.sync_all_streams();
