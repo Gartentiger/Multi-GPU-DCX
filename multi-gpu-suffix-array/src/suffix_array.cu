@@ -1056,7 +1056,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 22;
+    size_t rounds = 21;
     for (size_t r = 0; r < rounds; r++)
     {
         size_t data_size = (128UL << r) - 1UL;
