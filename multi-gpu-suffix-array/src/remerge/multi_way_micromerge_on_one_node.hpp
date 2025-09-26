@@ -43,7 +43,6 @@ namespace crossGPUReMerge {
                     const sa_index_range_t& r2 = (*msrc_ranges)[i + 1];
                     //                    printf("\nMerging %d - %d, %d - %d to %d on node %u, stream %u\n", r1.start, r1.end, r2.start, r2.end,
                     //                           r1.start, mnode.info.index, stream_index);
-                    printf("[%lu] mdo_values: %s\n", world_rank(), mdo_values ? "true" : "false");
                     if (mdo_values) {
                         mgpu::merge(msrc_key_buff + r1.start, msrc_value_buff + r1.start, r1.end - r1.start,
                             msrc_key_buff + r2.start, msrc_value_buff + r2.start, r2.end - r2.start,
@@ -53,6 +52,8 @@ namespace crossGPUReMerge {
                         mgpu::merge(msrc_key_buff + r1.start, r1.end - r1.start,
                             msrc_key_buff + r2.start, r2.end - r2.start,
                             mdest_key_buff + r1.start, mcomp, mgpu_context);CUERR;
+                        mcontext.sync_all_streams();
+                        printf("[%lu] merge\n", world_rank());
                     }
 
                     mdest_ranges->push_back({ r1.start, r2.end });
@@ -68,15 +69,17 @@ namespace crossGPUReMerge {
                     cudaMemcpyAsync(mdest_key_buff + odd_range.start, msrc_key_buff + odd_range.start,
                         sizeof(typename mtypes::key_t) * (odd_range.end - odd_range.start), cudaMemcpyDeviceToDevice,
                         mcontext.get_streams(mnode.info.index)[stream_index]); CUERR
-
-                        if (mstreams_used.size() < NUM_GPUS)
-                            mstreams_used.push_back(stream_index);
+                        mcontext.sync_all_streams();
+                    printf("[%lu] cudamemcpy\n", world_rank());
+                    if (mstreams_used.size() < NUM_GPUS)
+                        mstreams_used.push_back(stream_index);
                     if (mdo_values) {
                         stream_index = (stream_index + 1) % NUM_GPUS;
 
                         cudaMemcpyAsync(mdest_value_buff + odd_range.start, msrc_value_buff + odd_range.start,
                             sizeof(typename mtypes::value_t) * (odd_range.end - odd_range.start), cudaMemcpyDeviceToDevice,
                             mcontext.get_streams(mnode.info.index)[stream_index]); CUERR
+
                             if (mstreams_used.size() < NUM_GPUS)
                                 mstreams_used.push_back(stream_index);
                     }
@@ -93,6 +96,9 @@ namespace crossGPUReMerge {
                         (mpart.dest_range.end - mpart.dest_range.start) * sizeof(typename mtypes::key_t),
                         cudaMemcpyDeviceToDevice,
                         mcontext.get_gpu_default_stream(mnode.info.index));CUERR;
+                    mcontext.sync_all_streams();
+                    printf("[%lu] cudamemcpy2\n", world_rank());
+
                     //                            mcontext.sync_gpu_default_stream(node.info.index);
                     mstreams_used.push_back(0);
                     if (mdo_values) {
@@ -108,7 +114,6 @@ namespace crossGPUReMerge {
         }
 
         void sync_used_streams() {
-            //(mcontext.get_device_id(mnode.info.index)); CUERR;
             for (uint stream_index : mstreams_used) {
                 cudaStreamSynchronize(mcontext.get_streams(mnode.info.index)[stream_index]);CUERR;
             }
