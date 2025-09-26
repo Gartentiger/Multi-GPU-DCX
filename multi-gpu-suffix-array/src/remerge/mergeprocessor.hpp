@@ -701,7 +701,6 @@ namespace crossGPUReMerge
             bool do_values = mnodes[0].info.values != nullptr;
             // t.synchronize_and_start("bcast_do_values");
             comm_world().bcast_single(send_recv_buf(do_values), root(0));
-            printf("[%lu] do_values: %s\n", world_rank(), do_values ? "true" : "false");
             // t.stop();
             mtopology_helper.do_copies_async(copies, detour_sizes, do_values);
             // t.stop();
