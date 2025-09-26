@@ -37,25 +37,29 @@ namespace crossGPUReMerge {
         // We expect the ranges to be non-overlapping, i.e. a GPU can be involved in two merges maximum.
         template <class comp_fun_t>
         void merge(const std::vector<MergeRange>& ranges, comp_fun_t comp) {
+            auto& t = kamping::measurements::timer();
             init_node_utils();
-
             init_micro_ranges(ranges);
             int i = 0;
-            t.start("do_seraches_copy" + std::to_string(i));
+            t.start("merges_loop");
             while (schedule_micro_merges() > 0) {
                 schedule_partitioning_searches();
-                t.start("do_searches:" + std::to_string(i));
+                t.start("sampling_splitting:" + std::to_string(i));
                 mmerge_processor.do_searches(comp);
                 t.stop();
                 create_partitions_from_search_results();
                 //                debug_print();
+                t.start("reorder_merge:" + std::to_string(i));
                 mmerge_processor.do_copy_and_merge(comp);
                 combine_finished_microranges();
+                t.stop();
                 //                std::cerr << "\n\nNew iteration... ---------------------------------------------\n";
             }
+
             //            std::cerr << "\n\nFinished...\n";
             //            debug_print();
             mmerges.clear();
+            t.stop();
         }
 
         void debug_print() const {

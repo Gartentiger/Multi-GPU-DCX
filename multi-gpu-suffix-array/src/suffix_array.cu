@@ -21,7 +21,7 @@
 #include "distrib_merge/distrib_merge.hpp"
 #include <chrono>
 // #include <nvToolsExt.h>
-#include "deps/moderngpu/kernel_mergesort.hxx"
+#include "moderngpu/kernel_mergesort.hxx"
 static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
@@ -1109,6 +1109,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         t.start("init_sort");
         for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
+            cudaSetDevice(mcontext.get_device_id(gpu_index));
             mgpu::mergesort(d_keys_gpu[gpu_index], data_size, std::less<uint64_t>(), mcontext.get_mgpu_default_context_for_device(gpu_index));
         }
         mcontext.sync_all_streams();
@@ -1134,13 +1135,12 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         cudaFreeHost(h_temp_mem);
         for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
+            cudaSetDevice(mcontext.get_device_id(gpu_index));
             cudaFree(temps[gpu_index]);
             cudaFree(d_keys_gpu[gpu_index]);
             // cudaFree(d_values_gpu[gpu_index]);
         }
     }
-
-
 }
 
 int main(int argc, char** argv)
@@ -1174,13 +1174,13 @@ int main(int argc, char** argv)
     std::cout << std::endl;
     t.aggregate_and_print(kamping::measurements::FlatPrinter{});
     std::cout << std::endl;
-    std::ofstream outFile(argv[1], std::ios::app);
+    std::ofstream outFile(argv[2], std::ios::app);
     t.aggregate_and_print(
         kamping::measurements::SimpleJsonPrinter{ outFile, {} });
     std::cout << std::endl;
     t.aggregate_and_print(kamping::measurements::FlatPrinter{});
     std::cout << std::endl;
-
+    return 0;
 
 #endif
     SuffixSorter sorter(context, realLen, input);
