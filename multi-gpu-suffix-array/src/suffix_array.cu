@@ -21,7 +21,7 @@
 #include "distrib_merge/distrib_merge.hpp"
 #include <chrono>
 // #include <nvToolsExt.h>
-
+#include "deps/moderngpu/kernel_mergesort.hxx"
 static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
@@ -1037,6 +1037,108 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context, int max) {
         }
         free(A);
     }
+
+}
+
+void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
+    using merge_types = crossGPUReMerge::mergeTypes<uint64_t, uint64_t>;
+    using MergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, merge_types, ReMergeTopology>;
+    using MergeNodeInfo = crossGPUReMerge::MergeNodeInfo<merge_types>;
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
+    size_t rounds = 22;
+    for (size_t r = 0; r < rounds; r++)
+    {
+        size_t data_size = (128UL << r) - 1UL;
+        std::array<MergeNodeInfo, NUM_GPUS> merge_nodes_info;
+
+        std::array<uint64_t*, NUM_GPUS> d_keys_gpu;
+        std::array<uint64_t*, NUM_GPUS> d_values_gpu;
+        size_t temp_storage_size = sizeof(uint64_t) * data_size * 2;
+        std::array<void*, NUM_GPUS> temps;
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            cudaSetDevice(mcontext.get_device_id(gpu_index));
+            std::vector<uint64_t> h_keys(data_size);
+            std::vector<uint64_t> h_values(data_size);
+
+            for (size_t j = 0; j < data_size; j++)
+            {
+                h_keys[j] = randomDistChar(g);
+                h_values[j] = randomDistChar(g);
+            }
+            uint64_t* d_keys;
+            cudaMalloc(&d_keys, sizeof(uint64_t) * 2 * data_size);
+            cudaMemcpy(d_keys, h_keys.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
+            // uint64_t* d_values;
+            // cudaMalloc(&d_values, sizeof(uint64_t) * 2 * data_size);
+            // // cudaMemset(d_values, 0, sizeof(uint64_t) * data_size);
+            // cudaMemcpy(d_values, h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
+
+            d_keys_gpu[gpu_index] = d_keys;
+            // d_values_gpu[gpu_index] = d_values;
+
+
+            void* temp;
+            cudaMalloc(&temp, temp_storage_size);
+            mcontext.get_device_temp_allocator(gpu_index).init(temp, temp_storage_size);
+
+            merge_nodes_info[gpu_index] = { data_size, 0, (sa_index_t)gpu_index, d_keys_gpu[gpu_index], nullptr , d_keys_gpu[gpu_index] + data_size,  nullptr,  nullptr, nullptr };
+            mcontext.get_mgpu_default_context_for_device(gpu_index).set_device_temp_mem(temp, temp_storage_size);
+            temps[gpu_index] = temp;
+        }
+        uint64_t* h_temp_mem;
+        cudaMallocHost(&h_temp_mem, temp_storage_size);
+        CUERR;
+        memset(h_temp_mem, 0, temp_storage_size);
+        QDAllocator host_pinned_allocator(h_temp_mem, temp_storage_size);
+        MergeManager merge_manager(mcontext, host_pinned_allocator);
+        merge_manager.set_node_info(merge_nodes_info);
+
+        std::vector<crossGPUReMerge::MergeRange> ranges;
+        ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)(data_size) });
+        mcontext.sync_all_streams();
+        auto& t = kamping::measurements::timer();
+        char sf[30];
+        size_t bytes = sizeof(uint64_t) * data_size;
+
+        t.synchronize_and_start("sample_sort");
+        t.start("init_sort");
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            mgpu::mergesort(d_keys_gpu[gpu_index], data_size, std::less<uint64_t>(), mcontext.get_mgpu_default_context_for_device(gpu_index));
+        }
+        mcontext.sync_all_streams();
+        t.stop();
+        t.start("merge");
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            mcontext.get_mgpu_default_context_for_device(gpu_index).reset_temp_memory();
+        }
+        merge_manager.merge(ranges, std::less<uint64_t>());
+        mcontext.sync_all_streams();
+        t.stop();
+        t.stop();
+        size_t mb = 1 << 20;
+        double num_mB = (double)bytes / (double)mb;
+
+        printf("elements: %lu, %8.3f MB\n", data_size, num_mB);
+        // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
+        // for (size_t i = 0; i < data_size; i++)
+        // {
+        //     printf("[%lu] merged key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
+        // }
+        cudaFreeHost(h_temp_mem);
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            cudaFree(temps[gpu_index]);
+            cudaFree(d_keys_gpu[gpu_index]);
+            // cudaFree(d_values_gpu[gpu_index]);
+        }
+    }
+
 
 }
 
