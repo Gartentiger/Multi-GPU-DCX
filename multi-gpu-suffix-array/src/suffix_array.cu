@@ -1764,7 +1764,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 24;
+    size_t rounds = 23;
     for (size_t i = 0; i < rounds; i++)
     {
         size_t data_size = (128UL << i) - 1UL;
@@ -1782,8 +1782,8 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         cudaMemcpy(d_keys, h_keys.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
         uint64_t* d_values;
         cudaMalloc(&d_values, sizeof(uint64_t) * data_size);
-        cudaMemset(d_values, 0, sizeof(uint64_t) * data_size);
-        // cudaMemcpy(d_values, h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
+        // cudaMemset(d_values, 0, sizeof(uint64_t) * data_size);
+        cudaMemcpy(d_values, h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
 
         std::array<uint64_t*, NUM_GPUS> d_keys_gpu;
         std::array<uint64_t*, NUM_GPUS> d_values_gpu;
@@ -1806,7 +1806,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
-            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[gpu_index], nullptr , d_keys_gpu[gpu_index] + data_size, nullptr,  d_values_gpu[gpu_index], nullptr };
+            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[gpu_index], d_values_gpu[gpu_index] , d_keys_gpu[gpu_index] + data_size, d_values_gpu[gpu_index] + data_size,  nullptr, nullptr };
         }
 
         MergeManager merge_manager(mcontext, host_pinned_allocator);
