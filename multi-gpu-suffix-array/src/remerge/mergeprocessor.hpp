@@ -586,31 +586,6 @@ namespace crossGPUReMerge
                 // int adCount = 0;
                 for (auto ms : node.scheduled_work.multi_searches)
                 {
-                    // ArrayDescriptor<NUM_GPUS, key_t, int64_t> ad;
-                    // int i = 0;
-                    // for (const auto& r : ms->ranges)
-                    // {
-                    //     ad.keys[i] = mnodes[r.start.node].info.keys + r.start.index;
-                    //     ad.lengths[i] = r.end.index - r.start.index;
-                    //     i++;
-                    // }
-                    //std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp);
-                    //if (world_rank() == node_index) {
-                    //const size_t result_buffer_length = ms->ranges.size() + 1;
-
-                    //    const cudaStream_t& stream = mcontext.get_gpu_default_stream(node_index);
-
-                    //ms->d_result_ptr = d_alloc.get<int64_t>(result_buffer_length);
-                    //ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(result_buffer_length);
-
-                    // multi_find_partition_points << <1, NUM_GPUS, 0, stream >> > (ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index,
-                    //     comp,
-                    //     (int64_t*)ms->d_result_ptr,
-                    //     (uint*)(ms->d_result_ptr + result_buffer_length - 1), ksmallest);
-
-                    //   cudaMemcpyAsync(ms->h_result_ptr, ms->d_result_ptr,
-                    //       result_buffer_length * sizeof(int64_t), cudaMemcpyDeviceToHost, stream);                    
-                    //}
                     const size_t result_buffer_length = ms->ranges.size() + 1;
 
                     if (ms->in_node_merge) {
@@ -676,57 +651,7 @@ namespace crossGPUReMerge
                     enumer++;
                 }
             }
-            // printf("[%lu] after allgather\n", world_rank());
-            //}
-            // printf("Searches done %lu\n", world_rank());
 
-            // size_t mulit_search_size = mergeNode.scheduled_work.multi_searches.size();
-            // std::vector<int64_t> send_multi_search_result;
-            // send_multi_search_result.reserve(mulit_search_size);
-            // send_multi_search_result.clear();
-            // for (auto ms : mergeNode.scheduled_work.multi_searches)
-            // {
-            //     size_t size = ms->ranges.size() + 1;
-            //     for (size_t j = 0; j < size; j++)
-            //     {
-            //         // printf("ms->h_result_ptr %ld, rank %lu\n", ms->h_result_ptr[j], world_rank());
-            //         send_multi_search_result.push_back(ms->h_result_ptr[j]);
-            //     }
-            // }
-
-            // std::vector<int64_t> recv_multi_search_result;
-            // auto [multi_search_output_counts] = comm_world().allgatherv(send_buf(send_multi_search_result), recv_buf<resize_to_fit>(recv_multi_search_result), recv_counts_out());
-            // printf("Multi searches %lu, counts.size() %lu\n", world_rank(), multi_search_output_counts.size());
-            // for (int64_t ah : recv_multi_search_result)
-            // {
-            //     printf("[%lu] received multi search results %ld\n", world_rank(), ah);
-            // }
-            // printf("[%lu] after allgather 2\n", world_rank());
-
-            // int totalIdx = 0;
-            // for (int i = 0; i < comm_world().size(); i++)
-            // {
-            //     ASSERT(mnodes[i].info.index == i);
-            //     for (auto ms : mnodes[i].scheduled_work.multi_searches)
-            //     {
-            //         int size = ms->ranges.size() + 1;
-            //         if (world_rank() != mnodes[i].info.index) {
-            //             ms->h_result_ptr = mhost_search_temp_allocator.get<int64_t>(size);
-            //             memcpy(ms->h_result_ptr, recv_multi_search_result.data() + totalIdx, size * sizeof(int64_t));
-            //         }
-            //         totalIdx += size;
-            //     }
-            // }
-            // for (MergeNode node : mnodes) {
-            //     for (auto ms : node.scheduled_work.multi_searches)
-            //     {
-            //         for (int i = 0; i < ms->ranges.size() + 1; i++) {
-            //             printf("[%lu] ms->h_result_ptr[%d]: %ld, rank: %lu\n", world_rank(), i, ms->h_result_ptr[i]);
-            //         }
-
-            //     }
-            // }
-            // printf("[%lu] searches done copying back\n", world_rank());
             for (MergeNode& node : mnodes)
             {
 
@@ -766,7 +691,7 @@ namespace crossGPUReMerge
         void do_copy_and_merge(comp_fun_t comp, std::function<void()> dbg_func)
         {
             auto& t = kamping::measurements::timer();
-            t.start("do_copy_and_merge");
+            t.start("do_copies_async");
             (void)dbg_func;
             std::array<std::vector<InterNodeCopy>, NUM_GPUS> copies = partitions_to_copies<NUM_GPUS, mtypes>(mnodes);
             std::array<size_t, NUM_GPUS> detour_sizes;
@@ -777,7 +702,6 @@ namespace crossGPUReMerge
             // t.synchronize_and_start("bcast_do_values");
             comm_world().bcast_single(send_recv_buf(do_values), root(0));
             // t.stop();
-            t.start("do_copies_async");
             mtopology_helper.do_copies_async(copies, detour_sizes, do_values);
             // t.stop();
             // t.synchronize_and_start("multi_mergers");
@@ -797,6 +721,7 @@ namespace crossGPUReMerge
             // t.synchronize_and_start("sync_do_copies_async");
             mcontext.sync_all_streams();
             t.stop_and_append();
+            t.start("merge");
             //            if (dbg_func)
             //                dbg_func();
             // t.synchronize_and_start("mgpu::merge");
@@ -884,6 +809,7 @@ namespace crossGPUReMerge
             }
             mcontext.sync_all_streams();
             t.stop_and_append();
+
             // t.stop();
 
         }

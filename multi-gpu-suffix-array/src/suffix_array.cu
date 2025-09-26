@@ -388,10 +388,9 @@ public:
         mcontext.sync_all_streams();
         // printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
         // comm_world().barrier();
-        t.stop();
+
 
         // send samples
-        t.start("send_samples");
         ncclGroupStart();
 
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
@@ -417,7 +416,6 @@ public:
         ncclGroupEnd();
         mcontext.sync_all_streams();
         comm_world().barrier();
-
         t.stop();
         // printf("[%lu] received all samples\n", world_rank());
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
@@ -1766,11 +1764,10 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 21;
-    size_t data_size = 128;
+    size_t rounds = 26;
     for (size_t i = 0; i < rounds; i++)
     {
-        data_size *= 2;
+        size_t data_size = std::min(size_t(128UL << rounds) - 1UL, size_t(UINT32_MAX));
         std::array<MergeNodeInfo, NUM_GPUS> merge_nodes_info;
 
         std::vector<uint64_t> h_keys(data_size);
@@ -1806,14 +1803,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
 
 
         uint64_t* h_temp_mem = (uint64_t*)malloc(sizeof(uint64_t) * data_size);
-        // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
-
-        // for (size_t i = 0; i < data_size; i++)
-        // {
-        //     if (world_rank() == 0)
-        //         printf("[%lu] sorted key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
-        // }
-
+        memset(h_temp_mem, 0, sizeof(uint64_t) * data_size);
 
         mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
