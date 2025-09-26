@@ -1764,7 +1764,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 24;
+    size_t rounds = 23;
     for (size_t i = 0; i < rounds; i++)
     {
         size_t data_size = std::min(size_t(128UL << i) - 1UL, size_t(UINT32_MAX));
@@ -1797,7 +1797,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size, d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8);
         CUERR_CHECK(err);
         void* temp;
-        temp_storage_size = std::max(temp_storage_size, sizeof(uint64_t) * data_size * 3);
+        temp_storage_size = std::max(temp_storage_size, sizeof(uint64_t) * data_size * 4);
         cudaMalloc(&temp, temp_storage_size);
 
 
