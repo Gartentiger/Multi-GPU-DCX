@@ -56,7 +56,7 @@ namespace crossGPUReMerge
                 // t.start("schedule_partitioning_searches:" + std::to_string(i));
                 schedule_partitioning_searches();
                 // t.stop();
-                t.start("do_searches:" + std::to_string(i));
+                t.start("sampling_splitting:" + std::to_string(i));
                 //printf("do search %lu\n", world_rank());
                 // nvtxRangePush("do_searches");
                 mmerge_processor.do_searches(comp);
@@ -68,7 +68,7 @@ namespace crossGPUReMerge
                 // t.stop();
                 // printf("[%lu] create partitions done\n", world_rank());
                 //                debug_print();
-                t.start("do_copy_and_merge:" + std::to_string(i));
+                t.start("reorder_merge:" + std::to_string(i));
                 // nvtxRangePush("do_copy_and_merge");
                 mmerge_processor.do_copy_and_merge(comp, debug_func);
                 // nvtxRangePop();
