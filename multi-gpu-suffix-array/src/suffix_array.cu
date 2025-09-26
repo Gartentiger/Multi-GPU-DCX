@@ -1766,7 +1766,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 20;
+    size_t rounds = 21;
     size_t data_size = 128;
     for (size_t i = 0; i < rounds; i++)
     {
@@ -1848,10 +1848,10 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         t.stop();
         comm_world().barrier();
         t.stop_and_append();
-        size_t gb = 1 << 30;
-        double num_GB = (double)bytes / (double)gb;
+        size_t mb = 1 << 20;
+        double num_mB = (double)bytes / (double)mb;
         if (world_rank() == 0)
-            printf("[%lu] elements: %lu, %15.3f GB\n", world_rank(), data_size, num_GB);
+            printf("[%lu] elements: %lu, %8.3f MB\n", world_rank(), data_size, num_mB);
         // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
         // for (size_t i = 0; i < data_size; i++)
         // {
