@@ -1850,8 +1850,6 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         cudaFree(d_keys);
         cudaFree(d_values);
     }
-
-
 }
 
 
