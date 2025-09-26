@@ -1756,7 +1756,7 @@ void share_gpu_ptr(std::array<T*, NUM_GPUS>& ptrs, MultiGPUContext<NUM_GPUS>& co
     }
 }
 
-void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
+void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     using merge_types = crossGPUReMerge::mergeTypes<uint64_t, uint64_t>;
     using MergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, merge_types, ReMergeTopology>;
     using MergeNodeInfo = crossGPUReMerge::MergeNodeInfo<merge_types>;
@@ -1764,10 +1764,10 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 1;
+    size_t rounds = 10;
     for (size_t i = 0; i < rounds; i++)
     {
-        size_t data_size = std::min(size_t(128UL << i) - 1UL, size_t(UINT32_MAX));
+        size_t data_size = (128UL << i) - 1UL;
         std::array<MergeNodeInfo, NUM_GPUS> merge_nodes_info;
 
         std::vector<uint64_t> h_keys(data_size);
@@ -1797,21 +1797,19 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size, d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8);
         CUERR_CHECK(err);
         void* temp;
-        temp_storage_size = std::max(temp_storage_size, sizeof(uint64_t) * data_size * 4);
+        temp_storage_size = std::max(temp_storage_size, sizeof(uint64_t) * data_size) * 2;
         cudaMalloc(&temp, temp_storage_size);
-
-
-
-        uint64_t* h_temp_mem = (uint64_t*)malloc(sizeof(uint64_t) * data_size);
-        memset(h_temp_mem, 0, sizeof(uint64_t) * data_size);
-
         mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
+
+        uint64_t* h_temp_mem = (uint64_t*)malloc(temp_storage_size);
+        memset(h_temp_mem, 0, temp_storage_size);
+        QDAllocator host_pinned_allocator(h_temp_mem, temp_storage_size);
+
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
             merge_nodes_info[gpu_index] = { data_size, 0, gpu_index,d_keys_gpu[gpu_index], d_values_gpu[gpu_index] , d_keys_gpu[gpu_index] + data_size, d_values_gpu[gpu_index] + data_size,  nullptr, nullptr };
         }
 
-        QDAllocator host_pinned_allocator(h_temp_mem, data_size);
         MergeManager merge_manager(mcontext, host_pinned_allocator);
         merge_manager.set_node_info(merge_nodes_info);
 
@@ -1921,7 +1919,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, nullptr, NUM_GPUS_PER_NODE);
 
-    segmented_sort_measure(context);
+    sample_sort_merge_measure(context);
     auto& t = kamping::measurements::timer();
     t.aggregate_and_print(
         kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
