@@ -1781,7 +1781,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         cudaMalloc(&d_keys, sizeof(uint64_t) * 2 * data_size);
         cudaMemcpy(d_keys, h_keys.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
         uint64_t* d_values;
-        cudaMalloc(&d_values, sizeof(uint64_t) * data_size);
+        cudaMalloc(&d_values, sizeof(uint64_t) * 2 * data_size);
         // cudaMemset(d_values, 0, sizeof(uint64_t) * data_size);
         cudaMemcpy(d_values, h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
 
