@@ -43,7 +43,7 @@ namespace crossGPUReMerge {
                     const sa_index_range_t& r2 = (*msrc_ranges)[i + 1];
                     //                    printf("\nMerging %d - %d, %d - %d to %d on node %u, stream %u\n", r1.start, r1.end, r2.start, r2.end,
                     //                           r1.start, mnode.info.index, stream_index);
-                    printf("[%lu] mdo_values: %s\n", mdo_values ? "true" : "false");
+                    printf("[%lu] mdo_values: %s\n", world_rank(), mdo_values ? "true" : "false");
                     if (mdo_values) {
                         mgpu::merge(msrc_key_buff + r1.start, msrc_value_buff + r1.start, r1.end - r1.start,
                             msrc_key_buff + r2.start, msrc_value_buff + r2.start, r2.end - r2.start,
