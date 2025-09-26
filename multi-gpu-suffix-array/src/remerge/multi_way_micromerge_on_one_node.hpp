@@ -44,9 +44,12 @@ namespace crossGPUReMerge {
                     //                    printf("\nMerging %d - %d, %d - %d to %d on node %u, stream %u\n", r1.start, r1.end, r2.start, r2.end,
                     //                           r1.start, mnode.info.index, stream_index);
                     if (mdo_values) {
-                        mgpu::merge(msrc_key_buff + r1.start, msrc_value_buff + r1.start, r1.end - r1.start,
-                            msrc_key_buff + r2.start, msrc_value_buff + r2.start, r2.end - r2.start,
-                            mdest_key_buff + r1.start, mdest_value_buff + r1.start, mcomp, mgpu_context);CUERR;
+                        // mgpu::merge(msrc_key_buff + r1.start, msrc_value_buff + r1.start, r1.end - r1.start,
+                        //     msrc_key_buff + r2.start, msrc_value_buff + r2.start, r2.end - r2.start,
+                        //     mdest_key_buff + r1.start, mdest_value_buff + r1.start, mcomp, mgpu_context);CUERR;
+                        mgpu::merge(msrc_key_buff + r1.start, r1.end - r1.start,
+                            msrc_key_buff + r2.start, r2.end - r2.start,
+                            mdest_key_buff + r1.start, mcomp, mgpu_context);CUERR;
                     }
                     else {
                         mgpu::merge(msrc_key_buff + r1.start, r1.end - r1.start,
