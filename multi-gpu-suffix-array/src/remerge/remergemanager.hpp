@@ -40,9 +40,13 @@ namespace crossGPUReMerge {
             init_node_utils();
 
             init_micro_ranges(ranges);
+            int i = 0;
+            t.start("do_seraches_copy" + std::to_string(i));
             while (schedule_micro_merges() > 0) {
                 schedule_partitioning_searches();
+                t.start("do_searches:" + std::to_string(i));
                 mmerge_processor.do_searches(comp);
+                t.stop();
                 create_partitions_from_search_results();
                 //                debug_print();
                 mmerge_processor.do_copy_and_merge(comp);
