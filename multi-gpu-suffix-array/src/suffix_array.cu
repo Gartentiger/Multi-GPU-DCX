@@ -1764,7 +1764,7 @@ void segmented_sort_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
-    size_t rounds = 23;
+    size_t rounds = 1;
     for (size_t i = 0; i < rounds; i++)
     {
         size_t data_size = std::min(size_t(128UL << i) - 1UL, size_t(UINT32_MAX));
