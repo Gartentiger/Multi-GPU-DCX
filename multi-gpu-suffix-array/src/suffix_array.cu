@@ -1780,24 +1780,22 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         uint64_t* d_keys;
         cudaMalloc(&d_keys, sizeof(uint64_t) * 2 * data_size);
         cudaMemcpy(d_keys, h_keys.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
-        uint64_t* d_values;
-        cudaMalloc(&d_values, sizeof(uint64_t) * 2 * data_size);
-        cudaMemcpy(d_values, h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
+        // uint64_t* d_values;
+        // cudaMalloc(&d_values, sizeof(uint64_t) * 2 * data_size);
+        // cudaMemcpy(d_values, h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
 
         std::array<uint64_t*, NUM_GPUS> d_keys_gpu;
         std::array<uint64_t*, NUM_GPUS> d_values_gpu;
         d_keys_gpu[world_rank()] = d_keys;
-        d_values_gpu[world_rank()] = d_values;
+        // d_values_gpu[world_rank()] = d_values;
         share_gpu_ptr(d_keys_gpu, mcontext);
         comm_world().barrier();
-        share_gpu_ptr(d_values_gpu, mcontext);
-        comm_world().barrier();
+        // share_gpu_ptr(d_values_gpu, mcontext);
+        // comm_world().barrier();
 
         size_t temp_storage_size = 0;
-        cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size, d_keys, d_keys + data_size, d_values, d_values + data_size, data_size, 0, sizeof(uint64_t) * 8);
-        CUERR_CHECK(err);
         void* temp;
-        temp_storage_size = std::max(temp_storage_size, sizeof(uint64_t) * data_size * 2);
+        temp_storage_size = sizeof(uint64_t) * data_size * 2;
         cudaMalloc(&temp, temp_storage_size);
         mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
 
@@ -1807,7 +1805,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
-            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index,d_keys_gpu[gpu_index], d_values_gpu[gpu_index] , d_keys_gpu[gpu_index] + data_size, d_values_gpu[gpu_index] + data_size,  nullptr, nullptr };
+            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index,d_keys_gpu[gpu_index], nullptr , d_keys_gpu[gpu_index] + data_size, nullptr,  nullptr, nullptr };
         }
 
         MergeManager merge_manager(mcontext, host_pinned_allocator);
@@ -1849,7 +1847,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         free(h_temp_mem);
         cudaFree(temp);
         cudaFree(d_keys);
-        cudaFree(d_values);
+        // cudaFree(d_values);
     }
 
 
