@@ -18,6 +18,14 @@
 
 #include "gossip/all_to_all.cuh"
 #include "gossip/multisplit.cuh"
+#include <kamping/checking_casts.hpp>
+#include <kamping/collectives/alltoall.hpp>
+#include <kamping/data_buffer.hpp>
+#include <kamping/environment.hpp>
+#include <kamping/measurements/printer.hpp>
+#include <kamping/measurements/timer.hpp>
+#include <kamping/named_parameters.hpp>
+#include <kamping/communicator.hpp>
 #include "distrib_merge/distrib_merge.hpp"
 #include <chrono>
 // #include <nvToolsExt.h>
@@ -1145,6 +1153,9 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
 
 int main(int argc, char** argv)
 {
+    using namespace kamping;
+    kamping::Environment e;
+    Communicator comm;
     if (argc != 4)
     {
         error("Usage: sa-test <ofile> <measureFile> <ifile>!");

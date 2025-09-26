@@ -9,6 +9,7 @@
 #include "two_way_micromerge.hpp"
 #include "multi_way_micromerge.hpp"
 #include "mergeprocessor.hpp"
+#include <kamping/measurements/printer.hpp>
 
 namespace crossGPUReMerge {
 
