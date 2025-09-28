@@ -773,13 +773,13 @@ namespace crossGPUReMerge
             for (uint i = 0; i < NUM_GPUS; ++i)
                 detour_sizes[i] = mnodes[i].info.detour_buffer_size;
 
-            bool do_values = mnodes[0].info.values != nullptr;
+            bool do_values = mnodes[world_rank()].info.values != nullptr;
             // t.synchronize_and_start("bcast_do_values");
-            comm_world().bcast_single(send_recv_buf(do_values), root(0));
+            // comm_world().bcast_single(send_recv_buf(do_values), root(0));
+
             // t.stop();
             t.start("do_copies_async");
             mtopology_helper.do_copies_async(copies, detour_sizes, do_values);
-            // t.stop();
             // t.synchronize_and_start("multi_mergers");
             std::vector<NodeMultiMerger<NUM_GPUS, mtypes, comp_fun_t>> multi_mergers;
             multi_mergers.reserve(mnodes.size() * mnodes.size()); // Essential because of pointer-init. in c'tor.

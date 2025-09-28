@@ -43,7 +43,10 @@ namespace distrib_merge {
             bool do_values) const {
             nvtxRangePush("do_copies_asyncDist");
             if (mcontext.is_in_node()) {
+                auto& t = kamping::measurements::timer();
+                t.start("do_copy_async_distributed");
                 do_copies_async_in_node(copies, a, b, out, do_values);
+                t.stop_and_append();
                 nvtxRangePop();
                 // printf("[%lu] do_copies_async in node \n", world_rank());
                 return;
