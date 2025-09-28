@@ -1359,7 +1359,8 @@ void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
         }
         thrust::host_vector<int> h_send(data.begin(), data.end());
         thrust::device_vector<int> send = h_send;
-        thrust::device_vector<int> recv(10 * NUM_GPUS);
+        thrust::device_vector<int> recv;
+        recv.reserve(NUM_GPUS * send.size());
         NCCLCHECK(ncclGroupStart());
         for (int dst = 0; dst < NUM_GPUS; dst++)
         {
@@ -1367,7 +1368,7 @@ void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
         }
         for (size_t src = 0; src < NUM_GPUS; src++)
         {
-            NCCLCHECK(ncclRecv(thrust::raw_pointer_cast(recv.data()) + send.size() * src, sizeof(int) * recv.size(), ncclChar, src, nccl_comm, context.get_streams(world_rank())[src]));
+            NCCLCHECK(ncclRecv(thrust::raw_pointer_cast(recv.data()) + send.size() * src, sizeof(int) * send.size(), ncclChar, src, nccl_comm, context.get_streams(world_rank())[src]));
         }
         NCCLCHECK(ncclGroupEnd());
         context.sync_all_streams();
