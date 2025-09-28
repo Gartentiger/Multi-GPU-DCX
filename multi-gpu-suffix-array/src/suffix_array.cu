@@ -1345,18 +1345,19 @@ void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, INT_MAX);
-    int WARM_UP_ROUNDS = 10;
+    int WARM_UP_ROUNDS = 1;
 
     for (int i = 0; i < WARM_UP_ROUNDS; i++)
     {
-        thrust::device_vector<int> send(100);
-        thrust::device_vector<int> recv(100 * NUM_GPUS);
-        std::vector<int> h_send(100);
-        for (auto& v : h_send)
+
+        std::vector<int> data(10);
+        for (auto& v : data)
         {
             v = randomDist(g);
         }
-        thrust::copy(send.begin(), send.end(), h_send.begin());
+        thrust::host_vector<int> h_send(data.begin(), data.end());
+        thrust::device_vector<int> send = h_send;
+        thrust::device_vector<int> recv(10 * NUM_GPUS);
         NCCLCHECK(ncclGroupStart());
         for (int dst = 0; dst < NUM_GPUS; dst++)
         {
