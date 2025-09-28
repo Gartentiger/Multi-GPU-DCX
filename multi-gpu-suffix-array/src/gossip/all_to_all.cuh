@@ -47,7 +47,7 @@ namespace gossip {
             // necessary sync because we cant use the stream for communication 
             //context.sync_all_streams();
 
-            ncclGroupStart();
+            NCCLCHECK(ncclGroupStart());
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
                     h_table[src_gpu][dest_gpu + 1] = table[src_gpu][dest_gpu] + h_table[src_gpu][dest_gpu];
@@ -61,17 +61,17 @@ namespace gossip {
                     if (src_gpu == world_rank()) {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
 
-                        ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+                        NCCLCHECK(ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]));
 
                     }
                     if (dest_gpu == world_rank()) {
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
 
-                        ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
+                        NCCLCHECK(ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]));
                     }
                 } CUERR;
             }
-            ncclGroupEnd();
+            NCCLCHECK(ncclGroupEnd());
             nvtxRangePop();
 
             return check_tables(node_info, h_table, v_table);
@@ -130,7 +130,7 @@ namespace gossip {
             // necessary sync because we cant use the stream for communication 
             // context.sync_gpu_default_stream(world_rank());
 
-            ncclGroupStart();
+            NCCLCHECK(ncclGroupStart());
             // RequestPool pool;
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
                 for (uint dest_gpu = 0; dest_gpu < num_gpus; ++dest_gpu) {
@@ -144,11 +144,9 @@ namespace gossip {
                         key_t* from_k = node_info[src_gpu].src_keys + src_index;
                         value_t* from_v = node_info[src_gpu].src_values + src_index;
 
+                        NCCLCHECK(ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]));
 
-
-                        ncclSend(from_k, sizeof(key_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
-
-                        ncclSend(from_v, sizeof(value_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]);
+                        NCCLCHECK(ncclSend(from_v, sizeof(value_t) * len, ncclChar, dest_gpu, nccl_comm, context.get_streams(src_gpu)[dest_gpu]));
 
                     }
                     if (dest_gpu == world_rank()) {
@@ -156,14 +154,14 @@ namespace gossip {
                         const table_t dest_index = v_table[src_gpu][dest_gpu];
                         key_t* to_k = node_info[dest_gpu].dest_keys + dest_index;
                         value_t* to_v = node_info[dest_gpu].dest_values + dest_index;
-                        ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
+                        NCCLCHECK(ncclRecv(to_k, sizeof(key_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]));
 
-                        ncclRecv(to_v, sizeof(value_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]);
+                        NCCLCHECK(ncclRecv(to_v, sizeof(value_t) * len, ncclChar, src_gpu, nccl_comm, context.get_streams(dest_gpu)[src_gpu]));
 
                     }
                 } CUERR;
             }
-            ncclGroupEnd();
+            NCCLCHECK(ncclGroupEnd());
             nvtxRangePop();
             return check_tables(node_info, h_table, v_table);
         }
@@ -225,6 +223,7 @@ namespace gossip {
             const std::array<std::array<table_t, num_gpus + 1>, num_gpus>& h_table,
             const std::array<std::array<table_t, num_gpus>, num_gpus + 1>& v_table) const
         {
+
             // check src_lens for compatibility
             bool valid_srcs_lens = true;
             for (uint src_gpu = 0; src_gpu < num_gpus; ++src_gpu) {
@@ -238,7 +237,7 @@ namespace gossip {
             // check dst_lens for compatibility
             bool valid_dsts_lens = true;
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu) {
-                // printf("nodeinfo[%u].dest_len: %u, v_table[%u][%u]: %u\n", dst_gpu, node_info[dst_gpu].dest_len, num_gpus, dst_gpu, v_table[num_gpus][dst_gpu]);
+                printf("[%lu] v_table[%u][%u]: %u, nodeinfo[%u].dest_len: %u\n", world_rank(), num_gpus, dst_gpu, v_table[num_gpus][dst_gpu], dst_gpu, node_info[dst_gpu].dest_len);
                 valid_dsts_lens &= v_table[num_gpus][dst_gpu] <= node_info[dst_gpu].dest_len;
             }
             if (!valid_dsts_lens) {
