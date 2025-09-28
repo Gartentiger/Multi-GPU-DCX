@@ -71,7 +71,7 @@ namespace crossGPUReMerge
                 // t.synchronize_and_start("do_copy_and_merge:" + std::to_string(i));
                 nvtxRangePush("do_copy_and_merge");
                 mmerge_processor.do_copy_and_merge(comp, debug_func);
-                nvtxRangePop();
+                // nvtxRangePop();
                 // t.stop();
                 // printf("[%lu] do copy and merge done\n", world_rank());
                 // t.synchronize_and_start("combine_finished_microranges:" + std::to_string(i));
