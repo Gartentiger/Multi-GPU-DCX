@@ -279,9 +279,9 @@ public:
         TIMERSTOP(Total);
         mperf_measure.done();
 
-        // TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
+        TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
         copy_result_to_host();
-        // TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
+        TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
 
     }
 
@@ -432,13 +432,13 @@ private:
         }
         kernels::fixup_last_four_12_kmers_64 << <1, 4, 0, mcontext.get_gpu_default_stream(NUM_GPUS - 1) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 4);
         mcontext.sync_default_streams();
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
-            printf("elements: %lu, offset %lu\n", gpu.num_elements, gpu.offset);
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<char*>(gpu.pd_ptr.Sa_rank), gpu.pd_ptr.Isa, SDIV(gpu.num_elements, 12) * 12, gpu_index);
-            mcontext.sync_default_streams();
-        }
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU& gpu = mgpus[gpu_index];
+        //     printf("elements: %lu, offset %lu\n", gpu.num_elements, gpu.offset);
+        //     printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<char*>(gpu.pd_ptr.Sa_rank), gpu.pd_ptr.Isa, SDIV(gpu.num_elements, 12) * 12, gpu_index);
+        //     mcontext.sync_default_streams();
+        // }
     }
 
     void prepare_S12_for_merge()
@@ -455,7 +455,7 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
             CUERR;
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, (size_t)gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, (size_t)gpu_index);
             mcontext.sync_default_streams();
             multi_split_node_info[gpu_index].src_keys = gpu.prepare_S12_ptr.Isa;
             multi_split_node_info[gpu_index].src_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result;
@@ -473,13 +473,13 @@ private:
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-        printf("multi\n");
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > ((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half, gpu.pd_elements, (size_t)gpu_index);
-            mcontext.sync_default_streams();
-        }
+        // printf("multi\n");
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU& gpu = mgpus[gpu_index];
+        //     printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > ((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half, gpu.pd_elements, (size_t)gpu_index);
+        //     mcontext.sync_default_streams();
+        // }
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
@@ -525,13 +525,13 @@ private:
         printf("alltoall\n");
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU& gpu = mgpus[gpu_index];
 
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.S12_buffer2_half, gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, (size_t)gpu_index);
-            mcontext.sync_all_streams();
-        }
+        //     printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.S12_buffer2_half, gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, (size_t)gpu_index);
+        //     mcontext.sync_all_streams();
+        // }
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
         //            dump_prepare_s12("After all2all");
@@ -1164,8 +1164,8 @@ int main(int argc, char** argv)
     char* input = nullptr;
     cudaSetDevice(0);
     size_t realLen;
-    // size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
-    // size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
+    size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
+    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
     //    const std::array<uint, NUM_GPUS> gpu_ids { 1, 2, 3, 0,    4, 7, 6, 5 };
@@ -1174,24 +1174,24 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
-    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
+    // const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
+    MultiGPUContext<NUM_GPUS> context;
     // alltoallMeasure(context, std::stoi(argv[1]));
     // return 0;
-    sample_sort_merge_measure(context);
-    auto& t = kamping::measurements::timer();
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
-    std::ofstream outFile(argv[2], std::ios::app);
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
-    return 0;
+    // sample_sort_merge_measure(context);
+    // auto& t = kamping::measurements::timer();
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
+    // std::ofstream outFile(argv[2], std::ios::app);
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
+    // return 0;
 
 #endif
     SuffixSorter sorter(context, realLen, input);

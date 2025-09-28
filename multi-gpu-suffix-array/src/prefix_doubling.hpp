@@ -902,8 +902,8 @@ private:
             multi_split_node_info[gpu_index].dest_len = gpu.working_len;
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp3, mreserved_len * 2 * sizeof(sa_index_t));
             //
-            printArray << <1, 1 >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
-            mcontext.sync_all_streams();
+            // printArray << <1, 1 >> > (gpu.Sa_index, gpu.Sa_rank, gpu.working_len, gpu_index);
+            // mcontext.sync_all_streams();
             //
         }
 
@@ -913,14 +913,14 @@ private:
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
-            //
-            printArray << <1, 1 >> > (gpu.Temp1, gpu.Temp2, gpu.working_len, gpu_index);
-            mcontext.sync_all_streams();
-            //
-        }
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU& gpu = mgpus[gpu_index];
+        //     //
+        //     printArray << <1, 1 >> > (gpu.Temp1, gpu.Temp2, gpu.working_len, gpu_index);
+        //     mcontext.sync_all_streams();
+        //     //
+        // }
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
 
         //            dump("After split");

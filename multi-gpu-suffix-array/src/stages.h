@@ -3,8 +3,8 @@
 
 namespace perf_rec {
 
-#define MAIN_STAGES(decl_main_stage)       \   
-    decl_main_stage(Produce_KMers)         \
+#define MAIN_STAGES(decl_main_stage)           \   
+    decl_main_stage(Produce_KMers)             \
         decl_main_stage(Initial_Sort)          \
         decl_main_stage(Initial_Merge)         \
         decl_main_stage(Initial_Ranking)       \
@@ -13,6 +13,7 @@ namespace perf_rec {
         decl_main_stage(Final_Transpose)       \
         decl_main_stage(Prepare_S12_for_Merge) \
         decl_main_stage(Prepare_S0_for_Merge)  \
+        decl_main_stage(Copy_Results)          \
         decl_main_stage(Final_Merge)
 
 #define LOOP_STAGES(decl_loop_stage) \
