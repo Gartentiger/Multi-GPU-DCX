@@ -1360,8 +1360,8 @@ void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
         NCCLCHECK(ncclGroupStart());
         for (int dst = 0; dst < NUM_GPUS; dst++)
         {
-            NCCLCHECK(ncclSend(thrust::raw_pointer_cast(send), sizeof(int) * send.size(), ncclInt, dst, nccl_comm, context.get_streams(world_rank())[dst]));
-            NCCLCHECK(ncclRecv(thrust::raw_pointer_cast(recv) + 10000 * dst, sizeof(int) * recv.size(), ncclInt, dst, nccl_comm, context.get_streams(world_rank())[dst]));
+            NCCLCHECK(ncclSend(thrust::raw_pointer_cast(send.data()), sizeof(int) * send.size(), ncclInt, dst, nccl_comm, context.get_streams(world_rank())[dst]));
+            NCCLCHECK(ncclRecv(thrust::raw_pointer_cast(recv.data()) + 10000 * dst, sizeof(int) * recv.size(), ncclInt, dst, nccl_comm, context.get_streams(world_rank())[dst]));
         }
         NCCLCHECK(ncclGroupEnd());
         context.sync_all_streams();
