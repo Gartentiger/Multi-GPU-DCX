@@ -1347,12 +1347,12 @@ void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, INT_MAX);
-    int WARM_UP_ROUNDS = 5;
+    int WARM_UP_ROUNDS = 10;
 
     for (int i = 0; i < WARM_UP_ROUNDS; i++)
     {
 
-        std::vector<int> data(10);
+        std::vector<int> data(1000);
         for (auto& v : data)
         {
             v = randomDist(g);
@@ -1421,7 +1421,7 @@ int main(int argc, char** argv)
 
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
