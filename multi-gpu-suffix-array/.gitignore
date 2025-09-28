@@ -1,5 +1,6 @@
 /build/
 /Debug/
+/mainBuild/
 /.ptp-sync/
 CMakeLists.txt.user
 /.vscode

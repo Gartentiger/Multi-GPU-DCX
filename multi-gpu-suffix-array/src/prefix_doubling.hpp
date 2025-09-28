@@ -336,7 +336,7 @@ public:
 #endif
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] Initial sort done\n", world_rank());
+        // printf("[%lu] Initial sort done\n", world_rank());
         // comm_world().barrier();
         //
 
@@ -349,14 +349,14 @@ public:
 #endif
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] Write initial ranks done\n", world_rank());
+        // printf("[%lu] Write initial ranks done\n", world_rank());
         // comm_world().barrier();
         //
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] Write to isa done\n", world_rank());
+        // printf("[%lu] Write to isa done\n", world_rank());
         // comm_world().barrier();
         //
 
@@ -372,7 +372,7 @@ public:
         done = compact();
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
+        // printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
         // comm_world().barrier();
         //
 
@@ -397,7 +397,7 @@ public:
             fetch_rank_for_sorting(h);
             //
             // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
@@ -410,7 +410,7 @@ public:
             do_segmented_sort();
             //
             // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
@@ -422,7 +422,7 @@ public:
             rebucket();
             //
             // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
@@ -437,7 +437,7 @@ public:
             write_to_isa();
             //
             // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
@@ -453,7 +453,7 @@ public:
             done = compact();
             //
             // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
@@ -1237,7 +1237,7 @@ private:
         // comm_world().barrier();
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        printf("[%lu] mall2all isa stage\n", world_rank());
+        // printf("[%lu] mall2all isa stage\n", world_rank());
         // comm_world().barrier();
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::All2All);
@@ -1297,14 +1297,14 @@ private:
                         kernels::write_to_isa_2_shared_all<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
                             gpu.Isa, dest_lens[gpu_index]);
                         CUERR;
-                        printf("[%lu] write_to_isa_2_shared_all\n", world_rank());
+                        // printf("[%lu] write_to_isa_2_shared_all\n", world_rank());
                     }
                     else
                     {
                         kernels::write_to_isa_2_shared_most<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
                             gpu.Isa, dest_lens[gpu_index]);
                         CUERR;
-                        printf("[%lu] write_to_isa_2_shared_most\n", world_rank());
+                        // printf("[%lu] write_to_isa_2_shared_most\n", world_rank());
                         //                        kernels::write_to_isa_2 _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))
                         //                                (sorted_buff[gpu_index].second, sorted_buff[gpu_index].first,
                         //                                 gpu.Isa, dest_lens[gpu_index], gpu.isa_len); CUERR;
@@ -1315,7 +1315,7 @@ private:
                     kernels::write_to_isa_sub_offset _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Segment_heads, gpu.Old_ranks,
                         gpu.Isa, gpu.offset, dest_lens[gpu_index], gpu.isa_len);
                     CUERR;
-                    printf("[%lu]write_to_isa_sub_offset\n", world_rank());
+                    // printf("[%lu]write_to_isa_sub_offset\n", world_rank());
                 }
             }
             // mcontext.sync_default_streams();
@@ -1323,7 +1323,7 @@ private:
         }
 
         mcontext.sync_default_streams();
-        printf("[%lu] after sync write to isa\n", world_rank());
+        // printf("[%lu] after sync write to isa\n", world_rank());
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
 

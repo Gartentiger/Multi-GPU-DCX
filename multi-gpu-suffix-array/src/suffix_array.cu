@@ -43,7 +43,7 @@
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 2;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -234,18 +234,18 @@ public:
 
         mtook_pd_iterations = mpd_sorter.sort(4);
         // comm_world().barrier();
-        auto& t = kamping::measurements::timer();
-        t.aggregate_and_print(
-            kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
-        std::cout << std::endl;
-        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        std::cout << std::endl;
+        // auto& t = kamping::measurements::timer();
+        // t.aggregate_and_print(
+        //     kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
+        // std::cout << std::endl;
+        // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        // std::cout << std::endl;
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] prepare s12 for merge done\n", world_rank());
+        // printf("[%lu] prepare s12 for merge done\n", world_rank());
         // comm_world().barrier();
         //
 
@@ -254,7 +254,7 @@ public:
         prepare_S0_for_merge();
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] prepare s0 for merge done\n", world_rank());
+        // printf("[%lu] prepare s0 for merge done\n", world_rank());
         // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
@@ -262,7 +262,7 @@ public:
         final_merge();
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] final merge done\n", world_rank());
+        // printf("[%lu] final merge done\n", world_rank());
         // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
@@ -468,12 +468,12 @@ private:
         mcontext.sync_default_streams();
         // comm_world().barrier();
         //
-        printf("[%lu] after write indices s12\n", world_rank());
+        // printf("[%lu] after write indices s12\n", world_rank());
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
         // comm_world().barrier();
-        printf("[%lu] after execKVAsync s12\n", world_rank());
+        // printf("[%lu] after execKVAsync s12\n", world_rank());
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
 
@@ -547,12 +547,12 @@ private:
 
         //            dump_prepare_s12("After split");
         comm_world().barrier();
-        printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
+        // printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
         mall2all.execKVAsync(all2all_node_info, split_table, true);
         mcontext.sync_all_streams_mpi_safe();
         comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
-        printf("[%lu] all2all s12\n", world_rank());
+        // printf("[%lu] all2all s12\n", world_rank());
 
         //            dump_prepare_s12("After all2all");
 
@@ -584,7 +584,7 @@ private:
                 CUERR_CHECK(err);
             }
 
-            printf("[%lu] S12_Write_Into_Place\n", world_rank());
+            // printf("[%lu] S12_Write_Into_Place\n", world_rank());
             // mcontext.sync_default_stream_mpi_safe();
             // comm_world().barrier();
             //                kernels::combine_S12_kv_non_coalesced _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
@@ -697,7 +697,7 @@ private:
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)(mgpus.back().num_elements - mgpus.back().pd_elements) });
 
         mcontext.sync_default_stream_mpi_safe();
-        printf("[%lu] after S0_Write_Out_And_Sort s0\n", world_rank());
+        // printf("[%lu] after S0_Write_Out_And_Sort s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Write_Out_And_Sort);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
@@ -705,7 +705,7 @@ private:
 
         mcontext.sync_all_streams_mpi_safe();
         comm_world().barrier();
-        printf("[%lu] after merge s0\n", world_rank());
+        // printf("[%lu] after merge s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Combine);
@@ -726,7 +726,7 @@ private:
             CUERR;
         }
         mcontext.sync_default_stream_mpi_safe();
-        printf("[%lu] after s0\n", world_rank());
+        // printf("[%lu] after s0\n", world_rank());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Combine);
         //            dump_final_merge("before final merge");
     }
@@ -752,14 +752,14 @@ private:
                     gpu.merge_ptr.remaining_storage_size);
             }
         }
-        printf("[%lu] final merge\n", world_rank());
+        // printf("[%lu] final merge\n", world_rank());
         auto h_temp_mem = mmemory_manager.get_host_temp_mem();
         QDAllocator qd_alloc_h_temp(h_temp_mem.first, h_temp_mem.second);
         distrib_merge::DistributedMerge<MergeStageSuffix, int, sa_index_t, NUM_GPUS, DistribMergeTopology>::
             merge_async(inp_S12, inp_S0, result, MergeCompFunctor(), false, mcontext, qd_alloc_h_temp);
 
         mcontext.sync_default_streams();
-        printf("[%lu] after merge_async\n", world_rank());
+        // printf("[%lu] after merge_async\n", world_rank());
 
         // printf("[%lu] merge async done\n", world_rank());
         // comm_world().barrier();
@@ -1380,9 +1380,9 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3, 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1 };
 
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 2);
     // alltoallMeasure(context);
     ncclMeasure(context);
     return 0;
