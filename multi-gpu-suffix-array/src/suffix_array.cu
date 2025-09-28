@@ -42,6 +42,8 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 #include <nvToolsExt.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 static const uint NUM_GPUS = 4;
 
