@@ -1383,8 +1383,8 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    // size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
-    // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
+    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
 
@@ -1400,8 +1400,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 2);
     // alltoallMeasure(context);
-    ncclMeasure(context);
-    return 0;
+    // ncclMeasure(context);
+    // return 0;
 #endif
     SuffixSorter sorter(context, realLen, input);
 
