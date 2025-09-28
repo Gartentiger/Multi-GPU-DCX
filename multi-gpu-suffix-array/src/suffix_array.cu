@@ -1340,6 +1340,35 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
     }
 }
 
+void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
+    ncclComm_t nccl_comm = context.get_nccl();
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, INT_MAX);
+    int WARM_UP_ROUNDS = 10;
+
+    for (int i = 0; i < WARM_UP_ROUNDS; i++)
+    {
+        thrust::device_vector<int> send(10000);
+        thrust::device_vector<int> recv(10000 * NUM_GPUS);
+        std::vector<int> h_send(10000);
+        for (auto& v : h_send)
+        {
+            v = randomDist(g);
+        }
+        thrust::copy(send.begin(), send.end(), h_send.begin());
+        NCCLCHECK(ncclGroupStart());
+        for (int dst = 0; dst < NUM_GPUS; dst++)
+        {
+            NCCLCHECK(ncclSend(thrust::raw_pointer_cast(send), sizeof(int) * send.size(), ncclInt, dst, nccl_comm, context.get_streams(world_rank())[dst]));
+            NCCLCHECK(ncclRecv(thrust::raw_pointer_cast(recv) + 10000 * dst, sizeof(int) * recv.size(), ncclInt, dst, nccl_comm, context.get_streams(world_rank())[dst]));
+        }
+        NCCLCHECK(ncclGroupEnd());
+        context.sync_all_streams();
+        comm_world().barrier();
+    }
+}
+
 int main(int argc, char** argv)
 {
     using namespace kamping;
@@ -1382,6 +1411,8 @@ int main(int argc, char** argv)
     comm_world().barrier();
     char* input = nullptr;
 
+
+
     size_t realLen = 0;
     size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
@@ -1399,6 +1430,7 @@ int main(int argc, char** argv)
     const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
+    warm_up_nccl(context);
     // alltoallMeasure(context);
     // ncclMeasure(context);
     // return 0;
