@@ -336,8 +336,8 @@ public:
 #endif
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] Initial sort done\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] Initial sort done\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
@@ -349,15 +349,15 @@ public:
 #endif
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] Write initial ranks done\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] Write initial ranks done\n", world_rank());
+        // comm_world().barrier();
         //
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] Write to isa done\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] Write to isa done\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
@@ -372,8 +372,8 @@ public:
         done = compact();
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
-        comm_world().barrier();
+        // printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Compacting);
@@ -513,8 +513,8 @@ public:
         //            TIMER_STOP_MAIN_STAGE(MainStages::Final_Transpose);
         mcontext.sync_all_streams();
         //
-        printf("[%lu] prefix doubling done\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] prefix doubling done\n", world_rank());
+        // comm_world().barrier();
         //
         return iterations;
     }
@@ -1322,11 +1322,50 @@ private:
             // comm_world().barrier();
         }
 
+
+
         mcontext.sync_default_streams();
+
+        check_isa_len();
+
         // printf("[%lu] after sync write to isa\n", world_rank());
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
 
+    }
+
+    void check_isa_len() {
+        SaGPU& gpu = mgpus[world_rank()];
+        std::vector<sa_index_t> isa;
+        if (world_rank() == NUM_GPUS - 1) {
+            isa.reserve(mlast_gpu_len);
+        }
+        else {
+            isa.reserve(misa_divisor);
+        }
+
+        cudaMemcpy(isa.data(), gpu.Isa, sizeof(sa_index_t) * isa.size(), cudaMemcpyDeviceToHost);
+
+        PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
+        std::vector<sa_index_t> send_to_gpu(NUM_GPUS, 0);
+        for (auto& el : isa)
+        {
+            send_to_gpu[f(el)] += 1;
+        }
+
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            auto const res = comm_world().reduce(send_buf(std::span<sa_index_t>(&send_to_gpu[gpu_index], 1)), op(ops::plus<sa_index_t>()));
+            if (world_rank() == 0) {
+
+                if (res != isa.size()) {
+                    printf("[%lu] %u != %lu for gpu %lu\n", world_rank(), res, isa.size(), gpu_index);
+                }
+            }
+            comm_world().barrier();
+        }
+
+        mcontext.sync_default_streams();
     }
 
     static void transpose_split_table(const split_table_tt<sa_index_t, NUM_GPUS>& split_table_in,

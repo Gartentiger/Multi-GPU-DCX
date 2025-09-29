@@ -235,8 +235,8 @@ public:
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(4);
-        printf("[%lu] sort done\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] sort done\n", world_rank());
+        // comm_world().barrier();
         // auto& t = kamping::measurements::timer();
         // t.aggregate_and_print(
         //     kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
@@ -248,8 +248,8 @@ public:
         prepare_S12_for_merge();
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] prepare s12 for merge done\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] prepare s12 for merge done\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
@@ -257,16 +257,16 @@ public:
         prepare_S0_for_merge();
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] prepare s0 for merge done\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] prepare s0 for merge done\n", world_rank());
+        // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Final_Merge);
         final_merge();
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] final merge done\n", world_rank());
-        comm_world().barrier();
+        // printf("[%lu] final merge done\n", world_rank());
+        // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
         // TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
@@ -466,8 +466,11 @@ private:
             multi_split_node_info[gpu_index].dest_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half;
             multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
         }
-        printf("[%lu] mpd_per_gpu: %lu\n", world_rank(), mpd_per_gpu);
+        // printf("[%lu] mpd_per_gpu: %lu\n", world_rank(), mpd_per_gpu);
         S12PartitioningFunctor f(mpd_per_gpu, NUM_GPUS - 1);
+
+
+
         //
         mcontext.sync_default_streams();
         // comm_world().barrier();
@@ -476,13 +479,13 @@ private:
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-        for (size_t src = 0; src < NUM_GPUS; src++)
-        {
-            for (size_t dst = 0; dst < NUM_GPUS; dst++)
-            {
-                printf("[%lu] split_table[%lu][%lu]: %u\n", world_rank(), src, dst, split_table[src][dst]);
-            }
-        }
+        // for (size_t src = 0; src < NUM_GPUS; src++)
+        // {
+        //     for (size_t dst = 0; dst < NUM_GPUS; dst++)
+        //     {
+        //         printf("[%lu] split_table[%lu][%lu]: %u\n", world_rank(), src, dst, split_table[src][dst]);
+        //     }
+        // }
 
         comm_world().barrier();
         // printf("[%lu] after execKVAsync s12\n", world_rank());
