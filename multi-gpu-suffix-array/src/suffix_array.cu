@@ -30,7 +30,7 @@
 #include <chrono>
 // #include <nvToolsExt.h>
 #include "moderngpu/kernel_mergesort.hxx"
-static const uint NUM_GPUS = 2;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
