@@ -246,7 +246,6 @@ namespace distrib_merge {
                 QDAllocator& d_alloc = mcontext.get_device_temp_allocator(node);
 
                 // //(mcontext.get_device_id(node));
-                int i = offset;
 
                 for (Search* s : searches_on_nodes[node])
                 {
@@ -303,7 +302,6 @@ namespace distrib_merge {
                         }
                         // printf("[%lu] res: %ld\n", world_rank(), *s->h_result_ptr);
                     }
-                    i++;
                 }
                 // printf("[%lu] execute searches recv done\n", world_rank());
             }
