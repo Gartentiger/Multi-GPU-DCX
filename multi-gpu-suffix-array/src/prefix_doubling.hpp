@@ -1338,23 +1338,25 @@ private:
 
     void check_isa_len() {
         SaGPU& gpu = mgpus[world_rank()];
-        std::vector<sa_index_t> isa;
+        sa_index_t* isa;
+        size_t size = misa_divisor;
         if (world_rank() == NUM_GPUS - 1) {
-            isa.reserve(mlast_gpu_len);
+            isa = (sa_index_t*)malloc(sizeof(sa_index_t) * mlast_gpu_len);
+            size = mlast_gpu_len;
         }
         else {
-            isa.reserve(misa_divisor);
+            isa = (sa_index_t*)malloc(sizeof(sa_index_t) * misa_divisor);
         }
 
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
-        cudaMemcpy(isa.data(), gpu.Isa, sizeof(sa_index_t) * isa.capacity(), cudaMemcpyDeviceToHost);
+        cudaMemcpy(isa, gpu.Isa, sizeof(sa_index_t) * size, cudaMemcpyDeviceToHost);
         for (size_t i = 0; i < 5; i++)
         {
             printf("[%lu] %u, %u\n", world_rank(), isa[i], f(isa[i]));
         }
-        printf("[%lu] size: %lu, norm: %lu, last: %lu\n", world_rank(), isa.size(), misa_divisor, mlast_gpu_len);
+        printf("[%lu] size: %lu, norm: %lu, last: %lu\n", world_rank(), size, misa_divisor, mlast_gpu_len);
         std::vector<sa_index_t> send_to_gpu(NUM_GPUS, 0);
-        for (int i = 0; i < isa.size(); i++)
+        for (int i = 0; i < size; i++)
         {
             sa_index_t d = min(((isa[i]) / (sa_index_t)misa_divisor), NUM_GPUS - 1);
             send_to_gpu[d] += 1;
@@ -1369,7 +1371,7 @@ private:
             if (world_rank() == 0) {
 
                 for (auto re : res)
-                    printf("[%lu] %u != %lu for gpu %lu\n", world_rank(), re, isa.size(), gpu_index);
+                    printf("[%lu] %u != %lu for gpu %lu\n", world_rank(), re, size, gpu_index);
 
             }
             comm_world().barrier();
