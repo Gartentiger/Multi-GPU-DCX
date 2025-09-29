@@ -1354,14 +1354,14 @@ private:
         }
         printf("[%lu] size: %lu, norm: %lu, last: %lu\n", world_rank(), isa.size(), misa_divisor, mlast_gpu_len);
         std::vector<sa_index_t> send_to_gpu(NUM_GPUS, 0);
-        for (auto& el : isa)
+        for (int i = 0; i < isa.size(); i++)
         {
-            sa_index_t d = min(((el) / (sa_index_t)misa_divisor), NUM_GPUS - 1);
+            sa_index_t d = min(((isa[i]) / (sa_index_t)misa_divisor), NUM_GPUS - 1);
             send_to_gpu[d] += 1;
         }
-        for (auto& el : send_to_gpu)
+        for (int i = 0; i < NUM_GPUS; i++)
         {
-            printf("[%lu] send %u\n", world_rank(), el);
+            printf("[%lu] send %u\n", world_rank(), send_to_gpu[i]);
         }
         for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
