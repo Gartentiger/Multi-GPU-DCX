@@ -17,6 +17,8 @@
 #include <kamping/p2p/recv.hpp>
 #include <kamping/p2p/send.hpp>
 #include <random>
+#include "kamping/mpi_ops.hpp"
+#include "kamping/collectives/reduce.hpp"
 // #define DEBUG_SET_ZERO_TO_SEE_BETTER
 // #define DUMP_EVERYTHING
 __global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t rank)
@@ -882,7 +884,7 @@ private:
             //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-        }
+}
         mcontext.sync_default_streams();
 #endif
         // printf("[%lu] before send compact\n", world_rank());
