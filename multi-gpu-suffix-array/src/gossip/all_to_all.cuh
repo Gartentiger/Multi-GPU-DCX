@@ -33,9 +33,9 @@ namespace gossip {
             if (context.is_in_node()) {
                 // nvtxRangePush("execAsyncAll2AllinNode");
                 // printf("[%lu] in node async\n", world_rank());
-                // bool b = execAsyncInNode(node_info, table);
+                bool b = execAsyncInNode(node_info, table);
                 // nvtxRangePop();
-                // return b;
+                return b;
             }
 
             nvtxRangePush("execAsyncAll2All");
@@ -118,9 +118,9 @@ namespace gossip {
 
             if (context.is_in_node() && !after) {
                 // nvtxRangePush("execKVAsyncAll2AllinNode");
-                // bool b = execKVAsyncInNode(node_info, table);
+                bool b = execKVAsyncInNode(node_info, table);
                 // nvtxRangePop();
-                // return b;
+                return b;
                 // printf("[%lu] in node kv async\n", world_rank());
             }
             nvtxRangePush("execKVAsyncAll2All");
