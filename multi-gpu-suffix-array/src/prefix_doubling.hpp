@@ -1346,15 +1346,22 @@ private:
             isa.reserve(misa_divisor);
         }
 
-        cudaMemcpy(isa.data(), gpu.Isa, sizeof(sa_index_t) * isa.size(), cudaMemcpyDeviceToHost);
-
+        cudaMemcpy(isa.data(), gpu.Isa, sizeof(sa_index_t) * isa.capacity(), cudaMemcpyDeviceToHost);
+        for (size_t i = 0; i < 5; i++)
+        {
+            printf("[%lu] %u\n", world_rank(), isa[i]);
+        }
+        printf("[%lu] size: %lu, norm: %lu, last: %lu\n", world_rank(), isa.size(), misa_divisor, mlast_gpu_len);
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
         std::vector<sa_index_t> send_to_gpu(NUM_GPUS, 0);
         for (auto& el : isa)
         {
             send_to_gpu[f(el)] += 1;
         }
-
+        for (auto& el : send_to_gpu)
+        {
+            printf("[%lu] send %u\n", world_rank(), el);
+        }
         for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
             auto const res = comm_world().reduce(send_buf(std::span<sa_index_t>(&send_to_gpu[gpu_index], 1)), op(ops::plus<sa_index_t>()));
