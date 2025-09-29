@@ -1023,7 +1023,41 @@ private:
             }
         }
         mcontext.sync_default_streams();
+        check_isa_len();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
+    }
+    void check_isa_len() {
+        sa_index_t* isa;
+        size_t size = ((misa_divisor) * 3 + mlast_gpu_len);
+
+        isa = (sa_index_t*)malloc(sizeof(sa_index_t) * size);
+
+        PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
+        size_t sum = 0;
+        for (size_t i = 0; i < NUM_GPUS - 1; i++)
+        {
+            SaGPU& gpu = mgpus[i];
+            cudaMemcpy(isa + sum, gpu.Isa, sizeof(sa_index_t) * misa_divisor, cudaMemcpyDeviceToHost);
+            sum += misa_divisor;
+        }
+        cudaMemcpy(isa + sum, mgpus[NUM_GPUS - 1].Isa, sizeof(sa_index_t) * mlast_gpu_len, cudaMemcpyDeviceToHost);
+
+
+        for (size_t i = 0; i < 5; i++)
+        {
+            printf("%u, %u\n", isa[i], f(isa[i]));
+        }
+        printf("norm: %lu, last: %lu\n", misa_divisor, mlast_gpu_len);
+        std::vector<sa_index_t> send_to_gpu(NUM_GPUS, 0);
+        for (int i = 0; i < size; i++)
+        {
+            sa_index_t d = min(((isa[i]) / (sa_index_t)misa_divisor), NUM_GPUS - 1);
+            send_to_gpu[d] += 1;
+        }
+        for (int i = 0; i < NUM_GPUS; i++)
+        {
+            printf("[%d] send %u\n", i, send_to_gpu[i]);
+        }
     }
 
     static void transpose_split_table(const split_table_tt<sa_index_t, NUM_GPUS>& split_table_in,
@@ -1556,7 +1590,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
