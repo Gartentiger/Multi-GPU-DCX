@@ -884,7 +884,7 @@ private:
             //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-}
+        }
         mcontext.sync_default_streams();
 #endif
         // printf("[%lu] before send compact\n", world_rank());
@@ -1360,9 +1360,9 @@ private:
             auto const res = comm_world().reduce(send_buf(std::span<sa_index_t>(&send_to_gpu[gpu_index], 1)), op(ops::plus<sa_index_t>()));
             if (world_rank() == 0) {
 
-                if (res != isa.size()) {
-                    printf("[%lu] %u != %lu for gpu %lu\n", world_rank(), res, isa.size(), gpu_index);
-                }
+                for (auto re : res)
+                    printf("[%lu] %u != %lu for gpu %lu\n", world_rank(), re, isa.size(), gpu_index);
+
             }
             comm_world().barrier();
         }
