@@ -336,8 +336,8 @@ public:
 #endif
         //
         // mcontext.sync_all_streams();
-        // printf("[%lu] Initial sort done\n", world_rank());
-        // comm_world().barrier();
+        printf("[%lu] Initial sort done\n", world_rank());
+        comm_world().barrier();
         //
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
@@ -349,15 +349,15 @@ public:
 #endif
         //
         // mcontext.sync_all_streams();
-        // printf("[%lu] Write initial ranks done\n", world_rank());
-        // comm_world().barrier();
+        printf("[%lu] Write initial ranks done\n", world_rank());
+        comm_world().barrier();
         //
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         //
         // mcontext.sync_all_streams();
-        // printf("[%lu] Write to isa done\n", world_rank());
-        // comm_world().barrier();
+        printf("[%lu] Write to isa done\n", world_rank());
+        comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
@@ -372,8 +372,8 @@ public:
         done = compact();
         //
         // mcontext.sync_all_streams();
-        // printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
-        // comm_world().barrier();
+        printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
+        comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Compacting);
@@ -397,8 +397,8 @@ public:
             fetch_rank_for_sorting(h);
             //
             // mcontext.sync_all_streams();
-            // printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
+            comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Fetch_Rank);
@@ -410,8 +410,8 @@ public:
             do_segmented_sort();
             //
             // mcontext.sync_all_streams();
-            // printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
+            comm_world().barrier();
             //
 
 #ifdef DUMP_EVERYTHING
@@ -422,8 +422,8 @@ public:
             rebucket();
             //
             // mcontext.sync_all_streams();
-            // printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
+            comm_world().barrier();
             //
 
 
@@ -437,8 +437,8 @@ public:
             write_to_isa();
             //
             // mcontext.sync_all_streams();
-            // printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
+            comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Write_Isa);
@@ -453,8 +453,8 @@ public:
             done = compact();
             //
             // mcontext.sync_all_streams();
-            // printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
+            comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Compacting);
@@ -513,8 +513,8 @@ public:
         //            TIMER_STOP_MAIN_STAGE(MainStages::Final_Transpose);
         mcontext.sync_all_streams();
         //
-        // printf("[%lu] prefix doubling done\n", world_rank());
-        // comm_world().barrier();
+        printf("[%lu] prefix doubling done\n", world_rank());
+        comm_world().barrier();
         //
         return iterations;
     }
