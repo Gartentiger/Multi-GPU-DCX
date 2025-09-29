@@ -398,11 +398,47 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Fetch_Rank);
             fetch_rank_for_sorting(h);
             //
-            // mcontext.sync_all_streams();
+            mcontext.sync_all_streams();
             printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
             comm_world().barrier();
             //
+            if (iterations == 1) {
+                for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+                {
+                    SaGPU& gpu = mgpus[gpu_index];
+                    if (gpu_index == world_rank()) {
 
+                        char fileName[14];
+                        const char* text = "SaRankIter";
+                        sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                        std::ofstream out(fileName, std::ios::binary);
+                        if (!out) {
+                            std::cerr << "Could not open file\n";
+                            //return 1;
+                        }
+                        sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                        cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                        out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                        out.close();
+                        free(k);
+                        {
+                            char fileName[14];
+                            const char* text = "Sa_indexIter";
+                            sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                            std::ofstream out(fileName, std::ios::binary);
+                            if (!out) {
+                                std::cerr << "Could not open file\n";
+                                //return 1;
+                            }
+                            sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                            cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                            out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                            out.close();
+                            free(k);
+                        }
+                    }
+                }
+            }
             TIMER_STOP_LOOP_STAGE(LoopStages::Fetch_Rank);
 
 #ifdef DUMP_EVERYTHING
@@ -410,12 +446,49 @@ public:
 #endif
 
             do_segmented_sort();
+
             //
-            // mcontext.sync_all_streams();
+            mcontext.sync_all_streams();
             printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
             comm_world().barrier();
             //
+            if (iterations == 1) {
+                for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+                {
+                    SaGPU& gpu = mgpus[gpu_index];
+                    if (gpu_index == world_rank()) {
 
+                        char fileName[14];
+                        const char* text = "SaRank2Iter";
+                        sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                        std::ofstream out(fileName, std::ios::binary);
+                        if (!out) {
+                            std::cerr << "Could not open file\n";
+                            //return 1;
+                        }
+                        sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                        cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                        out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                        out.close();
+                        free(k);
+                        {
+                            char fileName[14];
+                            const char* text = "Sa_index2Iter";
+                            sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                            std::ofstream out(fileName, std::ios::binary);
+                            if (!out) {
+                                std::cerr << "Could not open file\n";
+                                //return 1;
+                            }
+                            sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                            cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                            out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                            out.close();
+                            free(k);
+                        }
+                    }
+                }
+            }
 #ifdef DUMP_EVERYTHING
             dump("After sort");
 #endif
@@ -469,42 +542,6 @@ public:
 #ifdef DUMP_EVERYTHING
             dump("After compact");
 #endif
-            // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-            // {
-            //     SaGPU& gpu = mgpus[gpu_index];
-            //     if (gpu_index == world_rank()) {
-
-            //         char fileName[14];
-            //         const char* text = "IsaIter";
-            //         sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
-            //         std::ofstream out(fileName, std::ios::binary);
-            //         if (!out) {
-            //             std::cerr << "Could not open file\n";
-            //             //return 1;
-            //         }
-            //         sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-            //         cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-            //         out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-            //         out.close();
-            //         free(k);
-            //         {
-            //             char fileName[14];
-            //             const char* text = "Temp1Iter";
-            //             sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
-            //             std::ofstream out(fileName, std::ios::binary);
-            //             if (!out) {
-            //                 std::cerr << "Could not open file\n";
-            //                 //return 1;
-            //             }
-            //             sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-            //             cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-            //             out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-            //             out.close();
-            //             free(k);
-            //         }
-            //     }
-            // }
-            // comm_world().barrier();
             mperf_measure.next_iteration();
             ++iterations;
             register_numbers(iterations + 1);
