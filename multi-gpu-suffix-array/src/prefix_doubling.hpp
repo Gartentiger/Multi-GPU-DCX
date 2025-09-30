@@ -409,7 +409,7 @@ public:
                     if (gpu_index == world_rank()) {
 
                         char fileName[16];
-                        const char* text = "SaRankIter";
+                        const char* text = "SaRankDIter";
                         sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                         std::ofstream out(fileName, std::ios::binary);
                         if (!out) {
@@ -423,7 +423,7 @@ public:
                         free(k);
                         {
                             char fileName[16];
-                            const char* text = "Sa_indexIter";
+                            const char* text = "Sa_indexDIter";
                             sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                             std::ofstream out(fileName, std::ios::binary);
                             if (!out) {
@@ -461,7 +461,7 @@ public:
                     if (gpu_index == world_rank()) {
 
                         char fileName[16];
-                        const char* text = "SaRank2Iter";
+                        const char* text = "SaRankD2Iter";
                         sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                         std::ofstream out(fileName, std::ios::binary);
                         if (!out) {
@@ -475,7 +475,7 @@ public:
                         free(k);
                         {
                             char fileName[16];
-                            const char* text = "Sa_index2Iter";
+                            const char* text = "Sa_indexD2Iter";
                             sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                             std::ofstream out(fileName, std::ios::binary);
                             if (!out) {
