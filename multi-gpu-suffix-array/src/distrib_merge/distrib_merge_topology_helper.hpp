@@ -44,6 +44,8 @@ namespace distrib_merge {
             // nvtxRangePush("do_copies_asyncDist");
             if (mcontext.is_in_node()) {
                 do_copies_async_in_node(copies, a, b, out, do_values);
+                mcontext.sync_all_streams();
+                comm_world().barrier();
                 // nvtxRangePop();
                 // printf("[%lu] do_copies_async in node \n", world_rank());
                 return;
@@ -80,6 +82,7 @@ namespace distrib_merge {
                 }
             }
             ncclGroupEnd();
+
             // nvtxRangePop();
         }
 

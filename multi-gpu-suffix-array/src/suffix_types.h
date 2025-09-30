@@ -92,22 +92,25 @@ using DCX = DC7;
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
     sa_index_t index;
-    sa_index_t ranks[DCX::C];
-    unsigned char prefix[DCX::X];
+    std::array<sa_index_t, DCX::C> ranks;
+    std::array<unsigned char, DCX::X> prefix;
 };
 
 __host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffixes& b)
 {
-    for (size_t i = 0; i < DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0]; i++)
+    uint32_t l = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0];
+    uint32_t r1 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1];
+    uint32_t r2 = DCX::nextSample[b.index % DCX::X][a.index % DCX::X][1];
+    for (size_t i = 0; i < l; i++)
     {
         if (a.prefix[i] < b.prefix[i]) {
             return true;
         }
-        else if (a.prefix[i] > b.prefix[i]) {
+        if (a.prefix[i] > b.prefix[i]) {
             return false;
         }
     }
-    return a.ranks[DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[DCX::nextSample[b.index % DCX::X][a.index % DCX::X][1]];
+    return a.ranks[r1] < b.ranks[r2];
 
 }
 __constant__ uint32_t lookupNext[DCX::X][DCX::X][2];
@@ -131,25 +134,47 @@ struct rank_decomposer
 
 struct DC7Comparator
 {
-    __host__ __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
+    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
     {
-        for (size_t i = 0; i < lookupNext[a.index % DCX::X][b.index % DCX::X][0]; i++)
+        uint32_t l = lookupNext[a.index % DCX::X][b.index % DCX::X][0];
+        uint32_t r1 = lookupNext[a.index % DCX::X][b.index % DCX::X][1];
+        uint32_t r2 = lookupNext[b.index % DCX::X][a.index % DCX::X][1];
+        for (size_t i = 0; i < l; i++)
         {
             if (a.prefix[i] < b.prefix[i]) {
                 return true;
             }
-            else if (a.prefix[i] > b.prefix[i]) {
+            if (a.prefix[i] > b.prefix[i]) {
                 return false;
             }
         }
 
-        return a.ranks[lookupNext[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[lookupNext[b.index % DCX::X][a.index % DCX::X][1]];
+        return a.ranks[r1] < b.ranks[r2];
     }
 };
+struct DC7ComparatorHost
+{
+    __host__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
+    {
+        uint32_t l = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0];
+        uint32_t r1 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1];
+        uint32_t r2 = DCX::nextSample[b.index % DCX::X][a.index % DCX::X][1];
+        for (size_t i = 0; i < l; i++)
+        {
+            if (a.prefix[i] < b.prefix[i]) {
+                return true;
+            }
+            if (a.prefix[i] > b.prefix[i]) {
+                return false;
+            }
+        }
 
+        return a.ranks[r1] < b.ranks[r2];
+    }
+};
 struct DC7ComparatorTest
 {
-    __host__ __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
+    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
     {
         for (size_t i = 0; i < lookupNext[a.index % DCX::X][b.index % DCX::X][0]; i++)
         {
