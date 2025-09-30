@@ -237,7 +237,7 @@ namespace gossip {
             // check dst_lens for compatibility
             bool valid_dsts_lens = true;
             for (uint dst_gpu = 0; dst_gpu < num_gpus; ++dst_gpu) {
-                printf("[%lu] v_table[%u][%u]: %u, nodeinfo[%u].dest_len: %u\n", world_rank(), num_gpus, dst_gpu, v_table[num_gpus][dst_gpu], dst_gpu, node_info[dst_gpu].dest_len);
+                // printf("[%lu] v_table[%u][%u]: %u, nodeinfo[%u].dest_len: %u\n", world_rank(), num_gpus, dst_gpu, v_table[num_gpus][dst_gpu], dst_gpu, node_info[dst_gpu].dest_len);
                 valid_dsts_lens &= v_table[num_gpus][dst_gpu] <= node_info[dst_gpu].dest_len;
             }
             comm_world().barrier();
