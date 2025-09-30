@@ -405,7 +405,7 @@ public:
 
                 }
             }
-            do_segmented_sort();
+            do_segmented_sort(iterations);
 #ifdef DUMP_EVERYTHING
             dump("After sort");
 #endif
@@ -1097,7 +1097,7 @@ private:
             }
         }
         mcontext.sync_default_streams();
-        check_isa_len();
+        // check_isa_len();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
     }
     void check_isa_len() {
@@ -1307,7 +1307,7 @@ private:
         }
     }
 
-    void do_segmented_sort()
+    void do_segmented_sort(int iterations)
     {
         TIMER_START_LOOP_STAGE(LoopStages::Segmented_Sort);
 
@@ -1330,6 +1330,44 @@ private:
             }
         }
 
+        if (iterations == 1) {
+            mcontext.sync_all_streams();
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+
+
+                char fileName[19];
+                const char* text = "SaRankSegIter";
+                sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                std::ofstream out(fileName, std::ios::binary);
+                if (!out) {
+                    std::cerr << "Could not open file\n";
+                    //return 1;
+                }
+                sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                out.close();
+                free(k);
+                {
+                    char fileName[19];
+                    const char* text = "Sa_indexSegIter";
+                    sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
+                    std::ofstream out(fileName, std::ios::binary);
+                    if (!out) {
+                        std::cerr << "Could not open file\n";
+                        //return 1;
+                    }
+                    sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
+                    cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+                    out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
+                    out.close();
+                    free(k);
+                }
+
+            }
+        }
         // Now let's plan the merge process.
         std::vector<crossGPUReMerge::MergeRange> ranges;
 
@@ -1414,6 +1452,14 @@ private:
 
         // exit(0);
         //            dump("Before merge");
+
+        for (size_t i = 0; i < ranges.size(); i++)
+        {
+            printf("[%lu] start node: %u, index: %u, end node: %u, index: %u\n", i, ranges[i].start.node, ranges[i].start.index, ranges[i].end.node, ranges[i].end.index);
+        }
+
+
+
         TIMER_START_LOOP_STAGE(LoopStages::Merge);
         mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>());
         //            dump("After merge");
