@@ -1338,7 +1338,7 @@ private:
 
 
                 char fileName[19];
-                const char* text = "SaRankSegIter";
+                const char* text = "SaRankSegMIter";
                 sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                 std::ofstream out(fileName, std::ios::binary);
                 if (!out) {
@@ -1352,7 +1352,7 @@ private:
                 free(k);
                 {
                     char fileName[19];
-                    const char* text = "Sa_indexSegIter";
+                    const char* text = "Sa_indexSegMIter";
                     sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                     std::ofstream out(fileName, std::ios::binary);
                     if (!out) {
