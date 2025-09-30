@@ -336,7 +336,7 @@ public:
 #endif
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] Initial sort done\n", world_rank());
+        // printf("[%lu] Initial sort done\n", world_rank());
         // comm_world().barrier();
         //
 
@@ -349,14 +349,14 @@ public:
 #endif
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] Write initial ranks done\n", world_rank());
+        // printf("[%lu] Write initial ranks done\n", world_rank());
         // comm_world().barrier();
         //
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] Write to isa done\n", world_rank());
+        // printf("[%lu] Write to isa done\n", world_rank());
         // comm_world().barrier();
         //
 
@@ -372,7 +372,7 @@ public:
         done = compact();
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
+        // printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
         // comm_world().barrier();
         //
 
@@ -397,7 +397,7 @@ public:
             fetch_rank_for_sorting(h);
             //
             // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
@@ -408,9 +408,9 @@ public:
 #endif
 
             do_segmented_sort();
-            //
-            // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
+            // necessary sync
+            mcontext.sync_all_streams();
+            // printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
@@ -422,7 +422,7 @@ public:
             rebucket();
             //
             // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
@@ -437,7 +437,7 @@ public:
             write_to_isa();
             //
             // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
@@ -453,7 +453,7 @@ public:
             done = compact();
             //
             // mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
             // comm_world().barrier();
             //
 
