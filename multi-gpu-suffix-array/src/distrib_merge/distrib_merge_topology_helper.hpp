@@ -47,6 +47,8 @@ namespace distrib_merge {
                 t.start("do_copy_async_distributed");
                 do_copies_async_in_node(copies, a, b, out, do_values);
                 t.stop_and_append();
+                mcontext.sync_all_streams();
+                comm_world().barrier();
                 nvtxRangePop();
                 // printf("[%lu] do_copies_async in node \n", world_rank());
                 return;
@@ -84,6 +86,8 @@ namespace distrib_merge {
             }
             ncclGroupEnd();
             nvtxRangePop();
+            mcontext.sync_all_streams();
+            comm_world().barrier();
         }
 
         void do_copies_async_in_node(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,

@@ -202,6 +202,8 @@ namespace crossGPUReMerge {
             nvtxRangePush("do_copies_asyncRemerge");
             if (mcontext.is_in_node()) {
                 do_copies_async_in_node(copies, detour_buffer_sizes, do_values);
+                mcontext.sync_all_streams();
+                comm_world().barrier();
                 nvtxRangePop();
                 return;
             }
@@ -277,6 +279,8 @@ namespace crossGPUReMerge {
             // t.synchronize_and_start("wait_all");
             ncclGroupEnd();
             nvtxRangePop();
+            mcontext.sync_all_streams();
+            comm_world().barrier();
             // pool.wait_all();
             // t.stop();
             // t.aggregate_and_print(

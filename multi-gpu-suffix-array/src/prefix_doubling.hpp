@@ -1681,7 +1681,10 @@ private:
 
         mcontext.sync_default_streams(); // Wait for sorting to finish.
         TIMER_STOP_LOOP_STAGE(LoopStages::Segmented_Sort);
-
+        for (size_t i = 0; i < ranges.size(); i++)
+        {
+            printf("[%lu] i:[%lu] start node: %u, index: %u, end node: %u, index: %u\n", world_rank(), i, ranges[i].start.node, ranges[i].start.index, ranges[i].end.node, ranges[i].end.index);
+        }
         //            dump("Before merge");
         TIMER_START_LOOP_STAGE(LoopStages::Merge);
         mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>());
