@@ -450,7 +450,7 @@ public:
             do_segmented_sort();
 
             //
-            // mcontext.sync_all_streams();
+            mcontext.sync_all_streams();
             printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
             comm_world().barrier();
             //
