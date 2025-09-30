@@ -1368,7 +1368,7 @@ private:
 
         mcontext.sync_default_streams();
 
-        check_isa_len();
+        // check_isa_len();
 
         // printf("[%lu] after sync write to isa\n", world_rank());
 
