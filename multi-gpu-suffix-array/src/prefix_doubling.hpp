@@ -374,7 +374,7 @@ public:
                     SaGPU& gpu = mgpus[gpu_index];
 
 
-                    char fileName[14];
+                    char fileName[16];
                     const char* text = "SaRankIter";
                     sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                     std::ofstream out(fileName, std::ios::binary);
@@ -416,7 +416,7 @@ public:
                     SaGPU& gpu = mgpus[gpu_index];
 
 
-                    char fileName[14];
+                    char fileName[16];
                     const char* text = "SaRank2Iter";
                     sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                     std::ofstream out(fileName, std::ios::binary);
