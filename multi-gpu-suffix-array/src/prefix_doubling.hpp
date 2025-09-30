@@ -408,7 +408,7 @@ public:
                     SaGPU& gpu = mgpus[gpu_index];
                     if (gpu_index == world_rank()) {
 
-                        char fileName[14];
+                        char fileName[16];
                         const char* text = "SaRankIter";
                         sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                         std::ofstream out(fileName, std::ios::binary);
@@ -422,7 +422,7 @@ public:
                         out.close();
                         free(k);
                         {
-                            char fileName[14];
+                            char fileName[16];
                             const char* text = "Sa_indexIter";
                             sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                             std::ofstream out(fileName, std::ios::binary);
@@ -439,6 +439,8 @@ public:
                     }
                 }
             }
+            comm_world().barrier();
+
             TIMER_STOP_LOOP_STAGE(LoopStages::Fetch_Rank);
 
 #ifdef DUMP_EVERYTHING
@@ -458,7 +460,7 @@ public:
                     SaGPU& gpu = mgpus[gpu_index];
                     if (gpu_index == world_rank()) {
 
-                        char fileName[14];
+                        char fileName[16];
                         const char* text = "SaRank2Iter";
                         sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                         std::ofstream out(fileName, std::ios::binary);
@@ -472,7 +474,7 @@ public:
                         out.close();
                         free(k);
                         {
-                            char fileName[14];
+                            char fileName[16];
                             const char* text = "Sa_index2Iter";
                             sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
                             std::ofstream out(fileName, std::ios::binary);
@@ -489,6 +491,7 @@ public:
                     }
                 }
             }
+            comm_world().barrier();
 #ifdef DUMP_EVERYTHING
             dump("After sort");
 #endif
