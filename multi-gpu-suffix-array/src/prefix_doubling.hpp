@@ -398,9 +398,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Fetch_Rank);
             fetch_rank_for_sorting(h);
             //
-            // mcontext.sync_all_streams();
+            mcontext.sync_all_streams();
             // printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            comm_world().barrier();
             //
             // if (iterations == 1) {
             //     for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -439,7 +439,7 @@ public:
             //         }
             //     }
             // }
-            comm_world().barrier();
+            // comm_world().barrier();
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Fetch_Rank);
 
