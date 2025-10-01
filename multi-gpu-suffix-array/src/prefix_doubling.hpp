@@ -1211,7 +1211,7 @@ private:
 
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
         mcontext.sync_default_streams();
-        printf("[%lu] After multi_split isa\n", world_rank());
+        // printf("[%lu] After multi_split isa\n", world_rank());
         comm_world().barrier();
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Multisplit);
@@ -1238,12 +1238,12 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
 
-            printf("[%lu] isa len [%u] %lu, work len %lu\n", world_rank(), gpu_index, gpu.isa_len, gpu.working_len);
+            // printf("[%lu] isa len [%u] %lu, work len %lu\n", world_rank(), gpu_index, gpu.isa_len, gpu.working_len);
         }
         mall2all.execKVAsync(all2all_node_info, split_table);
-        mcontext.sync_all_streams();
-        printf("[%lu] After all2all isa\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] After all2all isa\n", world_rank());
+        // comm_world().barrier();
 
         // printf("[%lu] mall2all isa stage\n", world_rank());
         // comm_world().barrier();
@@ -1266,10 +1266,10 @@ private:
                 //(mcontext.get_device_id(gpu_index));
                 kernels::sub_value _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Old_ranks, gpu.Temp1, gpu.offset, dest_lens[gpu_index]);
                 CUERR;
-                //
-                mcontext.sync_default_streams();
-                printf("[%lu] After sub_value isa\n", world_rank());
-                //
+                // //
+                // mcontext.sync_default_streams();
+                // printf("[%lu] After sub_value isa\n", world_rank());
+                // //
                 size_t temp_storage;
 
                 cub::DoubleBuffer<sa_index_t> d_keys(gpu.Temp1, gpu.Old_ranks);
@@ -1291,7 +1291,7 @@ private:
         {
             mcontext.sync_default_streams();
         }
-        mcontext.sync_default_streams();
+        // mcontext.sync_default_streams();
         printf("[%lu] After sort isa\n", world_rank());
         comm_world().barrier();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Sort);
@@ -1337,10 +1337,10 @@ private:
 
 
 
-        mcontext.sync_default_streams();
+        // mcontext.sync_default_streams();
         printf("[%lu] after sync write to isa\n", world_rank());
-        comm_world().barrier();
-        check_isa_len();
+        // comm_world().barrier();
+        // check_isa_len();
 
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
