@@ -968,7 +968,7 @@ private:
 
 
         size_t out_num_elements;
-        // SampleSort(merge_tuple, merge_tuple_out, gpu.num_elements, out_num_elements, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2));
+        SampleSort(merge_tuple, merge_tuple_out, gpu.num_elements, out_num_elements, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DC7Comparator{});
         mcontext.sync_all_streams();
         printf("[%lu] sample sorted\n", world_rank());
 

@@ -82,7 +82,8 @@ namespace distrib_merge {
                 }
             }
             ncclGroupEnd();
-
+            mcontext.sync_all_streams();
+            comm_world().barrier();
             // nvtxRangePop();
         }
 
