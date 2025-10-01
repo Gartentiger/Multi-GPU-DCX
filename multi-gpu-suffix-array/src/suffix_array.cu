@@ -1387,21 +1387,19 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         size_t data_size = (128UL << i) - 1UL;
         std::array<MergeNodeInfo, NUM_GPUS> merge_nodes_info;
 
-        std::vector<uint64_t> h_keys(data_size);
-        std::vector<uint64_t> h_values(data_size);
+        thrust::host_vector<uint64_t> h_keys(data_size);
+        thrust::host_vector<uint64_t> h_values(data_size);
         for (size_t i = 0; i < data_size; i++)
         {
             h_keys[i] = randomDistChar(g);
             h_values[i] = randomDistChar(g);
         }
-        uint64_t* d_keys;
-        cudaMalloc(&d_keys, sizeof(uint64_t) * 2 * data_size);
-        cudaMemcpy(d_keys, h_keys.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
-        uint64_t* d_values;
-        cudaMalloc(&d_values, sizeof(uint64_t) * 2 * data_size);
-        // cudaMemset(d_values, 0, sizeof(uint64_t) * data_size);
-        cudaMemcpy(d_values, h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
-
+        thrust::device_vector<uint64_t> d_keys_vec(h_keys.begin(), h_keys.end());
+        d_keys_vec.reserve(data_size * 2);
+        uint64_t* d_keys = thrust::raw_pointer_cast(d_keys_vec.data());
+        thrust::device_vector<uint64_t> d_values_vec(h_values.begin(), h_values.end());
+        d_values_vec.reserve(data_size * 2);
+        uint64_t* d_values = thrust::raw_pointer_cast(d_values_vec.data());
         std::array<uint64_t*, NUM_GPUS> d_keys_gpu;
         std::array<uint64_t*, NUM_GPUS> d_values_gpu;
         d_keys_gpu[world_rank()] = d_keys;
@@ -1460,7 +1458,15 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         if (world_rank() == 0)
             printf("[%lu] elements: %lu, %8.3f MB\n", world_rank(), data_size, num_mB);
 
+        ASSERT(d_keys_vec.size() == data_size);
+        thrust::copy(d_keys_vec.begin(), d_keys_vec.end(), h_keys.begin());
 
+        std::vector<uint64_t> all_vec = comm_world().gather(send_buf(std::span<uint64_t>(h_keys.data(), h_keys.size())), send_count(h_keys.size()));
+        if (world_rank() == 0) {
+            if (!std::is_sorted(all_vec.begin(), all_vec.end())) {
+                printf("[%lu] Not sorted!\n", i);
+            }
+        }
 
         // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
     // for (size_t i = 0; i < data_size; i++)
@@ -1470,8 +1476,6 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
 
         free(h_temp_mem);
         cudaFree(temp);
-        cudaFree(d_keys);
-        cudaFree(d_values);
     }
 }
 
@@ -1556,8 +1560,8 @@ int main(int argc, char** argv)
 
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
-    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    // size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
+    // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
 
@@ -1569,7 +1573,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0, 1, 2, 3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     warm_up_nccl(context);
