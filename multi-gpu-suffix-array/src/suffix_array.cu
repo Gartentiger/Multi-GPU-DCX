@@ -1463,6 +1463,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
 
         std::vector<uint64_t> all_vec = comm_world().gather(send_buf(std::span<uint64_t>(h_keys.data(), h_keys.size())), send_count(h_keys.size()));
         if (world_rank() == 0) {
+            printf("all_vec.size %lu\n", all_vec.size());
             if (!std::is_sorted(all_vec.begin(), all_vec.end())) {
                 printf("[%lu] Not sorted!\n", i);
             }
