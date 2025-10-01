@@ -1581,7 +1581,7 @@ int main(int argc, char** argv)
     // alltoallMeasure(context);
     // ncclMeasure(context);
     // sample_sort_merge_measure(context);
-    // auto& t = kamping::measurements::timer();
+    auto& t = kamping::measurements::timer();
     // std::ofstream outFile(argv[2], std::ios::app);
     // t.aggregate_and_print(
     //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
