@@ -1447,11 +1447,13 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         CUERR_CHECK(err);
         mcontext.sync_all_streams();
         t.stop();
-        t.start("merge");
-        merge_manager.merge(ranges, std::less<uint64_t>());
-        mcontext.sync_all_streams();
-        t.stop();
-        comm_world().barrier();
+        for (int k = 0; k < 10; k++) {
+            t.start("merge");
+            merge_manager.merge(ranges, std::less<uint64_t>());
+            mcontext.sync_all_streams();
+            comm_world().barrier();
+            t.stop();
+        }
         t.stop_and_append();
         size_t mb = 1 << 20;
         double num_mB = (double)bytes / (double)mb;

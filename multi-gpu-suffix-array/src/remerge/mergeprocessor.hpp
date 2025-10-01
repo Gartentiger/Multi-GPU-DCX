@@ -653,7 +653,7 @@ namespace crossGPUReMerge
             // barrier in case of an intranode merge
             comm_world().barrier();
             mtopology_helper.do_copies_async(copies, detour_sizes, do_values);
-            // printf("[%lu] do copies async done\n", world_rank());
+            printf("[%lu] do copies async done\n", world_rank());
 
             // t.synchronize_and_start("multi_mergers");
             std::vector<NodeMultiMerger<NUM_GPUS, mtypes, comp_fun_t>> multi_mergers;
@@ -712,7 +712,7 @@ namespace crossGPUReMerge
             }
 
             comm_world().barrier();
-            // printf("[%lu] after local merge\n", world_rank());
+            printf("[%lu] after local merge\n", world_rank());
             // mcontext.sync_all_streams();
             // t.stop();
             // t.synchronize_and_start("do_merge_step");
