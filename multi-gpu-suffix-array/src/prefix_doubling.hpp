@@ -462,9 +462,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Rebucket);
             rebucket();
             //
-            // mcontext.sync_all_streams();
-            // printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            mcontext.sync_all_streams();
+            printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
+            comm_world().barrier();
             //
 
 
@@ -477,9 +477,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Write_Isa);
             write_to_isa();
             //
-            // mcontext.sync_all_streams();
-            // printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            mcontext.sync_all_streams();
+            printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
+            comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Write_Isa);
@@ -493,9 +493,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Compacting);
             done = compact();
             //
-            // mcontext.sync_all_streams();
-            // printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            mcontext.sync_all_streams();
+            printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
+            comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Compacting);
