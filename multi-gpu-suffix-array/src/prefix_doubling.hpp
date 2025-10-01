@@ -1237,6 +1237,8 @@ private:
             all2all_node_info[gpu_index].temp_keys = gpu.Temp3;
             all2all_node_info[gpu_index].temp_values = gpu.Temp4;
             all2all_node_info[gpu_index].temp_len = gpu.isa_len;
+
+            printf("[%lu] isa len [%u] %lu, work len %lu\n", world_rank(), gpu_index, gpu.isa_len, gpu.working_len);
         }
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
