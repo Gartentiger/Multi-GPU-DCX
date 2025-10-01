@@ -1345,6 +1345,135 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         outFile.close();
     }
 }
+template<typename T>
+void share_gpu_ptr(std::array<T*, NUM_GPUS>& ptrs, MultiGPUContext<NUM_GPUS>& context) {
+
+    cudaIpcMemHandle_t handleSend;
+    cudaIpcGetMemHandle(&handleSend, ptrs[world_rank()]);
+
+    for (size_t dst = 0; dst < NUM_GPUS; dst++) {
+        if (context.get_peer_status(world_rank(), dst) != 1) {
+            continue;
+        }
+        comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handleSend, 1)), send_count(1), tag(0), destination(dst));
+    }
+    for (size_t src = 0; src < NUM_GPUS; src++) {
+        if (context.get_peer_status(world_rank(), src) != 1) {
+            continue;
+        }
+        cudaIpcMemHandle_t other_handleRecv;
+        comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handleRecv, 1)), recv_count(1), tag(0), source(src));
+        void* ptrHandleRecv;
+
+        cudaIpcOpenMemHandle(&ptrHandleRecv, other_handleRecv, cudaIpcMemLazyEnablePeerAccess);
+        CUERR;
+
+        // printf("[%lu] opened mem handles from %d\n", world_rank(), src);
+        ptrs[src] = reinterpret_cast<T*>(ptrHandleRecv);
+    }
+}
+
+void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
+    using merge_types = crossGPUReMerge::mergeTypes<uint64_t, uint64_t>;
+    using MergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, merge_types, ReMergeTopology>;
+    using MergeNodeInfo = crossGPUReMerge::MergeNodeInfo<merge_types>;
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
+    size_t rounds = 22;
+    for (size_t i = 0; i < rounds; i++)
+    {
+        size_t data_size = (128UL << i) - 1UL;
+        std::array<MergeNodeInfo, NUM_GPUS> merge_nodes_info;
+
+        std::vector<uint64_t> h_keys(data_size);
+        std::vector<uint64_t> h_values(data_size);
+        for (size_t i = 0; i < data_size; i++)
+        {
+            h_keys[i] = randomDistChar(g);
+            h_values[i] = randomDistChar(g);
+        }
+        uint64_t* d_keys;
+        cudaMalloc(&d_keys, sizeof(uint64_t) * 2 * data_size);
+        cudaMemcpy(d_keys, h_keys.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
+        uint64_t* d_values;
+        cudaMalloc(&d_values, sizeof(uint64_t) * 2 * data_size);
+        // cudaMemset(d_values, 0, sizeof(uint64_t) * data_size);
+        cudaMemcpy(d_values, h_values.data(), data_size * sizeof(uint64_t), cudaMemcpyHostToDevice);
+
+        std::array<uint64_t*, NUM_GPUS> d_keys_gpu;
+        std::array<uint64_t*, NUM_GPUS> d_values_gpu;
+        d_keys_gpu[world_rank()] = d_keys;
+        d_values_gpu[world_rank()] = d_values;
+        share_gpu_ptr(d_keys_gpu, mcontext);
+        comm_world().barrier();
+        share_gpu_ptr(d_values_gpu, mcontext);
+        comm_world().barrier();
+
+        size_t temp_storage_size = 0;
+        void* temp;
+        auto err = cub::DeviceMergeSort::SortPairs(nullptr, temp_storage_size,
+            d_keys, d_values, data_size, std::less<uint64_t>(), mcontext.get_gpu_default_stream(world_rank()));
+        temp_storage_size = std::max(sizeof(uint64_t) * data_size * 2, temp_storage_size);
+
+        cudaMalloc(&temp, temp_storage_size);
+        mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
+
+        uint64_t* h_temp_mem = (uint64_t*)malloc(temp_storage_size);
+        memset(h_temp_mem, 0, temp_storage_size);
+        QDAllocator host_pinned_allocator(h_temp_mem, temp_storage_size);
+
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[gpu_index], d_values_gpu[gpu_index] , d_keys_gpu[gpu_index] + data_size,  d_values_gpu[gpu_index] + data_size,  nullptr, nullptr };
+        }
+
+        MergeManager merge_manager(mcontext, host_pinned_allocator);
+        merge_manager.set_node_info(merge_nodes_info);
+
+        std::vector<crossGPUReMerge::MergeRange> ranges;
+        ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)(data_size) });
+        mcontext.sync_all_streams();
+        auto& t = kamping::measurements::timer();
+        char sf[30];
+        size_t bytes = sizeof(uint64_t) * data_size;
+        sprintf(sf, "sample_sort_%lu", bytes);
+        t.synchronize_and_start(sf);
+        t.start("init_sort");
+        // mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp, temp_storage_size);
+        // mgpu::mergesort(d_keys, data_size, std::less<uint64_t>(), mcontext.get_mgpu_default_context_for_device(world_rank()));
+
+        err = cub::DeviceMergeSort::SortPairs(temp, temp_storage_size,
+            d_keys, d_values, data_size, std::less<uint64_t>(), mcontext.get_gpu_default_stream(world_rank()));
+        CUERR_CHECK(err);
+        mcontext.sync_all_streams();
+        t.stop();
+        t.start("merge");
+        merge_manager.merge(ranges, std::less<uint64_t>());
+        mcontext.sync_all_streams();
+        t.stop();
+        comm_world().barrier();
+        t.stop_and_append();
+        size_t mb = 1 << 20;
+        double num_mB = (double)bytes / (double)mb;
+        if (world_rank() == 0)
+            printf("[%lu] elements: %lu, %8.3f MB\n", world_rank(), data_size, num_mB);
+
+
+
+        // cudaMemcpy(h_temp_mem, d_keys + data_size, sizeof(uint64_t) * data_size, cudaMemcpyDeviceToHost);
+    // for (size_t i = 0; i < data_size; i++)
+    // {
+    //     printf("[%lu] merged key[%3lu]: %20lu\n", world_rank(), i, h_temp_mem[i]);
+    // }
+
+        free(h_temp_mem);
+        cudaFree(temp);
+        cudaFree(d_keys);
+        cudaFree(d_values);
+    }
+}
 
 void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
     ncclComm_t nccl_comm = context.get_nccl();
@@ -1382,6 +1511,8 @@ void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
 
 int main(int argc, char** argv)
 {
+
+
     using namespace kamping;
     kamping::Environment e;
     Communicator comm;
@@ -1444,7 +1575,8 @@ int main(int argc, char** argv)
     warm_up_nccl(context);
     // alltoallMeasure(context);
     // ncclMeasure(context);
-    // return 0;
+    sample_sort_merge_measure(context);
+    return 0;
 #endif
     SuffixSorter sorter(context, realLen, input);
 
