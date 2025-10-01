@@ -247,26 +247,26 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
         //
-        // mcontext.sync_all_streams();
-        // printf("[%lu] prepare s12 for merge done\n", world_rank());
-        // comm_world().barrier();
+        mcontext.sync_all_streams();
+        printf("[%lu] prepare s12 for merge done\n", world_rank());
+        comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         prepare_S0_for_merge();
         //
-        // mcontext.sync_all_streams();
-        // printf("[%lu] prepare s0 for merge done\n", world_rank());
-        // comm_world().barrier();
+        mcontext.sync_all_streams();
+        printf("[%lu] prepare s0 for merge done\n", world_rank());
+        comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Final_Merge);
         final_merge();
         //
-        // mcontext.sync_all_streams();
-        // printf("[%lu] final merge done\n", world_rank());
-        // comm_world().barrier();
+        mcontext.sync_all_streams();
+        printf("[%lu] final merge done\n", world_rank());
+        comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
         // TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
@@ -275,9 +275,9 @@ public:
 
         copy_result_to_host();
         //
-        // mcontext.sync_all_streams();
-        // printf("[%lu] complete\n", world_rank());
-        // comm_world().barrier();
+        mcontext.sync_all_streams();
+        printf("[%lu] complete\n", world_rank());
+        comm_world().barrier();
         //
         // TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
     }
@@ -1353,7 +1353,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         outFile.write(reinterpret_cast<char*>(alg_bandwidth.data()), rounds * sizeof(double));
         outFile.close();
     }
-        }
+}
 
 void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
     ncclComm_t nccl_comm = context.get_nccl();
