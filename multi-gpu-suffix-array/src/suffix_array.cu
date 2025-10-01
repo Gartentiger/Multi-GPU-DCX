@@ -45,7 +45,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 8;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -1478,12 +1478,6 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         free(h_temp_mem);
         cudaFree(temp);
     }
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ std::cout }
-    );
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
 }
 
 void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
@@ -1522,8 +1516,6 @@ void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
 
 int main(int argc, char** argv)
 {
-
-
     using namespace kamping;
     kamping::Environment e;
     Communicator comm;
@@ -1555,7 +1547,7 @@ int main(int argc, char** argv)
 
     if (argc != 3)
     {
-        error("Usage: sa-test <ofile> <ifile> !");
+        error("Usage: sa-test <ofile> <measfile> <ifile> !");
     }
 
     // for (int i = 0; i < 2; i++)
@@ -1568,7 +1560,7 @@ int main(int argc, char** argv)
 
     size_t realLen = 0;
     // size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
-    // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    // size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
 
@@ -1580,13 +1572,26 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3,0,1,2,3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     warm_up_nccl(context);
     // alltoallMeasure(context);
     // ncclMeasure(context);
     sample_sort_merge_measure(context);
+    auto& t = kamping::measurements::timer();
+    std::ofstream outFile(argv[2], std::ios::app);
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ std::cout }
+    );
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
     return 0;
 #endif
     SuffixSorter sorter(context, realLen, input);
@@ -1610,7 +1615,7 @@ int main(int argc, char** argv)
     if (world_rank() == 0)
     {
         sorter.print_pd_stats();
-        sorter.get_perf_measurements().print(argv[1]);
+        sorter.get_perf_measurements().print(argv[2]);
     }
 
     cudaFreeHost(input);
