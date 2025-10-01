@@ -61,7 +61,7 @@ namespace crossGPUReMerge {
                     stream_index = (stream_index + 1) % NUM_GPUS;
                 }
 
-                printf("[%lu] after multi micro merge\n", world_rank());
+                // printf("[%lu] after multi micro merge\n", world_rank());
                 if (msrc_ranges->size() > 1 && msrc_ranges->size() % 2 > 0) {
                     const sa_index_range_t& odd_range = msrc_ranges->back();
                     mdest_ranges->push_back(msrc_ranges->back());
