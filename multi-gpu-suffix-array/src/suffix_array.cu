@@ -1412,7 +1412,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         size_t temp_storage_size = 0;
         void* temp;
         auto err = cub::DeviceMergeSort::SortPairs(nullptr, temp_storage_size,
-            d_keys, d_values, data_size, std::less<uint64_t>(), mcontext.get_gpu_default_stream(world_rank()));
+            d_keys, data_size, std::less<uint64_t>(), mcontext.get_gpu_default_stream(world_rank()));
         temp_storage_size = std::max(sizeof(uint64_t) * data_size * 2, temp_storage_size);
 
         cudaMalloc(&temp, temp_storage_size);
@@ -1443,7 +1443,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         // mgpu::mergesort(d_keys, data_size, std::less<uint64_t>(), mcontext.get_mgpu_default_context_for_device(world_rank()));
 
         err = cub::DeviceMergeSort::SortPairs(temp, temp_storage_size,
-            d_keys, d_values, data_size, std::less<uint64_t>(), mcontext.get_gpu_default_stream(world_rank()));
+            d_keys, data_size, std::less<uint64_t>(), mcontext.get_gpu_default_stream(world_rank()));
         CUERR_CHECK(err);
         mcontext.sync_all_streams();
         t.stop();
