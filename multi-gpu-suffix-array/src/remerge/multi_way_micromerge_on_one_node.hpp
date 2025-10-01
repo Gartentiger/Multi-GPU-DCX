@@ -28,7 +28,7 @@ namespace crossGPUReMerge {
         }
 
         bool do_merge_step() {
-            //(mcontext.get_device_id(mnode.info.index));
+
             mstreams_used.clear();
             if (msrc_ranges->size() > 1) {
                 uint stream_index = 0;

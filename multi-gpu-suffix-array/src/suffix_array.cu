@@ -1322,16 +1322,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         double avg_time_per_transfer = elapsed_time / ((double)loop_count);
         alg_bandwidth[iter - start_offset] = num_GB / avg_time_per_transfer;
         printf("[%lu] Transfer size (B): %10li, Transfer Time Avg|Min|Max (s): %15.9f %15.9f %15.9f, Bandwidth (GB/s): %15.9f\n", world_rank(), num_B, avg_time_per_transfer, loop_time.front(), loop_time.back(), alg_bandwidth[iter - start_offset]);
-        // comm_world().barrier();
-        // cudaMemcpy(A, d_A_send[world_rank()], per_gpu * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
-        // CUERR;
-        // std::sort(A, A + per_gpu, std::less<sa_index_t>());
-        // for(sa_index_t j = 0; j < per_gpu; j++){
-        //     if(A[j]-per_gpu*world_rank() != j){
-        //         printf("[%lu] A[%u] %u wrong\n", world_rank(), j, A[j]);
-        //         break;
-        //     }
-        // }
+
         comm_world().barrier();
 
         cudaFree(d_A_send[world_rank()]);
@@ -1365,7 +1356,7 @@ void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
     for (int i = 0; i < WARM_UP_ROUNDS; i++)
     {
 
-        std::vector<int> data(1000);
+        std::vector<int> data(10000);
         for (auto& v : data)
         {
             v = randomDist(g);
