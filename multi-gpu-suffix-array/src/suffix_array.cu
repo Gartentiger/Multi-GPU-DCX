@@ -1377,7 +1377,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
     using merge_types = crossGPUReMerge::mergeTypes<uint64_t, uint64_t>;
     using MergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, merge_types, ReMergeTopology>;
     using MergeNodeInfo = crossGPUReMerge::MergeNodeInfo<merge_types>;
-
+    auto& t = kamping::measurements::timer();
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, UINT64_MAX);
@@ -1433,7 +1433,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)(data_size) });
         mcontext.sync_all_streams();
-        auto& t = kamping::measurements::timer();
+
         char sf[30];
         size_t bytes = sizeof(uint64_t) * data_size;
         sprintf(sf, "sample_sort_%lu", bytes);
@@ -1478,6 +1478,12 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         free(h_temp_mem);
         cudaFree(temp);
     }
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ std::cout }
+    );
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
 }
 
 void warm_up_nccl(MultiGPUContext<NUM_GPUS>& context) {
