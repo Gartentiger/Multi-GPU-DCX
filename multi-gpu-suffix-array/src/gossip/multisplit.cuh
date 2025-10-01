@@ -24,11 +24,7 @@ public:
     {
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
-            //if (world_rank() == gpu)
-            //{
-            //(0);
             cudaMallocHost(&h_offsets[gpu], sizeof(uint32_t) * NUM_GPUS);
-            //}
         }
         CUERR;
     }
@@ -37,7 +33,6 @@ public:
     {
         for (uint gpu = 0; gpu < num_gpus; ++gpu)
         {
-            //(context.get_device_id(gpu));
             cudaFreeHost(h_offsets[gpu]);
         }
         CUERR;

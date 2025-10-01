@@ -34,6 +34,8 @@ namespace gossip {
                 // nvtxRangePush("execAsyncAll2AllinNode");
                 // printf("[%lu] in node async\n", world_rank());
                 bool b = execAsyncInNode(node_info, table);
+                context.sync_all_streams();
+                comm_world().barrier();
                 // nvtxRangePop();
                 return b;
             }
@@ -72,8 +74,9 @@ namespace gossip {
                 } CUERR;
             }
             ncclGroupEnd();
-            nvtxRangePop();
-
+            // nvtxRangePop();
+            context.sync_all_streams();
+            comm_world().barrier();
             return check_tables(node_info, h_table, v_table);
         }
         template <typename key_t, typename value_t, typename index_t, typename table_t>
@@ -119,6 +122,8 @@ namespace gossip {
             if (context.is_in_node() && !after) {
                 // nvtxRangePush("execKVAsyncAll2AllinNode");
                 bool b = execKVAsyncInNode(node_info, table);
+                context.sync_all_streams();
+                comm_world().barrier();
                 // nvtxRangePop();
                 return b;
                 // printf("[%lu] in node kv async\n", world_rank());
@@ -164,7 +169,9 @@ namespace gossip {
                 } CUERR;
             }
             ncclGroupEnd();
-            // nvtxRangePop();
+            // nvtxRangePop();  
+            context.sync_all_streams();
+            comm_world().barrier();
             return check_tables(node_info, h_table, v_table);
         }
 
