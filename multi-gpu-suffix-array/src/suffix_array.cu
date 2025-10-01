@@ -1545,7 +1545,7 @@ int main(int argc, char** argv)
     NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
     printf("[%lu] Active nccl comm\n", world_rank());
 
-    if (argc != 3)
+    if (argc != 4)
     {
         error("Usage: sa-test <ofile> <measfile> <ifile> !");
     }
