@@ -1561,8 +1561,8 @@ int main(int argc, char** argv)
 
 
     size_t realLen = 0;
-    // size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
-    // size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
+    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
 
@@ -1580,21 +1580,21 @@ int main(int argc, char** argv)
     warm_up_nccl(context);
     // alltoallMeasure(context);
     // ncclMeasure(context);
-    sample_sort_merge_measure(context);
-    auto& t = kamping::measurements::timer();
-    std::ofstream outFile(argv[2], std::ios::app);
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ std::cout }
-    );
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
-    return 0;
+    // sample_sort_merge_measure(context);
+    // auto& t = kamping::measurements::timer();
+    // std::ofstream outFile(argv[2], std::ios::app);
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ std::cout }
+    // );
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
+    // return 0;
 #endif
     SuffixSorter sorter(context, realLen, input);
 
@@ -1623,11 +1623,11 @@ int main(int argc, char** argv)
     cudaFreeHost(input);
     CUERR;
     // }
-    // std::ofstream outFile(argv[1], std::ios::app);
-    // t.aggregate_and_print(
-    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    // std::cout << std::endl;
-    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    // std::cout << std::endl;
+    std::ofstream outFile(argv[1], std::ios::app);
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
     return 0;
 }
