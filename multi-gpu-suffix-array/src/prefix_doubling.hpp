@@ -337,9 +337,9 @@ public:
         dump("After initial sort");
 #endif
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Initial sort done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] Initial sort done\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
@@ -350,16 +350,16 @@ public:
         dump("Initial ranking");
 #endif
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Write initial ranks done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] Write initial ranks done\n", world_rank());
+        // comm_world().barrier();
         //
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         //
-        mcontext.sync_all_streams();
-        printf("[%lu] Write to isa done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] Write to isa done\n", world_rank());
+        // comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
@@ -374,7 +374,7 @@ public:
         done = compact();
         //
         mcontext.sync_all_streams();
-        printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
+        // printf("[%lu] done: %s\n", world_rank(), done ? "true" : "false");
         comm_world().barrier();
         //
 
@@ -450,7 +450,7 @@ public:
             do_segmented_sort(iterations);
 
             mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu], do_segmented_sort done\n", world_rank(), iterations);
             comm_world().barrier();
 
 
@@ -461,9 +461,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Rebucket);
             rebucket();
             //
-            mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
-            comm_world().barrier();
+            // mcontext.sync_all_streams();
+            // printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
+            // comm_world().barrier();
             //
 
 
@@ -476,9 +476,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Write_Isa);
             write_to_isa();
             //
-            mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
-            comm_world().barrier();
+            // mcontext.sync_all_streams();
+            // printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
+            // comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Write_Isa);
@@ -493,7 +493,7 @@ public:
             done = compact();
             //
             mcontext.sync_all_streams();
-            printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
+            // printf("[%lu] iteration: [%lu] compact 2 done\n", world_rank(), iterations);
             comm_world().barrier();
             //
 
@@ -515,9 +515,9 @@ public:
         //            TIMER_START_MAIN_STAGE(MainStages::Final_Transpose);
         //            transpose_isa();
         //            TIMER_STOP_MAIN_STAGE(MainStages::Final_Transpose);
-        mcontext.sync_all_streams();
-        printf("[%lu] prefix doubling done\n", world_rank());
-        comm_world().barrier();
+        // mcontext.sync_all_streams();
+        // printf("[%lu] prefix doubling done\n", world_rank());
+        // comm_world().barrier();
 
         return iterations;
     }
@@ -1292,7 +1292,7 @@ private:
             mcontext.sync_default_streams();
         }
         // mcontext.sync_default_streams();
-        printf("[%lu] After sort isa\n", world_rank());
+        // printf("[%lu] After sort isa\n", world_rank());
         comm_world().barrier();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::Sort);
 
@@ -1311,14 +1311,14 @@ private:
                     kernels::write_to_isa_2_shared_all<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
                         gpu.Isa, dest_lens[gpu_index]);
                     CUERR;
-                    printf("[%lu] write_to_isa_2_shared_all\n", world_rank());
+                    // printf("[%lu] write_to_isa_2_shared_all\n", world_rank());
                 }
                 else
                 {
                     kernels::write_to_isa_2_shared_most<BLOCK_SIZE, 8> _KLC_SIMPLE_ITEMS_PER_THREAD_((size_t)dest_lens[gpu_index], 8, mcontext.get_gpu_default_stream(gpu_index))(sorted_buff[gpu_index].second, sorted_buff[gpu_index].first, gpu.isa_len,
                         gpu.Isa, dest_lens[gpu_index]);
                     CUERR;
-                    printf("[%lu] write_to_isa_2_shared_most\n", world_rank());
+                    // printf("[%lu] write_to_isa_2_shared_most\n", world_rank());
                     //                        kernels::write_to_isa_2 _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))
                     //                                (sorted_buff[gpu_index].second, sorted_buff[gpu_index].first,
                     //                                 gpu.Isa, dest_lens[gpu_index], gpu.isa_len); CUERR;
@@ -1329,7 +1329,7 @@ private:
                 kernels::write_to_isa_sub_offset _KLC_SIMPLE_((size_t)dest_lens[gpu_index], mcontext.get_gpu_default_stream(gpu_index))(gpu.Segment_heads, gpu.Old_ranks,
                     gpu.Isa, gpu.offset, dest_lens[gpu_index], gpu.isa_len);
                 CUERR;
-                printf("[%lu]write_to_isa_sub_offset\n", world_rank());
+                // printf("[%lu]write_to_isa_sub_offset\n", world_rank());
             }
             // mcontext.sync_default_streams();
             // comm_world().barrier();
@@ -1337,9 +1337,9 @@ private:
 
 
 
-        // mcontext.sync_default_streams();
-        printf("[%lu] after sync write to isa\n", world_rank());
-        // comm_world().barrier();
+        mcontext.sync_default_streams();
+        // printf("[%lu] after sync write to isa\n", world_rank());
+        comm_world().barrier();
         // check_isa_len();
 
 
