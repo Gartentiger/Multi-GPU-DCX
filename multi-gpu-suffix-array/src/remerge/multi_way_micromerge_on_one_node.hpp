@@ -28,7 +28,7 @@ namespace crossGPUReMerge {
         }
 
         bool do_merge_step() {
-            //(mcontext.get_device_id(mnode.info.index));
+
             mstreams_used.clear();
             if (msrc_ranges->size() > 1) {
                 uint stream_index = 0;
@@ -67,6 +67,7 @@ namespace crossGPUReMerge {
                     cudaMemcpyAsync(mdest_key_buff + odd_range.start, msrc_key_buff + odd_range.start,
                         sizeof(typename mtypes::key_t) * (odd_range.end - odd_range.start), cudaMemcpyDeviceToDevice,
                         mcontext.get_streams(mnode.info.index)[stream_index]); CUERR
+
                         if (mstreams_used.size() < NUM_GPUS)
                             mstreams_used.push_back(stream_index);
                     if (mdo_values) {
@@ -75,7 +76,6 @@ namespace crossGPUReMerge {
                         cudaMemcpyAsync(mdest_value_buff + odd_range.start, msrc_value_buff + odd_range.start,
                             sizeof(typename mtypes::value_t) * (odd_range.end - odd_range.start), cudaMemcpyDeviceToDevice,
                             mcontext.get_streams(mnode.info.index)[stream_index]); CUERR
-
                             if (mstreams_used.size() < NUM_GPUS)
                                 mstreams_used.push_back(stream_index);
                     }
@@ -92,7 +92,6 @@ namespace crossGPUReMerge {
                         (mpart.dest_range.end - mpart.dest_range.start) * sizeof(typename mtypes::key_t),
                         cudaMemcpyDeviceToDevice,
                         mcontext.get_gpu_default_stream(mnode.info.index));CUERR;
-
                     //                            mcontext.sync_gpu_default_stream(node.info.index);
                     mstreams_used.push_back(0);
                     if (mdo_values) {
@@ -108,6 +107,7 @@ namespace crossGPUReMerge {
         }
 
         void sync_used_streams() {
+            //(mcontext.get_device_id(mnode.info.index)); CUERR;
             for (uint stream_index : mstreams_used) {
                 cudaStreamSynchronize(mcontext.get_streams(mnode.info.index)[stream_index]);CUERR;
             }
