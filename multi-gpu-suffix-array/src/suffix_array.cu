@@ -1424,7 +1424,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
-            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[gpu_index], d_values_gpu[gpu_index] , d_keys_gpu[gpu_index] + data_size,  d_values_gpu[gpu_index] + data_size,  nullptr, nullptr };
+            merge_nodes_info[gpu_index] = { data_size, 0, gpu_index, d_keys_gpu[gpu_index], nullptr , d_keys_gpu[gpu_index] + data_size,  nullptr,  nullptr, nullptr };
         }
 
         MergeManager merge_manager(mcontext, host_pinned_allocator);
