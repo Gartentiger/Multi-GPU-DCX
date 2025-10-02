@@ -357,11 +357,11 @@ public:
         {
             t.start("init_sort");
             size_t temp_storage_size = 0;
-            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys, size, DC7Comparator{});
+            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys, size, cmp);
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
             CUERR;
-            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys, size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
+            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys, size, cmp, mcontext.get_gpu_default_stream(world_rank()));
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
             t.stop();
@@ -445,11 +445,11 @@ public:
             // mgpu::mergesort(d_samples, sample_size * NUM_GPUS, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
             // mcontext.sync_all_streams();
             size_t temp_storage_size = 0;
-            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, d_samples, sample_size * NUM_GPUS, DC7Comparator{});
+            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, d_samples, sample_size * NUM_GPUS, cmp);
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
             CUERR;
-            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, d_samples, sample_size * NUM_GPUS, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
+            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, d_samples, sample_size * NUM_GPUS, cmp, mcontext.get_gpu_default_stream(world_rank()));
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
             t.stop();
@@ -546,12 +546,12 @@ public:
         {
             t.start("final_sort");
             size_t temp_storage_size = 0;
-            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys_out, out_size, DC7Comparator{});
+            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys_out, out_size, cmp);
             // keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
             CUERR;
-            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys_out, out_size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
+            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys_out, out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
 
             mcontext.sync_all_streams();
