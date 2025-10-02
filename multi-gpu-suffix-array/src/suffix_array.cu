@@ -2012,31 +2012,31 @@ int main(int argc, char** argv)
         sorter.SampleSort(suffixes, keys_out, a + 1, DC7Comparator{});
         context.sync_all_streams();
         t.stop_and_append();
-        thrust::host_vector<T> keys_out_host = keys_out;
+        // thrust::host_vector<T> keys_out_host = keys_out;
 
-        // cudaMemcpy(keys_out_host.data(), keys_out, out_size * sizeof(T), cudaMemcpyDeviceToHost);
+        // // cudaMemcpy(keys_out_host.data(), keys_out, out_size * sizeof(T), cudaMemcpyDeviceToHost);
 
-        auto const out_keys_all = comm_world().gatherv(send_buf(std::span<T>(keys_out_host.data(), keys_out_host.size())), send_count(keys_out_host.size()));
-        comm_world().barrier();
-        for (size_t i = 0; i < NUM_GPUS; i++)
-        {
-            printf("keys_out_host.size: %lu\n", keys_out_host.size());
-        }
+        // auto const out_keys_all = comm_world().gatherv(send_buf(std::span<T>(keys_out_host.data(), keys_out_host.size())), send_count(keys_out_host.size()));
+        // comm_world().barrier();
+        // for (size_t i = 0; i < NUM_GPUS; i++)
+        // {
+        //     printf("keys_out_host.size: %lu\n", keys_out_host.size());
+        // }
 
-        if (world_rank() == 0)
-        {
-            printf("out_keys_all.size: %lu\n", out_keys_all.size());
-            const auto sorted_indices = naive_suffix_sort(randomDataSize, text);
-            bool const is_correct = std::equal(
-                sorted_indices.begin(), sorted_indices.end(), out_keys_all.begin(),
-                out_keys_all.end(), [](const auto& index, const auto& tuple) {
-                    return index == tuple.index;
-                });
-            if (!is_correct) {
-                std::cerr << "GPU Samplesort does not sort input correctly" << std::endl;
-                // std::abort();
-            }
-        }
+        // if (world_rank() == 0)
+        // {
+        //     printf("out_keys_all.size: %lu\n", out_keys_all.size());
+        //     const auto sorted_indices = naive_suffix_sort(randomDataSize, text);
+        //     bool const is_correct = std::equal(
+        //         sorted_indices.begin(), sorted_indices.end(), out_keys_all.begin(),
+        //         out_keys_all.end(), [](const auto& index, const auto& tuple) {
+        //             return index == tuple.index;
+        //         });
+        //     if (!is_correct) {
+        //         std::cerr << "GPU Samplesort does not sort input correctly" << std::endl;
+        //         // std::abort();
+        //     }
+        // }
 
         size_t gb = 1 << 30;
         size_t num_GB = bytes / gb;
