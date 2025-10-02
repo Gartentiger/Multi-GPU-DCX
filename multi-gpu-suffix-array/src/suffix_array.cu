@@ -1967,41 +1967,30 @@ int main(int argc, char** argv)
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, 255);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
-    using T = MergeSuffixes;
+    using T = size_t;
 
-    uint32_t randomDataSize = (1024 * 1024 * 1024);
-    for (size_t round = 0; round < 8; round++)
+    // uint32_t randomDataSize = (1024 * 1024 * 1024);
+    for (size_t round = 0; round < 21; round++)
     {
-        // randomDataSize *= 2 << round;
-        auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
-        printf("[%lu] gen data\n", world_rank());
-        auto data_on_pe = comm_world().scatter(send_buf(data));
-        printf("[%lu] scatter\n", world_rank());
+        uint32_t randomDataSize *= 512 << round;
+
+        // auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
+        // printf("[%lu] gen data\n", world_rank());
+        // auto data_on_pe = comm_world().scatter(send_buf(data));
+        // printf("[%lu] scatter\n", world_rank());
         // for (size_t i = 0; i < data_on_pe.size(); i++)
         // {
         //     printf("[%lu] data_on_pe[%lu]: %u\n", world_rank(), i, data_on_pe[i].index);
         // }
-        // T* suffixes;
-        // cudaMalloc(&suffixes, sizeof(T) * randomDataSize);
-        // cudaMemcpy(suffixes, data.data(), sizeof(T) * randomDataSize, cudaMemcpyHostToDevice);
-        thrust::host_vector<T> h_suffixes(data_on_pe.begin(), data_on_pe.end());
+        std::vector<T> host_data(randomDataSize);
+        for (size_t i = 0; i < randomDataSize; i++)
+        {
+            host_data[i] = randomDistSize(g);
+        }
+
+        thrust::host_vector<T> h_suffixes(host_data.begin(), host_data.end());
         thrust::device_vector<T> suffixes = h_suffixes;
 
-        // const auto sorted_indices = naive_suffix_sort(data_on_pe.size(), text);
-        // std::vector<MergeSuffixes> std_vec = data_on_pe;
-        // std::sort(std_vec.begin(), std_vec.end());
-        // {
-        //     // check
-        //     bool const is_correct = std::equal(
-        //         sorted_indices.begin(), sorted_indices.end(), std_vec.begin(),
-        //         std_vec.end(), [](const auto& index, const auto& tuple) {
-        //             return index == tuple.index;
-        //         });
-        //     if (!is_correct) {
-        //         std::cerr << "CPU sort does not sort input correctly" << std::endl;
-        //         std::abort();
-        //     }
-        // }
 
         size_t out_size = 0;
         const int a = (int)(16 * log(NUM_GPUS) / log(2.));
@@ -2011,34 +2000,36 @@ int main(int argc, char** argv)
         thrust::device_vector<T> keys_out;
 
         t.synchronize_and_start(sf);
-        sorter.SampleSort(suffixes, keys_out, a + 1, DC7Comparator{});
+        sorter.SampleSort(suffixes, keys_out, a + 1, std::less<T>());
         context.sync_all_streams();
         t.stop_and_append();
-        // thrust::host_vector<T> keys_out_host = keys_out;
+        thrust::host_vector<T> keys_out_host = keys_out;
 
-        // // cudaMemcpy(keys_out_host.data(), keys_out, out_size * sizeof(T), cudaMemcpyDeviceToHost);
+        auto const out_keys_all = comm_world().gatherv(send_buf(std::span<T>(keys_out_host.data(), keys_out_host.size())), send_count(keys_out_host.size()));
+        comm_world().barrier();
+        for (size_t i = 0; i < NUM_GPUS; i++)
+        {
+            printf("keys_out_host.size: %lu\n", keys_out_host.size());
+        }
 
-        // auto const out_keys_all = comm_world().gatherv(send_buf(std::span<T>(keys_out_host.data(), keys_out_host.size())), send_count(keys_out_host.size()));
-        // comm_world().barrier();
-        // for (size_t i = 0; i < NUM_GPUS; i++)
-        // {
-        //     printf("keys_out_host.size: %lu\n", keys_out_host.size());
-        // }
+        if (world_rank() == 0)
+        {
+            printf("out_keys_all.size: %lu\n", out_keys_all.size());
+            if (!std::is_sorted(out_keys_all.begin(), out_keys_all.end())) {
+                std::cerr << "GPU Samplesort does not sort input correctly" << std::endl;
+            }
 
-        // if (world_rank() == 0)
-        // {
-        //     printf("out_keys_all.size: %lu\n", out_keys_all.size());
-        //     const auto sorted_indices = naive_suffix_sort(randomDataSize, text);
-        //     bool const is_correct = std::equal(
-        //         sorted_indices.begin(), sorted_indices.end(), out_keys_all.begin(),
-        //         out_keys_all.end(), [](const auto& index, const auto& tuple) {
-        //             return index == tuple.index;
-        //         });
-        //     if (!is_correct) {
-        //         std::cerr << "GPU Samplesort does not sort input correctly" << std::endl;
-        //         // std::abort();
-        //     }
-        // }
+            // const auto sorted_indices = naive_suffix_sort(randomDataSize, text);
+            // bool const is_correct = std::equal(
+            //     sorted_indices.begin(), sorted_indices.end(), out_keys_all.begin(),
+            //     out_keys_all.end(), [](const auto& index, const auto& tuple) {
+            //         return index == tuple.index;
+            //     });
+            // if (!is_correct) {
+            //     std::cerr << "GPU Samplesort does not sort input correctly" << std::endl;
+            //     // std::abort();
+            // }
+        }
 
         size_t gb = 1 << 30;
         size_t num_GB = bytes / gb;
