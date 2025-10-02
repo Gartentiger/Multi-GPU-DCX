@@ -1561,7 +1561,7 @@ int main(int argc, char** argv)
 
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
@@ -1574,9 +1574,9 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,0 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,0,1 };
 
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 1);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 2);
     warm_up_nccl(context);
     // alltoallMeasure(context);
     // ncclMeasure(context);
