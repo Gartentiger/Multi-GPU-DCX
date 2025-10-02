@@ -338,9 +338,9 @@ public:
 
     template<typename key, typename Compare>
     void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <key>& keys_out_vec, size_t sample_size, Compare cmp) {
-        ASSERT(sample_size < size);
         key* keys = thrust::raw_pointer_cast(keys_vec.data());
         size_t size = keys_vec.size();
+        ASSERT(sample_size < size);
         // SaGPU gpu = mgpus[world_rank()];
         // size_t count = gpu.num_elements - gpu.pd_elements;
 
@@ -550,7 +550,7 @@ public:
             // cudaMalloc(&temp, temp_storage_size);
             // CUERR;
             cub::DeviceMergeSort::SortKeys(keys, temp_storage_size, keys_out, out_size, DC7Comparator{}, mcontext.get_gpu_default_stream(world_rank()));
-            cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+            // cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
 
             mcontext.sync_all_streams();
             t.stop();
