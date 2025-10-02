@@ -1974,12 +1974,13 @@ int main(int argc, char** argv)
     {
         // randomDataSize *= 2 << round;
         auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
+        printf("[%lu] gen data\n", world_rank());
         auto data_on_pe = comm_world().scatter(send_buf(data));
+        printf("[%lu] scatter\n", world_rank());
         // for (size_t i = 0; i < data_on_pe.size(); i++)
         // {
         //     printf("[%lu] data_on_pe[%lu]: %u\n", world_rank(), i, data_on_pe[i].index);
         // }
-
         // T* suffixes;
         // cudaMalloc(&suffixes, sizeof(T) * randomDataSize);
         // cudaMemcpy(suffixes, data.data(), sizeof(T) * randomDataSize, cudaMemcpyHostToDevice);
