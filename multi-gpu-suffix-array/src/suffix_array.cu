@@ -2005,12 +2005,15 @@ int main(int argc, char** argv)
         t.stop_and_append();
 
         thrust::host_vector<T> keys_out_host = keys_out;
+        std::vector<T> keys_out_h(keys_out_host.begin(), keys_out_host.end());
+        context.sync_all_streams();
+        comm_world().barrier();
         printf("[%lu] copy done\n", world_rank());
-        auto out_keys_all = comm_world().gatherv(send_buf(std::span<T>(keys_out_host.data(), keys_out_host.size())));
+        auto out_keys_all = comm_world().gatherv(send_buf(keys_out_h));
         comm_world().barrier();
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
-            printf("keys_out_host.size: %lu\n", keys_out_host.size());
+            printf("keys_out_host.size: %lu\n", keys_out_h.size());
         }
 
         if (world_rank() == 0)
