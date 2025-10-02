@@ -353,7 +353,7 @@ public:
         // pre sort for easy splitter index binary search 
         // mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(key) * size * 3);
         // mgpu::mergesort(keys, size, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
-        // printf("[%lu] sorted keys\n", world_rank());
+        printf("[%lu] sorting keys\n", world_rank());
         {
             t.start("init_sort");
             size_t temp_storage_size = 0;
@@ -369,6 +369,7 @@ public:
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
+        printf("[%lu] sorted keys\n", world_rank());
 
         // pick random sample positions
         t.start("sampling");
@@ -1968,10 +1969,10 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
     using T = MergeSuffixes;
 
-    uint32_t randomDataSize = 512;
+    uint32_t randomDataSize = (1024 * 1024 * 1024);
     for (size_t round = 0; round < 8; round++)
     {
-        randomDataSize *= 2 << round;
+        // randomDataSize *= 2 << round;
         auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
         auto data_on_pe = comm_world().scatter(send_buf(data));
         // for (size_t i = 0; i < data_on_pe.size(); i++)
