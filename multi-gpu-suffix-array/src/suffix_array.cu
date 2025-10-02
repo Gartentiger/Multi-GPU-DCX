@@ -353,7 +353,7 @@ public:
         // pre sort for easy splitter index binary search 
         // mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(key) * size * 3);
         // mgpu::mergesort(keys, size, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
-        // printf("[%lu] sorting keys\n", world_rank());
+        printf("[%lu] sorting keys\n", world_rank());
         {
             t.start("init_sort");
             size_t temp_storage_size = 0;
@@ -369,7 +369,7 @@ public:
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
-        // printf("[%lu] sorted keys\n", world_rank());
+        printf("[%lu] sorted keys\n", world_rank());
 
         // pick random sample positions
         t.start("sampling");
@@ -382,7 +382,7 @@ public:
             h_samples_pos[i] = randomDist(g);
             // printf("[%lu] samples pos[%lu]: %lu\n", world_rank(), i, h_samples_pos[i]);
         }
-        // printf("[%lu] picked sample positions\n", world_rank());
+        printf("[%lu] picked sample positions\n", world_rank());
 
         size_t* d_samples_pos;
         cudaMalloc(&d_samples_pos, sizeof(size_t) * sample_size);
@@ -391,13 +391,13 @@ public:
         CUERR;
         free(h_samples_pos);
         CUERR;
-        // printf("[%lu] copied sample positions to device\n", world_rank());
+        printf("[%lu] copied sample positions to device\n", world_rank());
         // sample position to sample element
         kernels::writeSamples << <1, sample_size, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples_pos, keys, d_samples + world_rank() * sample_size, sample_size);
         cudaFreeAsync(d_samples_pos, mcontext.get_gpu_default_stream(world_rank()));
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples + world_rank() * sample_size, sample_size, world_rank());
         mcontext.sync_all_streams();
-        // printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
+        printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
         comm_world().barrier();
 
 
@@ -435,7 +435,7 @@ public:
         mcontext.sync_all_streams();
         comm_world().barrier();
         t.stop();
-        // printf("[%lu] received all samples\n", world_rank());
+        printf("[%lu] received all samples\n", world_rank());
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
 
         // Sort samples
@@ -454,14 +454,14 @@ public:
             mcontext.sync_all_streams();
             t.stop();
         }
-        // printf("[%lu] sorted samples\n", world_rank());
+        printf("[%lu] sorted samples\n", world_rank());
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         t.start("select_splitter");
         kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size);
         mcontext.sync_all_streams();
-        // printf("[%lu] picked splitters\n", world_rank());
+        printf("[%lu] picked splitters\n", world_rank());
         t.stop();
 
 
@@ -542,7 +542,7 @@ public:
         mcontext.sync_all_streams();
         comm_world().barrier();
         t.stop();
-        // printf("[%lu] reordered keys with splitter\n", world_rank());
+        printf("[%lu] reordered keys with splitter\n", world_rank());
         {
             t.start("final_sort");
             size_t temp_storage_size = 0;
