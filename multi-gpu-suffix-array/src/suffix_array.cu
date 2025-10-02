@@ -1983,13 +1983,12 @@ int main(int argc, char** argv)
         // {
         //     printf("[%lu] data_on_pe[%lu]: %u\n", world_rank(), i, data_on_pe[i].index);
         // }
-        std::vector<T> host_data(randomDataSize);
+        thrust::host_vector<T> h_suffixes(randomDataSize);
         for (size_t i = 0; i < randomDataSize; i++)
         {
-            host_data[i] = randomDistSize(g);
+            h_suffixes[i] = randomDistSize(g);
         }
 
-        thrust::host_vector<T> h_suffixes(host_data.begin(), host_data.end());
         thrust::device_vector<T> suffixes = h_suffixes;
 
 
@@ -2004,9 +2003,10 @@ int main(int argc, char** argv)
         sorter.SampleSort(suffixes, keys_out, a + 1, std::less<T>());
         context.sync_all_streams();
         t.stop_and_append();
+
         thrust::host_vector<T> keys_out_host = keys_out;
 
-        auto const out_keys_all = comm_world().gatherv(send_buf(std::span<T>(keys_out_host.data(), keys_out_host.size())), send_count(keys_out_host.size()));
+        auto const out_keys_all = comm_world().gatherv(send_buf(std::span<T>(keys_out_host.data(), keys_out_host.size())));
         comm_world().barrier();
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
