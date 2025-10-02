@@ -353,7 +353,7 @@ public:
         // pre sort for easy splitter index binary search 
         // mcontext.get_mgpu_default_context_for_device(world_rank()).set_device_temp_mem(temp_mem, sizeof(key) * size * 3);
         // mgpu::mergesort(keys, size, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
-        printf("[%lu] sorting keys\n", world_rank());
+        // printf("[%lu] sorting keys\n", world_rank());
         {
             t.start("init_sort");
             size_t temp_storage_size = 0;
@@ -369,7 +369,7 @@ public:
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
-        printf("[%lu] sorted keys\n", world_rank());
+        // printf("[%lu] sorted keys\n", world_rank());
 
         // pick random sample positions
         t.start("sampling");
@@ -397,7 +397,7 @@ public:
         cudaFreeAsync(d_samples_pos, mcontext.get_gpu_default_stream(world_rank()));
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples + world_rank() * sample_size, sample_size, world_rank());
         mcontext.sync_all_streams();
-        printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
+        // printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
         comm_world().barrier();
 
 
@@ -435,7 +435,7 @@ public:
         mcontext.sync_all_streams();
         comm_world().barrier();
         t.stop();
-        printf("[%lu] received all samples\n", world_rank());
+        // printf("[%lu] received all samples\n", world_rank());
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
 
         // Sort samples
@@ -454,14 +454,14 @@ public:
             mcontext.sync_all_streams();
             t.stop();
         }
-        printf("[%lu] sorted samples\n", world_rank());
+        // printf("[%lu] sorted samples\n", world_rank());
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         t.start("select_splitter");
         kernels::selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size);
         mcontext.sync_all_streams();
-        printf("[%lu] picked splitters\n", world_rank());
+        // printf("[%lu] picked splitters\n", world_rank());
         t.stop();
 
 
@@ -483,10 +483,10 @@ public:
         cudaFreeAsync(split_index, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
         t.stop();
-        for (size_t i = 0; i < NUM_GPUS; i++)
-        {
-            printf("[%lu] splitter index [%lu]: %lu\n", world_rank(), i, h_split_index[i]);
-        }
+        // for (size_t i = 0; i < NUM_GPUS; i++)
+        // {
+        //     printf("[%lu] splitter index [%lu]: %lu\n", world_rank(), i, h_split_index[i]);
+        // }
         comm_world().barrier();
         t.start("alltoall_send_sizes");
         std::vector<size_t> send_sizes(NUM_GPUS, 0);
@@ -496,10 +496,10 @@ public:
         {
             send_sizes[i] = h_split_index[i] - h_split_index[i - 1];
         }
-        for (size_t i = 0; i < NUM_GPUS; i++)
-        {
-            printf("[%lu] send size[%lu]: %lu\n", world_rank(), i, send_sizes[i]);
-        }
+        // for (size_t i = 0; i < NUM_GPUS; i++)
+        // {
+        //     printf("[%lu] send size[%lu]: %lu\n", world_rank(), i, send_sizes[i]);
+        // }
         comm_world().barrier();
 
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
@@ -542,7 +542,7 @@ public:
         mcontext.sync_all_streams();
         comm_world().barrier();
         t.stop();
-        printf("[%lu] reordered keys with splitter\n", world_rank());
+        // printf("[%lu] reordered keys with splitter\n", world_rank());
         {
             t.start("final_sort");
             size_t temp_storage_size = 0;
