@@ -542,7 +542,7 @@ public:
         mcontext.sync_all_streams();
         comm_world().barrier();
         t.stop();
-        printf("[%lu] reordered keys with splitter\n", world_rank());
+        printf("[%lu] reordered keys with splitter, size: %lu\n", world_rank(), out_size);
         {
             t.start("final_sort");
             size_t temp_storage_size = 0;
@@ -559,6 +559,7 @@ public:
         }
         comm_world().barrier();
         t.stop();
+        printf("[%lu] sorted key.size: %lu\n", world_rank(), keys_out_vec.size());
     }
 
 
@@ -1970,7 +1971,7 @@ int main(int argc, char** argv)
     using T = size_t;
 
     // uint32_t randomDataSize = (1024 * 1024 * 1024);
-    for (size_t round = 0; round < 20; round++)
+    for (size_t round = 19; round < 20; round++)
     {
         size_t randomDataSize = 512 << round;
 
