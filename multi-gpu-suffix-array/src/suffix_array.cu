@@ -547,12 +547,12 @@ public:
             t.start("final_sort");
             size_t temp_storage_size = 0;
             cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys_out, out_size, cmp);
-            keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
-            // void* temp;
-            // cudaMalloc(&temp, temp_storage_size);
+            // keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
+            void* temp;
+            cudaMalloc(&temp, temp_storage_size);
             CUERR;
-            cub::DeviceMergeSort::SortKeys(keys, temp_storage_size, keys_out, out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
-            // cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys_out, out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
+            cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
 
             mcontext.sync_all_streams();
             t.stop();
