@@ -1972,7 +1972,7 @@ int main(int argc, char** argv)
     // uint32_t randomDataSize = (1024 * 1024 * 1024);
     for (size_t round = 0; round < 21; round++)
     {
-        uint32_t randomDataSize *= 512 << round;
+        uint32_t randomDataSize = 512 << round;
 
         // auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
         // printf("[%lu] gen data\n", world_rank());
@@ -1994,7 +1994,7 @@ int main(int argc, char** argv)
 
         size_t out_size = 0;
         const int a = (int)(16 * log(NUM_GPUS) / log(2.));
-        size_t bytes = sizeof(T) * data_on_pe.size();
+        size_t bytes = sizeof(T) * randomDataSize;
         char sf[30];
         sprintf(sf, "sample_sort_%lu", bytes);
         thrust::device_vector<T> keys_out;
