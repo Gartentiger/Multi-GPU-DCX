@@ -366,7 +366,7 @@ public:
             mcontext.sync_all_streams();
             t.stop();
         }
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, size, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
 
@@ -454,7 +454,7 @@ public:
             t.stop();
         }
         printf("[%lu] sorted samples\n", world_rank());
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         t.start("select_splitter");
@@ -1968,8 +1968,8 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
     using T = MergeSuffixes;
 
-    uint32_t randomDataSize = 64;
-    for (size_t round = 0; round < 6; round++)
+    uint32_t randomDataSize = 512;
+    for (size_t round = 0; round < 8; round++)
     {
         randomDataSize *= 2 << round;
         auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
@@ -2002,7 +2002,7 @@ int main(int argc, char** argv)
         // }
 
         size_t out_size = 0;
-        const int a = (int)(2 * log(NUM_GPUS) / log(2.));
+        const int a = (int)(16 * log(NUM_GPUS) / log(2.));
         size_t bytes = sizeof(T) * data_on_pe.size();
         char sf[30];
         sprintf(sf, "sample_sort_%lu", bytes);
@@ -2017,6 +2017,12 @@ int main(int argc, char** argv)
         // cudaMemcpy(keys_out_host.data(), keys_out, out_size * sizeof(T), cudaMemcpyDeviceToHost);
 
         auto const out_keys_all = comm_world().gatherv(send_buf(std::span<T>(keys_out_host.data(), keys_out_host.size())), send_count(keys_out_host.size()));
+        comm_world().barrier();
+        for (size_t i = 0; i < NUM_GPUS; i++)
+        {
+            printf("keys_out_host.size: %lu\n", keys_out_host.size());
+        }
+
         if (world_rank() == 0)
         {
             printf("out_keys_all.size: %lu\n", out_keys_all.size());
