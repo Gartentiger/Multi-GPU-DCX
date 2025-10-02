@@ -1972,7 +1972,7 @@ int main(int argc, char** argv)
     // uint32_t randomDataSize = (1024 * 1024 * 1024);
     for (size_t round = 0; round < 20; round++)
     {
-        uint32_t randomDataSize = 512 << round;
+        size_t randomDataSize = 512 << round;
 
         // auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
         // printf("[%lu] gen data\n", world_rank());
