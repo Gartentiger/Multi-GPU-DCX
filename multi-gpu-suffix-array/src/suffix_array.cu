@@ -2008,8 +2008,11 @@ int main(int argc, char** argv)
         std::vector<T> keys_out_h(keys_out_host.begin(), keys_out_host.end());
         context.sync_all_streams();
         comm_world().barrier();
-        printf("[%lu] copy done\n", world_rank());
-        auto out_keys_all = comm_world().gatherv(send_buf(keys_out_h));
+        printf("[%lu] copy done size %lu\n", world_rank(), keys_out_host.size());
+        out_size = keys_out_host.size();
+        auto const res = comm_world().reduce(send_buf(std::span<size_t>(&out_size, 1)), send_count(1), op(ops::plus<>()));
+        std::vector<T> out_keys_all(res);
+        comm_world().gatherv(send_buf(keys_out_h), recv_buf(res));
         comm_world().barrier();
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
