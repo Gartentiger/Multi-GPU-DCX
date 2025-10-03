@@ -2028,7 +2028,7 @@ int main(int argc, char** argv)
         context.sync_all_streams();
         t.stop_and_append();
 
-        thrust::host_vector<T> keys_out_host = keys_out;
+        thrust::host_vector<T> keys_out_host = suffixes;
         std::vector<T> vec_key_out_host(keys_out_host.begin(), keys_out_host.end());
         if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
             std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
