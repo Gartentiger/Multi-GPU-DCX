@@ -2008,25 +2008,23 @@ int main(int argc, char** argv)
         t.stop_and_append();
 
         thrust::host_vector<T> keys_out_host = keys_out;
-        std::vector<T> keys_out_h(keys_out_host.begin(), keys_out_host.end());
+        std::vector<T> vec_key_out_host(keys_out_host.begin(), keys_out_host.end());
+        if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
+            std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
+        }
+        ASSERT(keys_out_host.size() > 1);
+        std::vector<T> keys_out_h(2);
+        keys_out_h[0] = vec_key_out_host[0];
+        keys_out_h[1] = vec_key_out_host.back();
+        auto const out = comm_world().gather(send_buf(keys_out_h), root(0));
         context.sync_all_streams();
         comm_world().barrier();
-        printf("[%lu] copy done size %lu\n", world_rank(), keys_out_host.size());
-        out_size = keys_out_host.size();
-        auto res = comm_world().reduce(send_buf(std::span<size_t>(&out_size, 1)), op(ops::plus<>()));
-        std::vector<T> out_keys_all(res);
-        comm_world().gatherv(send_buf(keys_out_h), recv_buf(res));
-        comm_world().barrier();
-        for (size_t i = 0; i < NUM_GPUS; i++)
-        {
-            printf("keys_out_host.size: %lu\n", keys_out_h.size());
-        }
+
 
         if (world_rank() == 0)
         {
-            printf("out_keys_all.size: %lu\n", out_keys_all.size());
-            if (!std::is_sorted(out_keys_all.begin(), out_keys_all.end())) {
-                std::cerr << "GPU Samplesort does not sort input correctly" << std::endl;
+            if (!std::is_sorted(out.begin(), out.end())) {
+                std::cerr << "GPU Samplesort does not sort input correctly globally" << std::endl;
             }
 
             // const auto sorted_indices = naive_suffix_sort(randomDataSize, text);
