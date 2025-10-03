@@ -33,6 +33,9 @@
 #include <fstream>
 #include <kamping/checking_casts.hpp>
 #include <kamping/collectives/alltoall.hpp>
+#include <kamping/collectives/gather.hpp>
+#include <kamping/collectives/reduce.hpp>
+
 #include "kamping/collectives/scatter.hpp"
 #include <kamping/data_buffer.hpp>
 #include <kamping/environment.hpp>
