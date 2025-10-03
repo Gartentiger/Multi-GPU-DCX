@@ -2013,7 +2013,7 @@ int main(int argc, char** argv)
         comm_world().barrier();
         printf("[%lu] copy done size %lu\n", world_rank(), keys_out_host.size());
         out_size = keys_out_host.size();
-        auto const res = comm_world().reduce(send_buf(std::span<size_t>(&out_size, 1)), op(ops::plus<>()));
+        auto res = comm_world().reduce(send_buf(std::span<size_t>(&out_size, 1)), op(ops::plus<>()));
         std::vector<T> out_keys_all(res);
         comm_world().gatherv(send_buf(keys_out_h), recv_buf(res));
         comm_world().barrier();
