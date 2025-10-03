@@ -227,8 +227,8 @@ namespace kernels {
     template<typename key, typename Compare>
     __global__ void find_split_index(key* keys, size_t* split_index, key* splitter, size_t size, Compare comp) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
+
         // for the send sizes
-        // printf("splitter: %u\n", splitter[tidx].index);
         if (tidx >= NUM_GPUS - 1) {
             split_index[tidx] = size;
             return;
@@ -237,14 +237,9 @@ namespace kernels {
         size_t end = size;
         size_t index = 0;
 
-        // 0, 7 index 3
-        // 4, 7 index 5
-        // 4, 5 index 4
-        // 4, 4 return 4
         while (start < end)
         {
             index = (start + end) / 2;
-            // printf("start: %lu, end: %lu, index: %lu, key: %u, comp: %s\n", start, end, index, keys[index].index, comp(splitter[tidx], keys[index]) ? "true" : "false");
             if (comp(splitter[tidx], keys[index])) {
                 end = index;
             }
@@ -256,6 +251,50 @@ namespace kernels {
         split_index[tidx] = start;
     }
 
-}
+    template<typename key, typename Compare>
+    __global__ void bucket_keys(key* keys, key* splitter, key** buckets, Compare comp) {
+        const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
 
+        __shared__ size_t bucketIdx[NUM_GPUS];
+        __shared__ uint locks[NUM_GPUS];
+        if (tidx < 4) {
+            bucketIdx[tidx] = 0;
+            locks[tidx] = 0;
+        }
+        __syncthreads();
+
+        key cur = keys[tidx];
+
+        // for the send sizes
+        // printf("splitter: %u\n", splitter[tidx].index);
+        // if (tidx >= NUM_GPUS - 1) {
+        //     split_index[tidx] = size;
+        //     return;
+        // }
+        size_t start = 0;
+        size_t end = NUM_GPUS;
+        size_t index = 0;
+        while (start < end)
+        {
+            index = (start + end) / 2;
+            if (comp(keys[tidx], splitter[index])) {
+                end = index;
+            }
+            else
+            {
+                start = index + 1;
+            }
+        }
+        bool leaveLoop = false;
+        while (!leaveLoop) {
+            if (atomicExch(&(locks[start]), 1u) == 0u) {
+                buckets[start][bucketIdx[start]] = keys[tidx];
+                bucketIdx[start]++;
+                leaveLoop = true;
+                atomicExch(&(locks[start]), 0u);
+            }
+        }
+    }
+
+}
 #endif // SUFFIX_ARRAY_TEMPLATED_KERNELS_CUH

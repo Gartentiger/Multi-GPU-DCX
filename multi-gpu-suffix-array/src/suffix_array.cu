@@ -50,6 +50,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 #include <thrust/host_vector.h>
+#include <thrust/binary_search.h>
 #include "moderngpu/kernel_mergesort.hxx"
 #include "dcx_data_generation.hpp"
 
@@ -403,7 +404,6 @@ public:
         printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
         comm_world().barrier();
 
-
         // send samples
         ncclGroupStart();
         // thrust::device_vector<key> d_samples_global(sample_size * world_rank());
@@ -477,6 +477,7 @@ public:
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), d_s thrust::placeholders::_1 * sample_size);
 
         t.start("find_splits");
+
         size_t* split_index;
         cudaMalloc(&split_index, sizeof(size_t) * NUM_GPUS);
         kernels::find_split_index << <1, NUM_GPUS, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (keys, split_index, d_samples, size, cmp);
@@ -485,6 +486,7 @@ public:
         cudaFreeAsync(d_samples, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(split_index, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
+
         t.stop();
         // for (size_t i = 0; i < NUM_GPUS; i++)
         // {
@@ -547,6 +549,7 @@ public:
         t.stop();
         printf("[%lu] reordered keys with splitter, size: %lu\n", world_rank(), out_size);
         {
+
             t.start("final_sort");
             size_t temp_storage_size = 0;
             cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys_out, out_size, cmp);
@@ -1974,7 +1977,7 @@ int main(int argc, char** argv)
     using T = size_t;
 
     // uint32_t randomDataSize = (1024 * 1024 * 1024);
-    for (size_t round = 19; round < 20; round++)
+    for (size_t round = 0; round < 20; round++)
     {
         size_t randomDataSize = 512 << round;
 

@@ -172,21 +172,4 @@ struct DC7ComparatorHost
         return a.ranks[r1] < b.ranks[r2];
     }
 };
-struct DC7ComparatorTest
-{
-    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
-    {
-        for (size_t i = 0; i < lookupNext[a.index % DCX::X][b.index % DCX::X][0]; i++)
-        {
-            if (a.prefix[i] < b.prefix[i]) {
-                return true;
-            }
-            else if (a.prefix[i] > b.prefix[i]) {
-                return false;
-            }
-        }
-        return false;
-        // return a.ranks[lookupNext[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[lookupNext[b.index % DCX::X][a.index % DCX::X][1]];
-    }
-};
 #endif // CONFIG_H
