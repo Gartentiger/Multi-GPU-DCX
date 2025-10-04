@@ -524,7 +524,7 @@ public:
                 mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
             comm_world().barrier();
-            bound.resize(NUM_GPUS + 1);
+            // bound.resize(NUM_GPUS + 1);
             t.stop();
             printf("[%lu] after sorting bound\n", world_rank());
 
