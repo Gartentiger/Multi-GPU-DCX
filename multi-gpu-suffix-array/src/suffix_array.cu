@@ -517,33 +517,38 @@ public:
             comm_world().barrier();
             bound.resize(NUM_GPUS + 1);
             t.stop();
-            // t.start("find_lengths");
-            // thrust::device_vector<size_t> bucket_sizes(NUM_GPUS);
-            // size_t temp_storage_size2 = 0;
-            // size_t* num_run;
-            // cudaMalloc(&num_run, sizeof(size_t));
-            // cub::DeviceRunLengthEncode::Encode(
-            //     nullptr, temp_storage_size,
-            //     thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
-            //     thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
+            t.start("find_lengths");
+            thrust::device_vector<size_t> bucket_sizes(NUM_GPUS);
+            size_t temp_storage_size2 = 0;
+            size_t* num_run;
+            cudaMalloc(&num_run, sizeof(size_t));
+            cub::DeviceRunLengthEncode::Encode(
+                nullptr, temp_storage_size2,
+                thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
+                thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
 
-            // if (temp_storage_size < temp_storage_size2) {
-            //     cudaFree(temp);
-            //     cudaMalloc(&temp, temp_storage_size);
-            // }
+            if (temp_storage_size < temp_storage_size2) {
+                t.start("extra_malloc");
+                cudaFree(temp);
+                cudaMalloc(&temp, temp_storage_size);
+                t.stop();
+            }
 
-            // cub::DeviceRunLengthEncode::Encode(
-            //     temp, temp_storage_size,
-            //     thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
-            //     thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size, mcontext.get_gpu_default_stream(world_rank()));
+            cub::DeviceRunLengthEncode::Encode(
+                temp, temp_storage_size2,
+                thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
+                thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size, mcontext.get_gpu_default_stream(world_rank()));
+            cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
             comm_world().barrier();
-            // t.stop();
-
-            // for (size_t i = 0; i < NUM_GPUS; i++)
-            // {
-            //     std::cout << "[" << world_rank() << "]" << "bucket_len[" << i << "]:" << bucket_sizes[i] << std::endl;
-            // }
+            t.stop();
+            size_t* h_num_run = (size_t*)malloc(sizeof(size_t));
+            cudaMemcpy(h_num_run, num_run, sizeof(size_t), cudaMemcpyDeviceToHost);
+            cudaFree(num_run);
+            for (size_t i = 0; i < *h_num_run; i++)
+            {
+                std::cout << "[" << world_rank() << "]" << "bucket_len[" << i << "]:" << bucket_sizes[i] << std::endl;
+            }
 
         }
         //
