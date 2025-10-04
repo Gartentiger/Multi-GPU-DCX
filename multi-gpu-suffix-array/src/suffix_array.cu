@@ -559,7 +559,7 @@ public:
             cudaFree(num_run);
             printf("[%lu] num_run: %lu\n", world_rank(), *h_num_run);
             ASSERT(*h_num_run <= NUM_GPUS);
-            for (size_t i = 0; i < NUM_GPUS + 1; i++)
+            for (size_t i = 0; i < NUM_GPUS; i++)
             {
                 std::cout << "[" << world_rank() << "]" << "bucket_len[" << i << "]:" << bucket_sizes[i] << std::endl;
             }
