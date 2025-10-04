@@ -518,7 +518,7 @@ public:
             bound.resize(NUM_GPUS + 1);
             t.stop();
             t.start("find_lengths");
-            thrust::device_vector<size_t> bucket_sizes(NUM_GPUS);
+            thrust::device_vector<size_t> bucket_sizes(NUM_GPUS + 1);
             size_t temp_storage_size2 = 0;
             size_t* num_run;
             cudaMalloc(&num_run, sizeof(size_t));
@@ -545,11 +545,12 @@ public:
             size_t* h_num_run = (size_t*)malloc(sizeof(size_t));
             cudaMemcpy(h_num_run, num_run, sizeof(size_t), cudaMemcpyDeviceToHost);
             cudaFree(num_run);
+            ASSERT(*h_num_run <= NUM_GPUS + 1);
             for (size_t i = 0; i < *h_num_run; i++)
             {
                 std::cout << "[" << world_rank() << "]" << "bucket_len[" << i << "]:" << bucket_sizes[i] << std::endl;
             }
-
+            free(h_num_run);
         }
         //
         t.stop();
