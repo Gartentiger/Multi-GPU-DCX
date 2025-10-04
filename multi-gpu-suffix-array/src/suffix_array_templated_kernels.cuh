@@ -296,7 +296,7 @@ namespace kernels {
         }
         else {
             assert(buckets_size != nullptr);
-            atomicAdd(&buckets_size[start], 1);
+            // atomicAdd(&buckets_size[start], 1);
         }
     }
 
