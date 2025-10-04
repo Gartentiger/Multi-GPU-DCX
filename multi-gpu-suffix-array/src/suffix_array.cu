@@ -1453,7 +1453,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 
 
@@ -2068,7 +2068,7 @@ int main(int argc, char** argv)
     using T = size_t;
 
     // uint32_t randomDataSize = (1024 * 1024 * 1024);
-    for (size_t round = 0; round < 19; round++)
+    for (size_t round = 0; round < 22; round++)
     {
         size_t randomDataSize = 128 << round;
 
