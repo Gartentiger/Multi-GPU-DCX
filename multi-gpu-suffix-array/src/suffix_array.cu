@@ -54,7 +54,7 @@
 #include "moderngpu/kernel_mergesort.hxx"
 #include "dcx_data_generation.hpp"
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -488,20 +488,22 @@ public:
         // cudaFreeAsync(d_samples, mcontext.get_gpu_default_stream(world_rank()));
         // cudaFreeAsync(split_index, mcontext.get_gpu_default_stream(world_rank()));
         // mcontext.sync_all_streams();
-        std::vector<thrust::device_vector<key>> buckets(NUM_GPUS);
+        thrust::host_vector<thrust::device_vector<key>> buckets(NUM_GPUS);
         for (auto& bucket : buckets) bucket.reserve((size / NUM_GPUS) * 2);
         for (size_t i = 0; i < size; i++)
         {
             const auto bound = thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys[i], cmp);
             buckets[std::min(size_t(bound - d_samples_vec.begin()), size_t(NUM_GPUS - 1))].push_back(keys[i]);
         }
-        keys_vec.clear();
+        // keys_vec.clear();
         t.stop();
+
         // for (size_t i = 0; i < NUM_GPUS; i++)
         // {
         //     printf("[%lu] splitter index [%lu]: %lu\n", world_rank(), i, h_split_index[i]);
         // }
         comm_world().barrier();
+        printf("[%lu] bucketing done\n", world_rank());
         t.start("alltoall_send_sizes");
         std::vector<size_t> send_sizes(NUM_GPUS, 0);
         for (size_t i = 0; i < NUM_GPUS; i++)
@@ -540,7 +542,7 @@ public:
         t.synchronize_and_start("reorder");
         size_t send_sum = 0;
         size_t recv_sum = 0;
-
+        printf("[%lu] reordering\n", world_rank());
         // ALL to ALL
         ncclGroupStart();
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
