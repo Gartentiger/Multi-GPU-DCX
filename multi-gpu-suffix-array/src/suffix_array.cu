@@ -489,13 +489,14 @@ public:
         // cudaFreeAsync(split_index, mcontext.get_gpu_default_stream(world_rank()));
         // mcontext.sync_all_streams();
         thrust::host_vector<thrust::device_vector<key>> buckets(NUM_GPUS);
-        for (auto& bucket : buckets) bucket.reserve((size / NUM_GPUS) * 2);
+        for (size_t i = 0; i < NUM_GPUS; i++) buckets[i].reserve((size / NUM_GPUS) * 2);
         for (size_t i = 0; i < size; i++)
         {
             const auto bound = thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys[i], cmp);
-            printf("[%lu] bound\n", world_rank());
+            const auto idx = std::min(size_t(bound - d_samples_vec.begin()), size_t(NUM_GPUS - 1));
+            printf("[%lu] bound: %lu\n", world_rank(), size_t(idx));
             printf("[%lu] bound: %lu\n", world_rank(), size_t(bound - d_samples_vec.begin()));
-            buckets[std::min(size_t(bound - d_samples_vec.begin()), size_t(NUM_GPUS - 1))].push_back(keys[i]);
+            buckets[idx].push_back(keys[i]);
         }
         // keys_vec.clear();
         t.stop();
@@ -1957,6 +1958,15 @@ int main(int argc, char** argv)
     // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
+    thrust::host_vector<thrust::device_vector<size_t>> buckets(NUM_GPUS);
+    for (auto& bucket : buckets)
+    {
+        bucket.reserve(10);
+    }
+    for (size_t i = 0; i < 11; i++)
+    {
+        buckets[i % buckets.size()].push_back(i);
+    }
 
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1, 5, 6, 7, 4 };
