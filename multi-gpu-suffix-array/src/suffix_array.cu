@@ -513,8 +513,7 @@ public:
             cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size,
                 thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedUpperBounds.data()),
                 keys, thrust::raw_pointer_cast(sortedKeys.data()),
-                size, 0, sizeof(size_t) * 8,
-                mcontext.get_gpu_default_stream(world_rank()));
+                size, 0, sizeof(size_t) * 8);
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
             cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
@@ -1474,7 +1473,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 
 
