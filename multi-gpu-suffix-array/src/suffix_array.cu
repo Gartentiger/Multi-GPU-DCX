@@ -545,7 +545,10 @@ public:
             }
 
         }
+        //
+        t.stop();
         return;
+        //
         // for (size_t i = 0; i < NUM_GPUS; i++) buckets[i].reserve(bound[i].size());
 
         // thrust::transform(keys_vec.begin(), keys_vec.end(), bound.begin(), )
