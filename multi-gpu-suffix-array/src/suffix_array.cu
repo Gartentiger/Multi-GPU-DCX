@@ -514,9 +514,32 @@ public:
                 mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
             comm_world().barrier();
-        }
-        t.stop();
 
+            t.stop();
+            t.start("find_lengths");
+            thrust::device_vector<size_t> bucket_sizes(NUM_GPUS);
+            size_t temp_storage_size2 = 0;
+            size_t* num_run;
+            cudaMalloc(&num_run, sizeof(size_t));
+            cub::DeviceRunLengthEncode::Encode(
+                nullptr, temp_storage_size,
+                thrust::raw_pointer_cast(sortedKeys.data()), thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
+            if (temp_storage_size < temp_storage_size2) {
+                // Allocate temporary storage
+                cudaFree(temp);
+                cudaMalloc(&temp, temp_storage_size);
+            }
+            // Run encoding
+            cub::DeviceRunLengthEncode::Encode(
+                temp, temp_storage_size,
+                thrust::raw_pointer_cast(sortedKeys.data()), thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
+            t.stop();
+            for (size_t i = 0; i < NUM_GPUS; i++)
+            {
+                std::cout << "[" << world_rank() << "]" << "bucket_len[" << i << "]:" << bucket_sizes[i] << std::endl;
+            }
+
+        }
         return;
         // for (size_t i = 0; i < NUM_GPUS; i++) buckets[i].reserve(bound[i].size());
 
@@ -2037,7 +2060,7 @@ int main(int argc, char** argv)
     using T = size_t;
 
     // uint32_t randomDataSize = (1024 * 1024 * 1024);
-    for (size_t round = 0; round < 5; round++)
+    for (size_t round = 0; round < 19; round++)
     {
         size_t randomDataSize = 128 << round;
 
