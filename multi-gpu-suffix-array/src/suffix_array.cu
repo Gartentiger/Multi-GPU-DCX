@@ -497,14 +497,14 @@ public:
         thrust::device_vector<key> sortedKeys(size);
         thrust::device_vector<key> sortedValues(size);
         {
-            int sortDown = std::max(0UL, sizeof(size_t) * 8UL - size_t(log2(NUM_GPUS) + 1));
+            int sortDown = std::max(0UL, sizeof(size_t) * 8UL - size_t(log2(NUM_GPUS) + 2));
             size_t temp_storage_size = 0;
-            cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size, keys,
+            cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size,
                 thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedKeys.data()),
-                , thrust::raw_pointer_cast(sortedValues.data()),
+                keys, thrust::raw_pointer_cast(sortedValues.data()),
                 size, sortDown, sizeof(size_t) * 8,
                 mcontext.get_gpu_default_stream(world_rank()));
-            void temp;
+            void* temp;
             cudaMalloc(&temp, temp_storage_size);
             cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
                 thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedKeys.data()),
