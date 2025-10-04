@@ -492,6 +492,7 @@ public:
         // {
         thrust::device_vector<size_t> bound(size);
         thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys_vec.begin(), keys_vec.end(), bound.begin(), cmp);
+        printf("[%lu] after upper bound\n", world_rank());
         t.stop();
         t.start("sorting_upper_bound");
         thrust::host_vector<thrust::device_vector<key>> buckets(NUM_GPUS);
@@ -516,33 +517,33 @@ public:
             comm_world().barrier();
             bound.resize(NUM_GPUS + 1);
             t.stop();
-            t.start("find_lengths");
-            thrust::device_vector<size_t> bucket_sizes(NUM_GPUS);
-            size_t temp_storage_size2 = 0;
-            size_t* num_run;
-            cudaMalloc(&num_run, sizeof(size_t));
-            cub::DeviceRunLengthEncode::Encode(
-                nullptr, temp_storage_size,
-                thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
-                thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
+            // t.start("find_lengths");
+            // thrust::device_vector<size_t> bucket_sizes(NUM_GPUS);
+            // size_t temp_storage_size2 = 0;
+            // size_t* num_run;
+            // cudaMalloc(&num_run, sizeof(size_t));
+            // cub::DeviceRunLengthEncode::Encode(
+            //     nullptr, temp_storage_size,
+            //     thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
+            //     thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
 
-            if (temp_storage_size < temp_storage_size2) {
-                cudaFree(temp);
-                cudaMalloc(&temp, temp_storage_size);
-            }
+            // if (temp_storage_size < temp_storage_size2) {
+            //     cudaFree(temp);
+            //     cudaMalloc(&temp, temp_storage_size);
+            // }
 
-            cub::DeviceRunLengthEncode::Encode(
-                temp, temp_storage_size,
-                thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
-                thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size, mcontext.get_gpu_default_stream(world_rank()));
+            // cub::DeviceRunLengthEncode::Encode(
+            //     temp, temp_storage_size,
+            //     thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
+            //     thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size, mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
             comm_world().barrier();
-            t.stop();
+            // t.stop();
 
-            for (size_t i = 0; i < NUM_GPUS; i++)
-            {
-                std::cout << "[" << world_rank() << "]" << "bucket_len[" << i << "]:" << bucket_sizes[i] << std::endl;
-            }
+            // for (size_t i = 0; i < NUM_GPUS; i++)
+            // {
+            //     std::cout << "[" << world_rank() << "]" << "bucket_len[" << i << "]:" << bucket_sizes[i] << std::endl;
+            // }
 
         }
         //
@@ -2016,15 +2017,6 @@ int main(int argc, char** argv)
     // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
-    thrust::host_vector<thrust::device_vector<size_t>> buckets(NUM_GPUS);
-    for (auto& bucket : buckets)
-    {
-        bucket.reserve(10);
-    }
-    for (size_t i = 0; i < 11; i++)
-    {
-        buckets[i % buckets.size()].push_back(i);
-    }
 
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1, 5, 6, 7, 4 };
