@@ -495,26 +495,26 @@ public:
         t.stop();
         t.start("sorting_upper_bound");
         thrust::host_vector<thrust::device_vector<key>> buckets(NUM_GPUS);
+        thrust::device_vector<size_t> sortedUpperBounds(size);
         thrust::device_vector<key> sortedKeys(size);
-        thrust::device_vector<key> sortedValues(size);
         {
             int sortDown = std::max(0UL, sizeof(size_t) * 8UL - size_t(log2(NUM_GPUS) + 2));
             size_t temp_storage_size = 0;
             cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size,
-                thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedKeys.data()),
-                keys, thrust::raw_pointer_cast(sortedValues.data()),
+                thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedUpperBounds.data()),
+                keys, thrust::raw_pointer_cast(sortedKeys.data()),
                 size, sortDown, sizeof(size_t) * 8,
                 mcontext.get_gpu_default_stream(world_rank()));
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
             cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
-                thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedKeys.data()),
-                keys, thrust::raw_pointer_cast(sortedValues.data()),
+                thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedUpperBounds.data()),
+                keys, thrust::raw_pointer_cast(sortedKeys.data()),
                 size, sortDown, sizeof(size_t) * 8,
                 mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
             comm_world().barrier();
-
+            bound.resize(NUM_GPUS + 1);
             t.stop();
             t.start("find_lengths");
             thrust::device_vector<size_t> bucket_sizes(NUM_GPUS);
@@ -523,17 +523,22 @@ public:
             cudaMalloc(&num_run, sizeof(size_t));
             cub::DeviceRunLengthEncode::Encode(
                 nullptr, temp_storage_size,
-                thrust::raw_pointer_cast(sortedKeys.data()), thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
+                thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
+                thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
+
             if (temp_storage_size < temp_storage_size2) {
-                // Allocate temporary storage
                 cudaFree(temp);
                 cudaMalloc(&temp, temp_storage_size);
             }
-            // Run encoding
+
             cub::DeviceRunLengthEncode::Encode(
                 temp, temp_storage_size,
-                thrust::raw_pointer_cast(sortedKeys.data()), thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
+                thrust::raw_pointer_cast(sortedUpperBounds.data()), thrust::raw_pointer_cast(bound.data()),
+                thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size, mcontext.get_gpu_default_stream(world_rank()));
+            mcontext.sync_all_streams();
+            comm_world().barrier();
             t.stop();
+
             for (size_t i = 0; i < NUM_GPUS; i++)
             {
                 std::cout << "[" << world_rank() << "]" << "bucket_len[" << i << "]:" << bucket_sizes[i] << std::endl;
@@ -1445,7 +1450,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 
 
