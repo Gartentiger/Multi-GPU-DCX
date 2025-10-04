@@ -252,11 +252,14 @@ namespace kernels {
     }
 
     template<typename key, typename Compare>
-    __global__ void bucket_keys(key* keys, key* splitter, key** buckets, Compare comp) {
+    __global__ void bucket_keys(key* keys, key* splitter, key** buckets, Compare comp, size_t* buckets_size) {
         const uint tidx = blockDim.x * blockIdx.x + threadIdx.x;
 
         __shared__ size_t bucketIdx[NUM_GPUS];
         __shared__ uint locks[NUM_GPUS];
+
+        // __shared__ key writeBuffer[4];
+
         if (tidx < 4) {
             bucketIdx[tidx] = 0;
             locks[tidx] = 0;
@@ -265,14 +268,8 @@ namespace kernels {
 
         key cur = keys[tidx];
 
-        // for the send sizes
-        // printf("splitter: %u\n", splitter[tidx].index);
-        // if (tidx >= NUM_GPUS - 1) {
-        //     split_index[tidx] = size;
-        //     return;
-        // }
         size_t start = 0;
-        size_t end = NUM_GPUS;
+        size_t end = NUM_GPUS - 1;
         size_t index = 0;
         while (start < end)
         {
@@ -285,14 +282,21 @@ namespace kernels {
                 start = index + 1;
             }
         }
-        bool leaveLoop = false;
-        while (!leaveLoop) {
-            if (atomicExch(&(locks[start]), 1u) == 0u) {
-                buckets[start][bucketIdx[start]] = keys[tidx];
-                bucketIdx[start]++;
-                leaveLoop = true;
-                atomicExch(&(locks[start]), 0u);
+
+        if (buckets != nullptr) {
+            bool leaveLoop = false;
+            while (!leaveLoop) {
+                if (atomicExch(&(locks[start]), 1u) == 0u) {
+                    buckets[start][bucketIdx[start]] = keys[tidx];
+                    bucketIdx[start]++;
+                    leaveLoop = true;
+                    atomicExch(&(locks[start]), 0u);
+                }
             }
+        }
+        else {
+            assert(buckets_size != nullptr);
+            atomicAdd(&buckets_size[start], 1);
         }
     }
 

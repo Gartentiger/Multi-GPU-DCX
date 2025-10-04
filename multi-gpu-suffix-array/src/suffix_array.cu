@@ -478,7 +478,7 @@ public:
         // comm_world().barrier();
         // thrust::transform(d_samples.begin(), d_samples.end(), d_samples.begin(), d_s thrust::placeholders::_1 * sample_size);
 
-        t.start("find_splits");
+        t.start("upperbound");
 
         // size_t* split_index;
         // cudaMalloc(&split_index, sizeof(size_t) * NUM_GPUS);
@@ -488,16 +488,42 @@ public:
         // cudaFreeAsync(d_samples, mcontext.get_gpu_default_stream(world_rank()));
         // cudaFreeAsync(split_index, mcontext.get_gpu_default_stream(world_rank()));
         // mcontext.sync_all_streams();
+        // for (size_t i = 0; i < size; i++)
+        // {
+        thrust::device_vector<size_t> bound = thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys_vec.begin(), keys_vec.end(), cmp);
+        t.stop();
+        t.start("sorting_upper_bound");
         thrust::host_vector<thrust::device_vector<key>> buckets(NUM_GPUS);
-        for (size_t i = 0; i < NUM_GPUS; i++) buckets[i].reserve((size / NUM_GPUS) * 2);
-        for (size_t i = 0; i < size; i++)
+        thrust::device_vector<key> sortedKeys(size);
+        thrust::device_vector<key> sortedValues(size);
         {
-            const auto bound = thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys[i], cmp);
-            const auto idx = std::min(size_t(bound - d_samples_vec.begin()), size_t(NUM_GPUS - 1));
-            // printf("[%lu] bound: %lu\n", world_rank(), size_t(idx));
-            // printf("[%lu] bound: %lu\n", world_rank(), size_t(bound - d_samples_vec.begin()));
-            buckets[idx].push_back(keys_vec[i]);
+            int sortDown = std::max(0UL, sizeof(size_t) * 8UL - size_t(log2(NUM_GPUS) + 1));
+            size_t temp_storage_size = 0;
+            cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size, keys,
+                thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedKeys.data()),
+                , thrust::raw_pointer_cast(sortedValues.data()),
+                size, sortDown, sizeof(size_t) * 8,
+                mcontext.get_gpu_default_stream(world_rank()));
+            void temp;
+            cudaMalloc(&temp, temp_storage_size);
+            cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
+                thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedKeys.data()),
+                keys, thrust::raw_pointer_cast(sortedValues.data()),
+                size, sortDown, sizeof(size_t) * 8,
+                mcontext.get_gpu_default_stream(world_rank()));
+            mcontext.sync_all_streams();
+            comm_world().barrier();
         }
+        t.stop();
+
+        return;
+        // for (size_t i = 0; i < NUM_GPUS; i++) buckets[i].reserve(bound[i].size());
+
+        thrust::transform(keys_vec.begin(), keys_vec.end(), bound.begin(), )
+            printf("[%lu] bound: %lu\n", world_rank(), size_t(idx));
+        printf("[%lu] bound: %lu\n", world_rank(), size_t(bound - d_samples_vec.begin()));
+        buckets[idx].push_back(keys_vec[i]);
+        // }
         // keys_vec.clear();
         t.stop();
 
@@ -2043,37 +2069,37 @@ int main(int argc, char** argv)
         context.sync_all_streams();
         t.stop_and_append();
 
-        thrust::host_vector<T> keys_out_host = suffixes;
-        std::vector<T> vec_key_out_host(keys_out_host.begin(), keys_out_host.end());
-        if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
-            std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
-        }
-        ASSERT(keys_out_host.size() > 1);
-        std::vector<T> keys_out_h(2);
-        keys_out_h[0] = vec_key_out_host[0];
-        keys_out_h[1] = vec_key_out_host.back();
-        auto const out = comm_world().gather(send_buf(keys_out_h), root(0));
-        context.sync_all_streams();
-        comm_world().barrier();
+        // thrust::host_vector<T> keys_out_host = suffixes;
+        // std::vector<T> vec_key_out_host(keys_out_host.begin(), keys_out_host.end());
+        // if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
+        //     std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
+        // }
+        // ASSERT(keys_out_host.size() > 1);
+        // std::vector<T> keys_out_h(2);
+        // keys_out_h[0] = vec_key_out_host[0];
+        // keys_out_h[1] = vec_key_out_host.back();
+        // auto const out = comm_world().gather(send_buf(keys_out_h), root(0));
+        // context.sync_all_streams();
+        // comm_world().barrier();
 
 
-        if (world_rank() == 0)
-        {
-            if (!std::is_sorted(out.begin(), out.end())) {
-                std::cerr << "GPU Samplesort does not sort input correctly globally" << std::endl;
-            }
+        // if (world_rank() == 0)
+        // {
+        //     if (!std::is_sorted(out.begin(), out.end())) {
+        //         std::cerr << "GPU Samplesort does not sort input correctly globally" << std::endl;
+        //     }
 
-            // const auto sorted_indices = naive_suffix_sort(randomDataSize, text);
-            // bool const is_correct = std::equal(
-            //     sorted_indices.begin(), sorted_indices.end(), out_keys_all.begin(),
-            //     out_keys_all.end(), [](const auto& index, const auto& tuple) {
-            //         return index == tuple.index;
-            //     });
-            // if (!is_correct) {
-            //     std::cerr << "GPU Samplesort does not sort input correctly" << std::endl;
-            //     // std::abort();
-            // }
-        }
+        //     // const auto sorted_indices = naive_suffix_sort(randomDataSize, text);
+        //     // bool const is_correct = std::equal(
+        //     //     sorted_indices.begin(), sorted_indices.end(), out_keys_all.begin(),
+        //     //     out_keys_all.end(), [](const auto& index, const auto& tuple) {
+        //     //         return index == tuple.index;
+        //     //     });
+        //     // if (!is_correct) {
+        //     //     std::cerr << "GPU Samplesort does not sort input correctly" << std::endl;
+        //     //     // std::abort();
+        //     // }
+        // }
 
         size_t gb = 1 << 30;
         size_t num_GB = bytes / gb;
