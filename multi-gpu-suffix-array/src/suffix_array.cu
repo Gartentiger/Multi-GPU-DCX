@@ -496,6 +496,15 @@ public:
         t.stop();
         t.start("sorting_upper_bound");
         thrust::host_vector<thrust::device_vector<key>> buckets(NUM_GPUS);
+        thrust::host_vector<size_t> h_bound = bound;
+        for (size_t i = 0; i < h_bound.size(); i++)
+        {
+            if (i < 16) {
+                printf("[%lu] bound[%lu]: %lu\n", world_rank(), i, h_bound[i]);
+            }
+            ASSERT(h_bound[i] <= NUM_GPUS);
+        }
+
         thrust::device_vector<size_t> sortedUpperBounds(size);
         thrust::device_vector<key> sortedKeys(size);
         {
@@ -504,14 +513,14 @@ public:
             cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size,
                 thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedUpperBounds.data()),
                 keys, thrust::raw_pointer_cast(sortedKeys.data()),
-                size, sortDown, sizeof(size_t) * 8,
+                size, 0, sizeof(size_t) * 8,
                 mcontext.get_gpu_default_stream(world_rank()));
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
             cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
                 thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sortedUpperBounds.data()),
                 keys, thrust::raw_pointer_cast(sortedKeys.data()),
-                size, sortDown, sizeof(size_t) * 8,
+                size, 0, sizeof(size_t) * 8,
                 mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
             comm_world().barrier();
