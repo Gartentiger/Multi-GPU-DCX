@@ -493,7 +493,7 @@ public:
         for (size_t i = 0; i < size; i++)
         {
             const auto bound = thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys[i], cmp);
-            buckets[std::min(bound - d_samples_vec.begin(), NUM_GPUS - 1)].push_back(keys[i]);
+            buckets[std::min(bound - d_samples_vec.begin(), size_t(NUM_GPUS - 1))].push_back(keys[i]);
         }
         keys_vec.clear();
         t.stop();
