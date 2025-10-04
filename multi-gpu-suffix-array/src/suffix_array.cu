@@ -1945,50 +1945,7 @@ int main(int argc, char** argv)
     {
         error("Usage: sa-test <ofile> <ifile> !");
     }
-    {
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, 10000);
-        thrust::host_vector<int> samp(4);
-        for (size_t i = 0; i < samp.size(); i++)
-        {
-            samp[i] = randomDist(g);
-        }
-        thrust::sort(samp.begin(), samp.end());
-        thrust::device_vector<int> splitter = samp;
-        std::vector<int> sizes(splitter.size());
 
-
-        thrust::host_vector<int> a(10);
-        for (size_t i = 0; i < 10; i++)
-        {
-            a[i] = randomDist(g);
-        }
-        thrust::device_vector<int> d_ints = a;
-        thrust::host_vector<size_t> vec(d_ints.size());
-        thrust::host_vector<thrust::device_vector<int>> buckets(4);
-        for (size_t i = 0; i < buckets.size(); i++) buckets[i].reserve(d_ints.size() / 2);
-
-        for (size_t i = 0; i < d_ints.size(); i++)
-        {
-            // const auto da = thrust::raw_pointer_cast(d_ints.data())[i];
-            const auto a = thrust::upper_bound(splitter.begin(), splitter.end(), thrust::raw_pointer_cast(d_ints.data())[i]);
-            const auto idx = std::min(size_t(a - splitter.begin()), sizes.size() - 1);
-            std::cout << idx << std::endl;
-            buckets[idx].push_back(d_ints[i]);
-            // sizes[vec[i]]++;
-        }
-        for (int i = 0; i < splitter.size(); i++) {
-            std::cout << "splitter(" << i << ") =  " << splitter[i] << std::endl;
-        }
-        for (int i = 0; i < buckets.size(); i++) {
-            std::cout << "bucket(" << i << ") =  " << std::endl;
-            for (size_t j = 0; j < buckets[i].size();j++)
-            {
-                std::cout << "[" << j << "]" << buckets[i][j] << "\n";
-            }
-        }
-    }
     // for (int i = 0; i < 2; i++)
     // {
 
