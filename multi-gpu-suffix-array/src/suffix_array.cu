@@ -539,7 +539,7 @@ public:
             if (temp_storage_size < temp_storage_size2) {
                 t.start("extra_malloc");
                 cudaFree(temp);
-                cudaMalloc(&temp, temp_storage_size);
+                cudaMalloc(&temp, temp_storage_size2);
                 t.stop();
             }
             mcontext.sync_all_streams();
