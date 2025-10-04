@@ -492,9 +492,9 @@ public:
         for (auto& bucket : buckets) bucket.reserve((size / NUM_GPUS) * 2);
         for (size_t i = 0; i < size; i++)
         {
-            const size_t bound = thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys[i], cmp);
+            const auto bound = thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys[i], cmp);
             printf("[%lu] bound\n", world_rank());
-            printf("[%lu] bound: %lu\n", world_rank(), bound);
+            printf("[%lu] bound: %lu\n", world_rank(), size_t(bound - d_samples_vec.begin()));
             buckets[std::min(size_t(bound - d_samples_vec.begin()), size_t(NUM_GPUS - 1))].push_back(keys[i]);
         }
         // keys_vec.clear();
