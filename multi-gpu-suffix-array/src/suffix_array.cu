@@ -490,7 +490,8 @@ public:
         // mcontext.sync_all_streams();
         // for (size_t i = 0; i < size; i++)
         // {
-        thrust::device_vector<size_t> bound = thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys_vec.begin(), keys_vec.end(), cmp);
+        thrust::device_vector<size_t> bound(size);
+        thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys_vec.begin(), keys_vec.end(), bound.begin(), cmp);
         t.stop();
         t.start("sorting_upper_bound");
         thrust::host_vector<thrust::device_vector<key>> buckets(NUM_GPUS);
