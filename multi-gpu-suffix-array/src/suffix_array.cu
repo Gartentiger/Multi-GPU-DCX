@@ -494,9 +494,9 @@ public:
         {
             const auto bound = thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys[i], cmp);
             const auto idx = std::min(size_t(bound - d_samples_vec.begin()), size_t(NUM_GPUS - 1));
-            printf("[%lu] bound: %lu\n", world_rank(), size_t(idx));
-            printf("[%lu] bound: %lu\n", world_rank(), size_t(bound - d_samples_vec.begin()));
-            buckets[idx].push_back(keys[i]);
+            // printf("[%lu] bound: %lu\n", world_rank(), size_t(idx));
+            // printf("[%lu] bound: %lu\n", world_rank(), size_t(bound - d_samples_vec.begin()));
+            buckets[idx].push_back(keys_vec[i]);
         }
         // keys_vec.clear();
         t.stop();
