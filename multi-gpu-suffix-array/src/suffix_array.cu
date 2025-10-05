@@ -272,10 +272,11 @@ __global__ void printArrayss(MergeSuffixes* sk, size_t size, size_t rank)
         for (size_t x = 0; x < DCX::X; x++) {
             printf("%c, ", sk[i].prefix[x]);
         }
-        for (size_t x = 0; x < DCX::X; x++) {
+        printf(" r ");
+        for (size_t x = 0; x < DCX::C; x++) {
             printf("%u, ", sk[i].ranks[x]);
         }
-        printf("%u\n", sk[i].index);
+        printf("idx %u\n", sk[i].index);
         // printf("[%lu] sk[%lu]: %c, %c, %c, %c, %c, %u, %u, %u, %u, %u, %lu", rank, i, sk[i].xPrefix0, sk[i].xPrefix1, sk[i].xPrefix2, sk[i].xPrefix3, sk[i].xPrefix4, sk[i].ranks0, sk[i].ranks1, sk[i].ranks2, sk[i].ranks3, sk[i].ranks4, sk[i].index);
         // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
     }
@@ -942,7 +943,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (world_rank() == gpu_index)
             {
-                // printArrayss << <1, 1 >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, world_rank());
+                printArrayss << <1, 1 >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, world_rank());
                 // //(0);
                 kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
                 CUERR;
@@ -964,7 +965,7 @@ private:
         // comm_world().barrier();
         //
         printf("[%lu] after write indices s12\n", world_rank());
-        mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+        // mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
         // comm_world().barrier();
@@ -976,11 +977,11 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
         size_t count = mgpus[world_rank()].num_elements - mgpus[world_rank()].pd_elements;
 
-
-        MergeSuffixes* merge_tuple;
-        cudaMalloc(&merge_tuple, sizeof(MergeSuffixes) * mgpus[world_rank()].num_elements);
-        CUERR;
-        MergeSuffixes* merge_tuple_out;
+        thrust::device_vector<MergeSuffixes> merge_tuple_vec(mgpus[world_rank()].num_elements);
+        MergeSuffixes* merge_tuple = thrust::raw_pointer_cast(merge_tuple_vec.data());
+        // cudaMalloc(&merge_tuple, sizeof(MergeSuffixes) * mgpus[world_rank()].num_elements);
+        // CUERR;
+        // MergeSuffixes* merge_tuple_out;
 
         uint gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
@@ -1018,10 +1019,10 @@ private:
             mpd_per_gpu,
             merge_tuple, gpu.pd_elements, dcx);
         CUERR;
-        // printArrayss << <1, 1 >> > (merge_tuple, mgpus[world_rank()].pd_elements, world_rank());
+        printArrayss << <1, 1 >> > (merge_tuple, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
-        printf("[%lu] non samples-------------------------------------------\n", world_rank());
         comm_world().barrier();
+        printf("[%lu] non samples-------------------------------------------\n", world_rank());
 
         MergeSuffixes* nonSamples = merge_tuple + gpu.pd_elements;
 
@@ -1045,22 +1046,24 @@ private:
             noSampleCount += count2;
         }
         mcontext.sync_default_streams();
-        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (nonSamples, count, gpu_index);
-        // mcontext.sync_default_streams();
-        // comm_world().barrier();
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (nonSamples, count, gpu_index);
+        mcontext.sync_default_streams();
+        comm_world().barrier();
 
         cudaFree(dcx);
 
-
+        thrust::device_vector<MergeSuffixes> merge_tuple_out_vec;
+        MergeSuffixes* merge_tuple_out = thrust::raw_pointer_cast(merge_tuple_out_vec.data());
         size_t out_num_elements;
-        // SampleSort(merge_tuple, merge_tuple_out, gpu.num_elements, out_num_elements, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DC7Comparator{});
+        SampleSort(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DC7Comparator{});
         mcontext.sync_all_streams();
         printf("[%lu] sample sorted\n", world_rank());
-
+        merge_tuple_vec.clear();
+        thrust::device_vector<MergeSuffixes>().swap(merge_tuple_vec);
         sa_index_t* out_sa;;
-        cudaFreeAsync(merge_tuple, mcontext.get_gpu_default_stream(gpu_index));
-        cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
-        mcontext.sync_all_streams();
+        // cudaFreeAsync(merge_tuple, mcontext.get_gpu_default_stream(gpu_index));
+        // cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
+        // mcontext.sync_all_streams();
         printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (merge_tuple_out, out_num_elements, gpu_index);
 
@@ -1069,7 +1072,7 @@ private:
         printf("[%lu] write sa\n", world_rank());
         sa_index_t* sa = (sa_index_t*)malloc(sizeof(sa_index_t) * out_num_elements);
         cudaMemcpyAsync(sa, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
-        cudaFreeAsync(merge_tuple_out, mcontext.get_gpu_default_stream(gpu_index));
+        // cudaFreeAsync(merge_tuple_out, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
         comm_world().barrier();
         for (size_t i = 0; i < out_num_elements; i++)
@@ -2002,8 +2005,8 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    // size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
-    // size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    size_t maxLength = size_t(1024 * 1024) * size_t(900 * NUM_GPUS);
+    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
 
@@ -2048,91 +2051,90 @@ int main(int argc, char** argv)
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
     using T = MergeSuffixes;
 
-    // uint32_t randomDataSize = (1024 * 1024 * 1024);
-    for (size_t round = 0; round < 18; round++)
-    {
-        size_t randomDataSize = 512 << round;
-        // std::tuple<std::string, std::vector<T>> ;
-        auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
-        comm_world().barrier();
-        printf("[%lu] gen data\n", world_rank());
-        auto data_on_pe = comm_world().scatter(send_buf(data), root(0));
-        printf("[%lu] scatter\n", world_rank());
-        // for (size_t i = 0; i < data_on_pe.size(); i++)
-        // {
-        //     printf("[%lu] data_on_pe[%lu]: %u\n", world_rank(), i, data_on_pe[i].index);
-        // }
-        thrust::host_vector<T> h_suffixes(data_on_pe.begin(), data_on_pe.end());
-        // for (size_t i = 0; i < randomDataSize; i++)
-        // {
-        //     h_suffixes[i] = randomDistSize(g);
-        // }
+    // for (size_t round = 0; round < 18; round++)
+    // {
+    //     size_t randomDataSize = 512 << round;
+    //     // std::tuple<std::string, std::vector<T>> ;
+    //     auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
+    //     comm_world().barrier();
+    //     printf("[%lu] gen data\n", world_rank());
+    //     auto data_on_pe = comm_world().scatter(send_buf(data), root(0));
+    //     printf("[%lu] scatter\n", world_rank());
+    //     // for (size_t i = 0; i < data_on_pe.size(); i++)
+    //     // {
+    //     //     printf("[%lu] data_on_pe[%lu]: %u\n", world_rank(), i, data_on_pe[i].index);
+    //     // }
+    //     thrust::host_vector<T> h_suffixes(data_on_pe.begin(), data_on_pe.end());
+    //     // for (size_t i = 0; i < randomDataSize; i++)
+    //     // {
+    //     //     h_suffixes[i] = randomDistSize(g);
+    //     // }
 
-        thrust::device_vector<T> suffixes = h_suffixes;
-
-
-        size_t out_size = 0;
-        const int a = (int)(16 * log(NUM_GPUS) / log(2.));
-        size_t bytes = sizeof(T) * randomDataSize;
-        char sf[30];
-        sprintf(sf, "sample_sort_%lu", bytes);
-        thrust::device_vector<T> keys_out;
-
-        t.synchronize_and_start(sf);
-        sorter.SampleSort(suffixes, keys_out, a + 1, DC7Comparator{});
-        context.sync_all_streams();
-        t.stop_and_append();
-
-        thrust::host_vector<T> keys_out_host = keys_out;
-        std::vector<T> vec_key_out_host(keys_out_host.begin(), keys_out_host.end());
-
-        // if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
-        //     std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
-        // }
-        ASSERT(keys_out_host.size() > 1);
-        // std::vector<T> keys_out_h(2);
-        // keys_out_h[0] = vec_key_out_host[0];
-        // keys_out_h[1] = vec_key_out_host.back();
-        auto const out = comm_world().gatherv(send_buf(vec_key_out_host), root(0));
-        context.sync_all_streams();
-        comm_world().barrier();
+    //     thrust::device_vector<T> suffixes = h_suffixes;
 
 
-        if (world_rank() == 0)
-        {
-            std::vector<size_t> sa = naive_suffix_sort(randomDataSize, text);
-            bool const is_correct = std::equal(
-                sa.begin(), sa.end(), out.begin(),
-                out.end(), [](const auto& index, const auto& tuple) {
-                    return index == tuple.index;
-                });
-            // if (!std::is_sorted(out.begin(), out.end())) {
-            if (!is_correct) {
-                std::cerr << "GPU Samplesort does not sort input correctly globally" << std::endl;
-            }
-        }
+    //     size_t out_size = 0;
+    //     const int a = (int)(16 * log(NUM_GPUS) / log(2.));
+    //     size_t bytes = sizeof(T) * randomDataSize;
+    //     char sf[30];
+    //     sprintf(sf, "sample_sort_%lu", bytes);
+    //     thrust::device_vector<T> keys_out;
 
-        size_t gb = 1 << 30;
-        size_t num_GB = bytes / gb;
-        printf("[%lu] elements: %10u,  %5lu GB, time: %15.9f\n", world_rank(), randomDataSize, num_GB);
+    //     t.synchronize_and_start(sf);
+    //     sorter.SampleSort(suffixes, keys_out, a + 1, DC7Comparator{});
+    //     context.sync_all_streams();
+    //     t.stop_and_append();
 
-        // cudaFree(suffixes);
-        // cudaFree(temp_storage);
+    //     thrust::host_vector<T> keys_out_host = keys_out;
+    //     std::vector<T> vec_key_out_host(keys_out_host.begin(), keys_out_host.end());
 
-    }
-    // auto& t = kamping::measurements::timer();
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
-    std::ofstream outFile2(argv[1], std::ios::app);
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ outFile2, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
-    return;
+    //     // if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
+    //     //     std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
+    //     // }
+    //     ASSERT(keys_out_host.size() > 1);
+    //     // std::vector<T> keys_out_h(2);
+    //     // keys_out_h[0] = vec_key_out_host[0];
+    //     // keys_out_h[1] = vec_key_out_host.back();
+    //     auto const out = comm_world().gatherv(send_buf(vec_key_out_host), root(0));
+    //     context.sync_all_streams();
+    //     comm_world().barrier();
+
+
+    //     if (world_rank() == 0)
+    //     {
+    //         std::vector<size_t> sa = naive_suffix_sort(randomDataSize, text);
+    //         bool const is_correct = std::equal(
+    //             sa.begin(), sa.end(), out.begin(),
+    //             out.end(), [](const auto& index, const auto& tuple) {
+    //                 return index == tuple.index;
+    //             });
+    //         // if (!std::is_sorted(out.begin(), out.end())) {
+    //         if (!is_correct) {
+    //             std::cerr << "GPU Samplesort does not sort input correctly globally" << std::endl;
+    //         }
+    //     }
+
+    //     size_t gb = 1 << 30;
+    //     size_t num_GB = bytes / gb;
+    //     printf("[%lu] elements: %10u,  %5lu GB, time: %15.9f\n", world_rank(), randomDataSize, num_GB);
+
+    //     // cudaFree(suffixes);
+    //     // cudaFree(temp_storage);
+
+    // }
+    // // auto& t = kamping::measurements::timer();
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
+    // std::ofstream outFile2(argv[1], std::ios::app);
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ outFile2, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
+    // return;
     sorter.alloc();
     // auto stringPath = ((std::string)argv[3]);
     // int pos = stringPath.find_last_of("/\\");
