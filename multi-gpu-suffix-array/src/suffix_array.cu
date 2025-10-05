@@ -538,7 +538,7 @@ public:
             size_t prefix_sum = 0;
             cudaMemcpyAsync(h_bucket_sizes.data(), thrust::raw_pointer_cast(bucket_sizes.data()), sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
-            for (size_t i = 0; i < h_bucket_sizes.size; i++)
+            for (size_t i = 0; i < h_bucket_sizes.size(); i++)
             {
                 printf("[%lu] bucket_size[%lu]: %lu\n", world_rank(), i, h_bucket_sizes[i]);
             }
