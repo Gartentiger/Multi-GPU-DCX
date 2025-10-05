@@ -54,7 +54,7 @@
 #include "moderngpu/kernel_mergesort.hxx"
 #include "dcx_data_generation.hpp"
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -1987,7 +1987,7 @@ int main(int argc, char** argv)
         Id = comm_world().bcast_single<ncclUniqueId>();
     }
 
-    NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
+    // NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
     printf("[%lu] Active nccl comm\n", world_rank());
 
     if (argc != 3)
@@ -2054,8 +2054,9 @@ int main(int argc, char** argv)
         size_t randomDataSize = 512 << round;
         // std::tuple<std::string, std::vector<T>> ;
         auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
+        comm_world().barrier();
         printf("[%lu] gen data\n", world_rank());
-        auto data_on_pe = comm_world().scatter(send_buf(data));
+        auto data_on_pe = comm_world().scatter(send_buf(data), root(0));
         printf("[%lu] scatter\n", world_rank());
         // for (size_t i = 0; i < data_on_pe.size(); i++)
         // {
