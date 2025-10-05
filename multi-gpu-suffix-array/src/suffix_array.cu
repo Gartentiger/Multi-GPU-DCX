@@ -1053,13 +1053,13 @@ private:
 
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec;
         MergeSuffixes* merge_tuple_out = thrust::raw_pointer_cast(merge_tuple_out_vec.data());
-        size_t out_num_elements;
         SampleSort(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DC7Comparator{});
         mcontext.sync_all_streams();
         printf("[%lu] sample sorted\n", world_rank());
         merge_tuple_vec.clear();
         thrust::device_vector<MergeSuffixes>().swap(merge_tuple_vec);
-        sa_index_t* out_sa;;
+        size_t out_num_elements = merge_tuple_out_vec.size();
+        // sa_index_t* out_sa;;
         // cudaFreeAsync(merge_tuple, mcontext.get_gpu_default_stream(gpu_index));
         // cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
         // mcontext.sync_all_streams();
@@ -1076,7 +1076,7 @@ private:
         comm_world().barrier();
         for (size_t i = 0; i < out_num_elements; i++)
         {
-            // printf("[%lu] sa[%lu]: %u\n", world_rank(), i, sa[i]);
+            printf("[%lu] sa[%lu]: %u\n", world_rank(), i, sa[i]);
         }
 
         std::vector<size_t> recv_sizes(NUM_GPUS);
