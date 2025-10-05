@@ -510,7 +510,7 @@ public:
             size_t temp_storage_size2 = 0;
             cub::DeviceRunLengthEncode::Encode(
                 nullptr, temp_storage_size2,
-                thrust::raw_pointer_cast(sorted_upper_bounds.data()), reinterpret_cast<size_t>(keys),
+                thrust::raw_pointer_cast(sorted_upper_bounds.data()), reinterpret_cast<size_t*>(keys),
                 thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
             void* temp;
             temp_storage_size = std::max(temp_storage_size, temp_storage_size2);
@@ -533,7 +533,7 @@ public:
 
             cub::DeviceRunLengthEncode::Encode(
                 temp, temp_storage_size2,
-                thrust::raw_pointer_cast(sorted_upper_bounds.data()), reinterpret_cast<size_t>(keys),
+                thrust::raw_pointer_cast(sorted_upper_bounds.data()), reinterpret_cast<size_t*>(keys),
                 thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size, mcontext.get_gpu_default_stream(world_rank()));
             size_t prefix_sum = 0;
             cudaMemcpyAsync(h_bucket_sizes.data(), thrust::raw_pointer_cast(bucket_sizes.data()), sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
