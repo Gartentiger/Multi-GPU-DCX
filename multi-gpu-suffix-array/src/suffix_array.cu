@@ -2053,15 +2053,8 @@ int main(int argc, char** argv)
     {
         size_t randomDataSize = 512 << round;
         // std::tuple<std::string, std::vector<T>> ;
-        std::string text;
-        std::vector<T> data;
-        if (world_rank() == 0) {
-
-            auto [textt, datat] = generate_data_dcx(randomDataSize, 1234 + round);
-            text = textt;
-            data = datat;
-            printf("[%lu] gen data\n", world_rank());
-        }
+        auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
+        printf("[%lu] gen data\n", world_rank());
         auto data_on_pe = comm_world().scatter(send_buf(data));
         printf("[%lu] scatter\n", world_rank());
         // for (size_t i = 0; i < data_on_pe.size(); i++)
