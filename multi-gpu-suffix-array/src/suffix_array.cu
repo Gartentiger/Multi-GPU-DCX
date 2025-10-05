@@ -514,6 +514,7 @@ public:
                 thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
             void* temp;
             temp_storage_size = std::max(temp_storage_size, temp_storage_size2);
+            printf("temp_storage: %lu\n", temp_storage_size);
             cudaMalloc(&temp, temp_storage_size);
             cudaMalloc(&num_run, sizeof(size_t));
 
@@ -527,10 +528,8 @@ public:
 
             t.stop();
             printf("[%lu] after sorting bound\n", world_rank());
-            cudaFree(num_run);
-            cudaFree(temp);
-            t.start("find_lengths");
 
+            t.start("find_lengths");
             cub::DeviceRunLengthEncode::Encode(
                 temp, temp_storage_size,
                 thrust::raw_pointer_cast(sorted_upper_bounds.data()), reinterpret_cast<size_t*>(keys),
