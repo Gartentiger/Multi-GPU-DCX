@@ -66,7 +66,7 @@ struct DC7 {
     static constexpr uint32_t C = 3;
     static constexpr uint32_t nonSampleCount = X - C;
     static constexpr uint32_t samplePosition[C] = { 1, 2, 4 };
-    static constexpr uint32_t inverseSamplePosition[X] = { 0, 0, 1, 0, 2, 0, 0 };
+    static constexpr uint32_t inverseSamplePosition[X - C] = { 0, 2, 3, 3 };
     static constexpr uint32_t nextNonSample[X - C] = { 0, 3, 5, 6 };
 
     static constexpr uint32_t nextSample[X][X][2] = {

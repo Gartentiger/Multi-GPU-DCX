@@ -1033,15 +1033,14 @@ private:
             if (i < count % DCX::nonSampleCount) {
                 count2++;
             }
-            uint l = DCX::nextSample[DCX::nextNonSample[i]][DCX::nextNonSample[i]][0];
-            uint f = DCX::inverseSamplePosition[(DCX::nextNonSample[i] + l) % DCX::X];
+
             kernels::prepare_non_sample
                 _KLC_SIMPLE_(count2, mcontext.get_gpu_default_stream(gpu_index))
                 // << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> >
 
                 (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, next_Input, gpu.offset, gpu.num_elements,
                     mpd_per_gpu,
-                    nonSamples + noSampleCount, count2, DCX::nextNonSample[i], f);
+                    nonSamples + noSampleCount, count2, DCX::nextNonSample[i], DCX::inverseSamplePosition[i]);
             CUERR;
             noSampleCount += count2;
         }

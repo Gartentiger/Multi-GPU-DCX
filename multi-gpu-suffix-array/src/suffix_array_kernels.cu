@@ -593,11 +593,12 @@ namespace kernels {
             uint nexIsaIndex = 0;
             for (uint x = 0; x < DCX::X; x++) {
                 sk.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
-                if (i < N)
-                    sk.ranks[x] = Isa[i + x];
+                if ((i + x) < N) {
+                    sk.ranks[x] = Isa[i + x] + 1;
+                }
                 else {
                     if (next_Isa) {
-                        sk.ranks[x] = next_Isa[nexIsaIndex];
+                        sk.ranks[x] = next_Isa[nexIsaIndex] + 1;
                     }
                     else {
                         sk.ranks[x] = index < num_chars - 1 ? 1 : 0;
@@ -701,11 +702,11 @@ namespace kernels {
             for (uint x = 0; x < DCX::X; x++) {
                 sv.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
                 if (starting_isa_index < isa_size) {
-                    sv.ranks[x] = Isa[starting_isa_index++];
+                    sv.ranks[x] = Isa[starting_isa_index++] + 1;
                 }
                 else {
                     if (next_Isa) {
-                        sv.ranks[x] = next_Isa[nexIsaIndex];
+                        sv.ranks[x] = next_Isa[nexIsaIndex] + 1;
                     }
                     else {
                         sv.ranks[x] = index < num_chars - 1 ? 1 : 0;
