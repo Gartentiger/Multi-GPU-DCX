@@ -537,10 +537,10 @@ public:
             size_t prefix_sum = 0;
             cudaMemcpyAsync(h_bucket_sizes.data(), thrust::raw_pointer_cast(bucket_sizes.data()), sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
-            // for (size_t i = 0; i < h_bucket_sizes.size(); i++)
-            // {
-            //     printf("[%lu] bucket_size[%lu]: %lu\n", world_rank(), i, h_bucket_sizes[i]);
-            // }
+            for (size_t i = 0; i < h_bucket_sizes.size(); i++)
+            {
+                printf("[%lu] bucket_size[%lu]: %lu\n", world_rank(), i, h_bucket_sizes[i]);
+            }
 
             for (size_t i = 0; i < NUM_GPUS; i++) {
                 cudaMemcpyAsync(keys + prefix_sum, thrust::raw_pointer_cast(sorted_keys.data()) + prefix_sum, sizeof(key) * h_bucket_sizes[i], cudaMemcpyDeviceToDevice, mcontext.get_gpu_default_stream(world_rank()));
@@ -636,7 +636,7 @@ public:
         }
         comm_world().barrier();
         t.stop();
-        // printf("[%lu] sorted key.size: %lu\n", world_rank(), keys_vec.size());
+        printf("[%lu] sorted key.size: %lu\n", world_rank(), keys_out_vec.size());
     }
 
 
@@ -2093,7 +2093,7 @@ int main(int argc, char** argv)
         // std::vector<T> keys_out_h(2);
         // keys_out_h[0] = vec_key_out_host[0];
         // keys_out_h[1] = vec_key_out_host.back();
-        auto const out = comm_world().gather(send_buf(vec_key_out_host), root(0));
+        auto const out = comm_world().gatherv(send_buf(vec_key_out_host), root(0));
         context.sync_all_streams();
         comm_world().barrier();
 
