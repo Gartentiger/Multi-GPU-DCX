@@ -2046,26 +2046,33 @@ int main(int argc, char** argv)
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, 255);
     std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
-    using T = size_t;
+    using T = MergeSuffixes;
 
     // uint32_t randomDataSize = (1024 * 1024 * 1024);
     for (size_t round = 0; round < 20; round++)
     {
         size_t randomDataSize = 512 << round;
+        // std::tuple<std::string, std::vector<T>> ;
+        std::string text;
+        std::vector<T> data;
+        if (world_rank() == 0) {
 
-        // auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
-        // printf("[%lu] gen data\n", world_rank());
-        // auto data_on_pe = comm_world().scatter(send_buf(data));
-        // printf("[%lu] scatter\n", world_rank());
+            auto [textt, datat] = generate_data_dcx(randomDataSize, 1234 + round);
+            text = textt;
+            data = datat;
+            printf("[%lu] gen data\n", world_rank());
+        }
+        auto data_on_pe = comm_world().scatter(send_buf(data));
+        printf("[%lu] scatter\n", world_rank());
         // for (size_t i = 0; i < data_on_pe.size(); i++)
         // {
         //     printf("[%lu] data_on_pe[%lu]: %u\n", world_rank(), i, data_on_pe[i].index);
         // }
-        thrust::host_vector<T> h_suffixes(randomDataSize);
-        for (size_t i = 0; i < randomDataSize; i++)
-        {
-            h_suffixes[i] = randomDistSize(g);
-        }
+        thrust::host_vector<T> h_suffixes(data_on_pe.begin(), data_on_pe.end());
+        // for (size_t i = 0; i < randomDataSize; i++)
+        // {
+        //     h_suffixes[i] = randomDistSize(g);
+        // }
 
         thrust::device_vector<T> suffixes = h_suffixes;
 
@@ -2078,27 +2085,35 @@ int main(int argc, char** argv)
         thrust::device_vector<T> keys_out;
 
         t.synchronize_and_start(sf);
-        sorter.SampleSort(suffixes, keys_out, a + 1, std::less<T>());
+        sorter.SampleSort(suffixes, keys_out, a + 1, DC7Comparator{});
         context.sync_all_streams();
         t.stop_and_append();
 
         thrust::host_vector<T> keys_out_host = keys_out;
         std::vector<T> vec_key_out_host(keys_out_host.begin(), keys_out_host.end());
-        if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
-            std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
-        }
+
+        // if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
+        //     std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
+        // }
         ASSERT(keys_out_host.size() > 1);
-        std::vector<T> keys_out_h(2);
-        keys_out_h[0] = vec_key_out_host[0];
-        keys_out_h[1] = vec_key_out_host.back();
-        auto const out = comm_world().gather(send_buf(keys_out_h), root(0));
+        // std::vector<T> keys_out_h(2);
+        // keys_out_h[0] = vec_key_out_host[0];
+        // keys_out_h[1] = vec_key_out_host.back();
+        auto const out = comm_world().gather(send_buf(vec_key_out_host), root(0));
         context.sync_all_streams();
         comm_world().barrier();
 
 
         if (world_rank() == 0)
         {
-            if (!std::is_sorted(out.begin(), out.end())) {
+            std::vector<size_t> sa = naive_suffix_sort(randomDataSize, text);
+            bool const is_correct = std::equal(
+                sa.begin(), sa.end(), out.begin(),
+                out.end(), [](const auto& index, const auto& tuple) {
+                    return index == tuple.index;
+                });
+            // if (!std::is_sorted(out.begin(), out.end())) {
+            if (!is_correct) {
                 std::cerr << "GPU Samplesort does not sort input correctly globally" << std::endl;
             }
         }
