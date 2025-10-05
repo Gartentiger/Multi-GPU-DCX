@@ -1987,7 +1987,7 @@ int main(int argc, char** argv)
         Id = comm_world().bcast_single<ncclUniqueId>();
     }
 
-    // NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
+    NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
     printf("[%lu] Active nccl comm\n", world_rank());
 
     if (argc != 3)
