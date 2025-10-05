@@ -1013,7 +1013,7 @@ private:
         cudaMemcpy(dcx->nextSample, DCX::nextSample, DCX::X * DCX::X * 2 * sizeof(uint32_t), cudaMemcpyHostToDevice);
         cudaMemcpy(dcx->samplePosition, DCX::samplePosition, DCX::C * sizeof(uint32_t), cudaMemcpyHostToDevice);
 
-        kernels::prepare_SK_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
+        kernels::prepare_SK_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result,
             gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
             next_Isa, next_Input, gpu.offset, gpu.num_elements,
             mpd_per_gpu,
@@ -1086,7 +1086,7 @@ private:
         printf("[%lu] acc: %lu\n", world_rank(), acc);
         int ierr;
         MPI_File outputFile;
-        ierr = MPI_File_open(MPI_COMM_WORLD, "outputData",
+        ierr = MPI_File_open(MPI_COMM_WORLD, "outputTest",
             MPI_MODE_CREATE | MPI_MODE_WRONLY,
             MPI_INFO_NULL, &outputFile);
         if (ierr != MPI_SUCCESS) {
