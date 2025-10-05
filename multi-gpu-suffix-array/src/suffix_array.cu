@@ -2049,7 +2049,7 @@ int main(int argc, char** argv)
     using T = MergeSuffixes;
 
     // uint32_t randomDataSize = (1024 * 1024 * 1024);
-    for (size_t round = 0; round < 20; round++)
+    for (size_t round = 0; round < 18; round++)
     {
         size_t randomDataSize = 512 << round;
         // std::tuple<std::string, std::vector<T>> ;
