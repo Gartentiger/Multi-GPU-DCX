@@ -1065,12 +1065,12 @@ private:
         // mcontext.sync_all_streams();
         printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (merge_tuple_out, out_num_elements, gpu_index);
-
-        kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements);
+        thrust::device_vector<sa_index_t> device_sa(out_num_elements);
+        kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, thrust::raw_pointer_cast(device_sa.data()), out_num_elements);
         mcontext.sync_all_streams();
         printf("[%lu] write sa\n", world_rank());
         sa_index_t* sa = (sa_index_t*)malloc(sizeof(sa_index_t) * out_num_elements);
-        cudaMemcpyAsync(sa, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
+        cudaMemcpyAsync(sa, thrust::raw_pointer_cast(device_sa.data()), out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         // cudaFreeAsync(merge_tuple_out, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
         comm_world().barrier();
