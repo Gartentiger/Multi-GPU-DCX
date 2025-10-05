@@ -538,10 +538,14 @@ public:
             size_t prefix_sum = 0;
             cudaMemcpyAsync(h_bucket_sizes.data(), thrust::raw_pointer_cast(bucket_sizes.data()), sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
-            printf("[%lu] after bucket sizes\n", world_rank());
+            for (size_t i = 0; i < h_bucket_sizes.size; i++)
+            {
+                printf("[%lu] bucket_size[%lu]: %lu\n", world_rank(), i, h_bucket_sizes[i]);
+            }
+
             for (size_t i = 0; i < NUM_GPUS; i++) {
                 cudaMemcpyAsync(keys + prefix_sum, thrust::raw_pointer_cast(sorted_keys.data()) + prefix_sum, sizeof(key) * h_bucket_sizes[i], cudaMemcpyDeviceToDevice, mcontext.get_gpu_default_stream(world_rank()));
-                prefix_sum += bucket_sizes[i];
+                prefix_sum += h_bucket_sizes[i];
             }
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
             cudaFreeAsync(num_run, mcontext.get_gpu_default_stream(world_rank()));
