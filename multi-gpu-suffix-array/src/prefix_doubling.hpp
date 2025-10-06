@@ -1340,7 +1340,7 @@ private:
         mcontext.sync_default_streams();
         // printf("[%lu] after sync write to isa\n", world_rank());
         comm_world().barrier();
-        // check_isa_len();
+        check_isa_len();
 
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
