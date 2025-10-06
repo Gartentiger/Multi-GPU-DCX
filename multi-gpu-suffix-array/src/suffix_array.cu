@@ -594,7 +594,6 @@ public:
         t.start("resize_keys_out");
         keys_out_vec.resize(out_size);
         // keys_vec.resize(out_size);
-        key* keys_out = thrust::raw_pointer_cast(keys_out_vec.data());
         t.stop();
         t.start("reorder");
         size_t send_sum = 0;
@@ -616,7 +615,7 @@ public:
             // comm_world().irecv(recv_buf(std::span<key>(keys_out + recv_sum, recv_sizes[src])), recv_count(recv_sizes[src]), source(src));;
 
             // NCCLCHECK(ncclRecv(keys_out + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
-            NCCLCHECK(ncclRecv(keys_out + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
+            NCCLCHECK(ncclRecv(thrust::raw_pointer_cast(keys_out_vec.data()) + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
 
             recv_sum += recv_sizes[src];
         }
@@ -629,12 +628,12 @@ public:
 
             t.start("final_sort");
             size_t temp_storage_size = 0;
-            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, keys_out, out_size, cmp);
+            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_out_vec.data()), out_size, cmp);
             // keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
             void* temp;
             cudaMalloc(&temp, temp_storage_size);
             CUERR;
-            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, keys_out, out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
+            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_out_vec.data()), out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
 
             mcontext.sync_all_streams();
