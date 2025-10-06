@@ -1097,7 +1097,7 @@ private:
             }
         }
         mcontext.sync_default_streams();
-        // check_isa_len();
+        check_isa_len();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
     }
     void check_isa_len() {
