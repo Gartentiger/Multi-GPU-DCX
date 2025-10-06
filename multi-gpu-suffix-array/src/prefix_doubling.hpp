@@ -1132,6 +1132,7 @@ private:
         {
             printf("[%d] send %u\n", i, send_to_gpu[i]);
         }
+        free(isa);
     }
 
     static void transpose_split_table(const split_table_tt<sa_index_t, NUM_GPUS>& split_table_in,
@@ -1710,7 +1711,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
