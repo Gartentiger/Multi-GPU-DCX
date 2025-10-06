@@ -337,9 +337,9 @@ public:
         dump("After initial sort");
 #endif
         //
-        // mcontext.sync_all_streams();
+        mcontext.sync_all_streams();
         // printf("[%lu] Initial sort done\n", world_rank());
-        // comm_world().barrier();
+        comm_world().barrier();
         //
 
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
@@ -350,16 +350,16 @@ public:
         dump("Initial ranking");
 #endif
         //
-        // mcontext.sync_all_streams();
+        mcontext.sync_all_streams();
         // printf("[%lu] Write initial ranks done\n", world_rank());
-        // comm_world().barrier();
+        comm_world().barrier();
         //
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         //
-        // mcontext.sync_all_streams();
+        mcontext.sync_all_streams();
         // printf("[%lu] Write to isa done\n", world_rank());
-        // comm_world().barrier();
+        comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
@@ -461,9 +461,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Rebucket);
             rebucket();
             //
-            // mcontext.sync_all_streams();
+            mcontext.sync_all_streams();
             // printf("[%lu] iteration: [%lu], rebucket done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            comm_world().barrier();
             //
 
 
@@ -476,9 +476,9 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Write_Isa);
             write_to_isa();
             //
-            // mcontext.sync_all_streams();
+            mcontext.sync_all_streams();
             // printf("[%lu] iteration: [%lu], write to isa done\n", world_rank(), iterations);
-            // comm_world().barrier();
+            comm_world().barrier();
             //
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Write_Isa);
@@ -515,9 +515,9 @@ public:
         //            TIMER_START_MAIN_STAGE(MainStages::Final_Transpose);
         //            transpose_isa();
         //            TIMER_STOP_MAIN_STAGE(MainStages::Final_Transpose);
-        // mcontext.sync_all_streams();
+        mcontext.sync_all_streams();
         // printf("[%lu] prefix doubling done\n", world_rank());
-        // comm_world().barrier();
+        comm_world().barrier();
 
         return iterations;
     }
@@ -740,12 +740,12 @@ private:
         comm_world().barrier();
 
         // t.stop();
-        // t.aggregate_and_print(
-        //     kamping::measurements::SimpleJsonPrinter{ std::cout }
-        // );
-        // std::cout << std::endl;
-        // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        // std::cout << std::endl;
+        t.aggregate_and_print(
+            kamping::measurements::SimpleJsonPrinter{ std::cout }
+        );
+        std::cout << std::endl;
+        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        std::cout << std::endl;
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
         // comm_world().barrier();
         // exit(0);
@@ -1340,7 +1340,7 @@ private:
         mcontext.sync_default_streams();
         // printf("[%lu] after sync write to isa\n", world_rank());
         comm_world().barrier();
-        // check_isa_len();
+        check_isa_len();
 
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
