@@ -262,14 +262,18 @@ namespace kernels {
         uchar e, uchar f, uchar g, uchar h) {
         uint2 out;
         uchar4 x, y;
+        //flip order in uchar write in different order because we flip uint2 x y to ulong1 x=(y x)
         x = make_uchar4(h, g, f, e);
         y = make_uchar4(d, c, b, a);
+        // and again
         out.x = *reinterpret_cast<uint*>(&x);
         out.y = *reinterpret_cast<uint*>(&y);
+        // and again
         return *reinterpret_cast<ulong1*>(&out);
     }
 
     __device__ __forceinline__ ulong1 get_octet(uint4 values, uint rem, uint indexmod) {
+        // flip again uint dcba -> uchar4 x=a y=b z=c w=d
         uchar4 v0 = *reinterpret_cast<uchar4*>(&values.x);
         uchar4 v4 = *reinterpret_cast<uchar4*>(&values.y);
         uchar4 v8 = *reinterpret_cast<uchar4*>(&values.z);
@@ -313,6 +317,7 @@ namespace kernels {
         assert(N % 12 == 0); // No one wants to deal with the "tails" here, we just write some more and don't care.
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N / 12; i += blockDim.x * gridDim.x) {
+            // char* abcd efgh ijkl -> uint3* dcba hgfe lkji
             uint3 a = *(reinterpret_cast<const uint3*>(Input) + i);
             uint b = *(reinterpret_cast<const uint*>(Input) + (3 * i) + 3);
             uint c = *(reinterpret_cast<const uint*>(Input) + (3 * i) + 4);
