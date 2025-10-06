@@ -535,14 +535,19 @@ public:
                 temp, temp_storage_size,
                 thrust::raw_pointer_cast(sorted_upper_bounds.data()), reinterpret_cast<size_t*>(keys),
                 thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size, mcontext.get_gpu_default_stream(world_rank()));
-            size_t prefix_sum = 0;
             cudaMemcpyAsync(h_bucket_sizes.data(), thrust::raw_pointer_cast(bucket_sizes.data()), sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
+            size_t test = 0;
             for (size_t i = 0; i < h_bucket_sizes.size(); i++)
             {
                 printf("[%lu] bucket_size[%lu]: %lu\n", world_rank(), i, h_bucket_sizes[i]);
+                test += h_bucket_sizes[i];
             }
+            ASSERT(sorted_keys.size() == keys_vec.size());
+            ASSERT(test == keys_vec.size());
+            printf("[%lu] sorted_key.size %lu == keys %lu", world_rank(), sorted_keys.size(), keys_vec.size());
 
+            size_t prefix_sum = 0;
             for (size_t i = 0; i < NUM_GPUS; i++) {
                 cudaMemcpyAsync(keys + prefix_sum, thrust::raw_pointer_cast(sorted_keys.data()) + prefix_sum, sizeof(key) * h_bucket_sizes[i], cudaMemcpyDeviceToDevice, mcontext.get_gpu_default_stream(world_rank()));
                 prefix_sum += h_bucket_sizes[i];
@@ -551,7 +556,7 @@ public:
             cudaFreeAsync(num_run, mcontext.get_gpu_default_stream(world_rank()));
             mcontext.sync_all_streams();
             t.stop();
-            // printf("[%lu] after memcpy\n", world_rank());
+            printf("[%lu] after memcpy\n", world_rank());
         }
 
         t.stop();
@@ -561,7 +566,7 @@ public:
         //     printf("[%lu] splitter index [%lu]: %lu\n", world_rank(), i, h_split_index[i]);
         // }
         comm_world().barrier();
-        // printf("[%lu] bucketing done\n", world_rank());
+        printf("[%lu] bucketing done\n", world_rank());
         t.start("alltoall_send_sizes");
 
         // send_sizes[0] = h_split_index[0];
@@ -594,7 +599,7 @@ public:
         t.start("reorder");
         size_t send_sum = 0;
         size_t recv_sum = 0;
-
+        printf("[%lu] sending\n", world_rank());
         // ALL to ALL
         ncclGroupStart();
         for (size_t dst = 0; dst < NUM_GPUS; dst++)
@@ -619,7 +624,7 @@ public:
         mcontext.sync_all_streams();
         comm_world().barrier();
         t.stop();
-        // printf("[%lu] reordered keys with splitter, size: %lu\n", world_rank(), out_size);
+        printf("[%lu] reordered keys with splitter, size: %lu\n", world_rank(), out_size);
         {
 
             t.start("final_sort");
@@ -937,10 +942,29 @@ private:
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
+        std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
+
+        cudaMemcpy(isa.data(), mgpus[world_rank()].prepare_S12_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
+        auto isaglob = comm_world().gatherv(send_buf(isa), root(0));
+        if (world_rank() == 0) {
+            std::vector<size_t> buckets(NUM_GPUS);
+
+            for (auto item : isaglob) {
+                sa_index_t d = min((item / (sa_index_t)mpd_per_gpu), NUM_GPUS - 1);
+                buckets[d] += 1;
+            }
+            for (size_t i = 0; i < NUM_GPUS; i++)
+            {
+                printf("[%lu] buckets[%lu] %lu <= %lu mgpus[%lu].pd_elements\n", world_rank(), i, buckets[i], mgpus[i].pd_elements, i);
+                // ASSERT(buckets[i] <= mgpus[i].pd_elements);
+            }
+        }
+        comm_world().barrier();
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
+
             if (world_rank() == gpu_index)
             {
                 // printArrayss << <1, 1 >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, world_rank());
@@ -1055,6 +1079,11 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec;
         SampleSort(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DC7Comparator{});
+        // using merge_types = crossGPUReMerge::mergeTypes<MergeSuffixes, MergeSuffixes>;
+        // using MergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, merge_types, ReMergeTopology>;
+        // using MergeNodeInfo = crossGPUReMerge::MergeNodeInfo<merge_types>;
+
+
         mcontext.sync_all_streams();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
