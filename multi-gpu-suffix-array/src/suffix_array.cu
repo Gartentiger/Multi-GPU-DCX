@@ -943,7 +943,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (world_rank() == gpu_index)
             {
-                printArrayss << <1, 1 >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, world_rank());
+                // printArrayss << <1, 1 >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, world_rank());
                 // //(0);
                 kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
                 CUERR;
@@ -1019,7 +1019,7 @@ private:
             mpd_per_gpu,
             merge_tuple, gpu.pd_elements, dcx);
         CUERR;
-        printArrayss << <1, 1 >> > (merge_tuple, mgpus[world_rank()].pd_elements, world_rank());
+        // printArrayss << <1, 1 >> > (merge_tuple, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         printf("[%lu] non samples-------------------------------------------\n", world_rank());
@@ -1044,43 +1044,43 @@ private:
             CUERR;
             noSampleCount += count2;
         }
-        mcontext.sync_default_streams();
-        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (nonSamples, count, gpu_index);
+        // mcontext.sync_default_streams();
+        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (nonSamples, count, gpu_index);
         mcontext.sync_default_streams();
         comm_world().barrier();
 
         cudaFree(dcx);
+        TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 
+        TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec;
         SampleSort(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DC7Comparator{});
         mcontext.sync_all_streams();
+        TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
+        TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
         printf("[%lu] sample sorted\n", world_rank());
         merge_tuple_vec.clear();
+        MergeSuffixes* merge_tuple_out = thrust::raw_pointer_cast(merge_tuple_out_vec.data());
         thrust::device_vector<MergeSuffixes>().swap(merge_tuple_vec);
         size_t out_num_elements = merge_tuple_out_vec.size();
         sa_index_t* out_sa;;
         // cudaFreeAsync(merge_tuple, mcontext.get_gpu_default_stream(gpu_index));
-        cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
+        // cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
         // mcontext.sync_all_streams();
         printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (merge_tuple_out, out_num_elements, gpu_index);
         // thrust::device_vector<sa_index_t> device_sa(out_num_elements);
-        mcontext.sync_all_streams();
-        comm_world().barrier();
-        thrust::host_vector<MergeSuffixes> h_merge_tuple_out_vec = merge_tuple_out_vec;
-        for (size_t i = 0; i < h_merge_tuple_out_vec.size(); i++)
-        {
-            printf("[%lu] sa[%lu]: %u\n", world_rank(), i, h_merge_tuple_out_vec[i].index);
-        }
 
-        kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(thrust::raw_pointer_cast(merge_tuple_out_vec.data()), out_sa, out_num_elements);
+
+        kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements);
         mcontext.sync_all_streams();
         printf("[%lu] write sa\n", world_rank());
-        sa_index_t* sa = (sa_index_t*)malloc(sizeof(sa_index_t) * out_num_elements);
-        cudaMemcpyAsync(sa, out_sa, out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
+        std::vector<sa_index_t> sa(out_num_elements);
+        cudaMemcpyAsync(sa.data(), reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         // cudaFreeAsync(merge_tuple_out, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
         comm_world().barrier();
+        TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
         std::vector<size_t> recv_sizes(NUM_GPUS);
         comm_world().allgather(send_buf(std::span<size_t>(&out_num_elements, 1)), recv_buf(recv_sizes), send_count(1));
@@ -1096,7 +1096,7 @@ private:
             MPI_Abort(MPI_COMM_WORLD, ierr);
         }
         MPI_Offset offset = acc * sizeof(sa_index_t);
-        ierr = MPI_File_write_at_all(outputFile, offset, sa, out_num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        ierr = MPI_File_write_at_all(outputFile, offset, sa.data(), out_num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
         // MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
         if (ierr != MPI_SUCCESS) {
             fprintf(stderr, "[%lu] Error in MPI_File_write_at_all\n", world_rank());
@@ -1104,15 +1104,12 @@ private:
         }
         MPI_File_close(&outputFile);
 
-        TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
-        TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
 
         //
-        TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
 
-        TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
+
 
 
     }
