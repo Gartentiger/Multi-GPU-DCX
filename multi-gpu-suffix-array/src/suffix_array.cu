@@ -1066,6 +1066,14 @@ private:
         printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (merge_tuple_out, out_num_elements, gpu_index);
         // thrust::device_vector<sa_index_t> device_sa(out_num_elements);
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        thrust::host_vector<MergeSuffixes> h_merge_tuple_out_vec = merge_tuple_out_vec;
+        for (size_t i = 0; i < h_merge_tuple_out_vec.size(); i++)
+        {
+            printf("[%lu] sa[%lu]: %u\n", world_rank(), i, h_merge_tuple_out_vec[i].index);
+        }
+
         kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, out_sa, out_num_elements);
         mcontext.sync_all_streams();
         printf("[%lu] write sa\n", world_rank());
@@ -1074,10 +1082,6 @@ private:
         // cudaFreeAsync(merge_tuple_out, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
         comm_world().barrier();
-        for (size_t i = 0; i < out_num_elements; i++)
-        {
-            printf("[%lu] sa[%lu]: %u\n", world_rank(), i, sa[i]);
-        }
 
         std::vector<size_t> recv_sizes(NUM_GPUS);
         comm_world().allgather(send_buf(std::span<size_t>(&out_num_elements, 1)), recv_buf(recv_sizes), send_count(1));
@@ -1445,7 +1449,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 
 
