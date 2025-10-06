@@ -53,7 +53,7 @@ struct DC3 {
     static constexpr uint32_t C = 2;
     static constexpr uint32_t nonSampleCount = X - C;
     static constexpr uint32_t samplePosition[C] = { 1, 2 };
-    static constexpr uint32_t inverseSamplePosition[X] = { 0, 0, 1 };
+    static constexpr uint32_t inverseSamplePosition[X - C] = { 0 };
     static constexpr uint32_t nextNonSample[X - C] = { 0 };
     static constexpr uint32_t nextSample[X][X][2] = {
         {{1,0},{1,0},{2,1}},
@@ -88,7 +88,7 @@ struct DC7 {
 
 
 using MergeStageSuffix = MergeStageSuffixS0;
-using DCX = DC7;
+using DCX = DC3;
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
     sa_index_t index;
