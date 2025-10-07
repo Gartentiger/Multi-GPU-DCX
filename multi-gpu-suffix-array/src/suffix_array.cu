@@ -1068,7 +1068,7 @@ private:
                 // << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> >
 
                 (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, c_next_Input, gpu.offset, gpu.num_elements,
-                    mpd_per_gpu,
+                    gpu.pd_elements,
                     thrust::raw_pointer_cast(merge_tuple_vec.data()) + gpu.pd_elements + noSampleCount, count2, DCX::nextNonSample[i], DCX::inverseSamplePosition[i]);
             CUERR;
             noSampleCount += count2;
