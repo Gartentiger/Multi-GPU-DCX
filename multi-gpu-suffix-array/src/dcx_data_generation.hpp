@@ -60,7 +60,32 @@ std::vector<std::size_t> naive_suffix_sort(std::size_t n,
   std::sort(idx.begin(), idx.end(), suffix_cmp);
   return idx;
 }
-
+std::vector<std::size_t> naive_suffix_sort(std::size_t n,
+  unsigned char* text) {
+  std::vector<std::size_t> idx(n);
+  for (std::size_t i = 0; i < n; ++i)
+    idx[i] = i;
+  // comparator comparing suffixes text[i..] < text[j..]
+  auto suffix_cmp = [text, n](std::size_t a, std::size_t b) {
+    std::size_t na = n - a;
+    std::size_t nb = n - b;
+    std::size_t k = 0;
+    // compare character by character
+    while (k < na && k < nb) {
+      char ca = text[a + k];
+      char cb = text[b + k];
+      if (ca < cb)
+        return true;
+      if (ca > cb)
+        return false;
+      ++k;
+    }
+    // if one is prefix of the other, shorter is smaller
+    return na < nb;
+    };
+  std::sort(idx.begin(), idx.end(), suffix_cmp);
+  return idx;
+}
 auto generate_data_dcx(std::size_t n, std::size_t seed) {
   std::string text = generate_random_text(n, seed);
   auto idx = naive_suffix_sort(n, text);
