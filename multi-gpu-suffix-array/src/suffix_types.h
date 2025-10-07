@@ -88,7 +88,7 @@ struct DC7 {
 
 
 using MergeStageSuffix = MergeStageSuffixS0;
-using DCX = DC3;
+using DCX = DC7;
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
     sa_index_t index;

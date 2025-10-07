@@ -381,7 +381,7 @@ public:
         if (last_gpu_elems % DCX::X != 0) {
             for (size_t sample = 0; sample < DCX::C; sample++)
             {
-                if ((last_gpu_elems % DCX::X) > (size_t)DCX::nextSample[sample]) {
+                if ((last_gpu_elems % DCX::X) > (size_t)DCX::samplePosition[sample]) {
                     last_gpu_add_pd_elements++;
                 }
             }
@@ -475,8 +475,8 @@ private:
             //                        ((char*)gpu.input, offset, gpu.pd_index, gpu.pd_kmers, gpu.num_elements); CUERR;
             // kernels::produce_index_kmer_tuples_12_64_dc7 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
             //     SDIV(gpu.num_elements, DCX::X * 2) * DCX::X * 2);
-            kernels::produce_index_kmer_tuples_12_64 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
-                SDIV(gpu.num_elements, 12) * 12);
+            kernels::produce_index_kmer_tuples_12_64_dc7 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
+                SDIV(gpu.num_elements, 14) * 14);
             CUERR;
         }
 
@@ -586,7 +586,7 @@ private:
             SaGPU& gpu = mgpus[i];
             total_size += gpu.num_elements;
         }
-
+        printf("total size: %lu", total_size);
         std::array<thrust::device_vector<MergeSuffixes>, NUM_GPUS> merge_tuple_vec;
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
@@ -623,15 +623,15 @@ private:
             size_t count = gpu.num_elements - gpu.pd_elements;
 
 
-            printf("non samples-------------------------------------------\n");
+            printf("[%u] non samples %lu num_el: %lu pd_elem: %lu\n", gpu_index, count, gpu.num_elements, gpu.pd_elements);
 
             size_t noSampleCount = 0;
             for (uint32_t i = 0; i < DCX::nonSampleCount; i++) {
-
                 size_t count2 = (count / DCX::nonSampleCount);
                 if (i < count % DCX::nonSampleCount) {
                     count2++;
                 }
+                printf("count2 %lu\n", count2);
 
                 kernels::prepare_non_sample _KLC_SIMPLE_(count2, mcontext.get_gpu_default_stream(gpu_index))
                     (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, next_Input, gpu.offset, gpu.num_elements,
@@ -667,8 +667,12 @@ private:
         thrust::sort(host_tuples.begin(), host_tuples.end(), DC7ComparatorHost{});
         mcontext.sync_default_streams();
         std::vector<size_t> sa = naive_suffix_sort(minput_len, minput);
-        bool ffs = std::equal(sa.begin(), sa.end(), host_tuples.begin(), host_tuples.end());
-        printf("realy sorted %s\n", ffs ? "true" : "false");
+        bool const is_correct = std::equal(
+            sa.begin(), sa.end(), host_tuples.begin(),
+            host_tuples.end(), [](const auto& index, const auto& tuple) {
+                return index == tuple.index;
+            });
+        printf("realy sorted %s\n", is_correct ? "true" : "false");
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
