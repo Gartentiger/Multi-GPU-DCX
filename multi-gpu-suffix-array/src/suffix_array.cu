@@ -445,27 +445,7 @@ private:
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
 
-        {
-            SaGPU& gpu = mgpus[world_rank()];
-            std::vector<sa_index_t> k(gpu.pd_elements);
-            cudaMemcpy(k.data(), gpu.prepare_S12_ptr.Isa, sizeof(sa_index_t) * gpu.pd_elements, cudaMemcpyDeviceToHost);
-            auto isa_h = comm_world().gatherv(send_buf(k), root(0));
-            if (world_rank() == 0) {
-                char fileName[16];
-                const char* text = "IsaS12";
-                sprintf(fileName, "%s", text);
-                std::ofstream out(fileName, std::ios::binary);
-                if (!out) {
-                    std::cerr << "Could not open file\n";
-                    //return 1;
-                }
-                printf("isa 12 length: %lu\n", isa_h.size());
 
-                out.write(reinterpret_cast<char*>(isa_h.data()), sizeof(sa_index_t) * isa_h.size());
-                out.close();
-            }
-            comm_world().barrier();
-        }
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -771,7 +751,48 @@ private:
     void final_merge()
     {
         distrib_merge::DistributedArray<MergeStageSuffix, int, sa_index_t, NUM_GPUS> inp_S12, inp_S0, result;
+        {
+            SaGPU& gpu = mgpus[world_rank()];
+            std::vector<MergeStageSuffix> k(gpu.pd_elements);
+            cudaMemcpy(k.data(), gpu.merge_ptr.S12_result, sizeof(MergeStageSuffix) * gpu.pd_elements, cudaMemcpyDeviceToHost);
+            auto isa_h = comm_world().gatherv(send_buf(k), root(0));
+            if (world_rank() == 0) {
+                char fileName[16];
+                const char* text = "S12Dist";
+                sprintf(fileName, "%s", text);
+                std::ofstream out(fileName, std::ios::binary);
+                if (!out) {
+                    std::cerr << "Could not open file\n";
+                    //return 1;
+                }
+                printf("isa 12 length: %lu\n", isa_h.size());
 
+                out.write(reinterpret_cast<char*>(isa_h.data()), sizeof(MergeStageSuffix) * isa_h.size());
+                out.close();
+            }
+            comm_world().barrier();
+        } {
+            SaGPU& gpu = mgpus[world_rank()];
+            const size_t S0_count = gpu.num_elements - gpu.pd_elements;
+            std::vector<MergeStageSuffix> k(S0_count);
+            cudaMemcpy(k.data(), gpu.merge_ptr.S0_result, sizeof(MergeStageSuffix) * S0_count, cudaMemcpyDeviceToHost);
+            auto isa_h = comm_world().gatherv(send_buf(k), root(0));
+            if (world_rank() == 0) {
+                char fileName[16];
+                const char* text = "S0Dist";
+                sprintf(fileName, "%s", text);
+                std::ofstream out(fileName, std::ios::binary);
+                if (!out) {
+                    std::cerr << "Could not open file\n";
+                    //return 1;
+                }
+                printf("isa 12 length: %lu\n", isa_h.size());
+
+                out.write(reinterpret_cast<char*>(isa_h.data()), sizeof(MergeStageSuffix) * isa_h.size());
+                out.close();
+            }
+            comm_world().barrier();
+        }
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
 
