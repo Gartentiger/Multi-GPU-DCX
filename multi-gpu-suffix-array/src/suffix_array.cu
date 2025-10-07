@@ -672,10 +672,10 @@ public:
         for (size_t i = 0; i < size; i++)
         {
             const auto bound = std::upper_bound(recv_samples.begin(), recv_samples.end(), keys[i]);
-            buckets[bound - samples.begin()].push_back(keys[i]);
+            buckets[std::min(size_t(bound - samples.begin()), size_t(NUM_GPUS - 1))].push_back(keys[i]);
         }
         keys.clear();
-        std::vector<int> sCounts, sDispls, rCounts(NUM_GPUS), rDispls(NUM_GPUS + 1);
+        std::vector<int> sCounts;
         printf("[%lu] bucket\n", world_rank());
         for (auto& bucket : buckets) {
             keys.insert(keys.end(), bucket.begin(), bucket.end());
