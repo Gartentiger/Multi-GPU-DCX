@@ -60,7 +60,7 @@ namespace kernels {
 
     __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
-        sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
+        sa_index_t offset, size_t num_chars,
         MergeSuffixes* out_keys, size_t N, D_DCX* dcx);
 
     __global__ void prepare_S12_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
@@ -75,7 +75,7 @@ namespace kernels {
     __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t isa_size,
-        MergeSuffixes* out_keys, size_t N, sa_index_t non_sample_pos, sa_index_t f, sa_index_t l);
+        MergeSuffixes* out_keys, size_t N, sa_index_t non_sample_pos, sa_index_t f);
 
     __global__ void prepare_S0(const sa_index_t* Isa, const unsigned char* Input,
         sa_index_t node_offset, size_t no_chars, size_t Isa_size, bool last,

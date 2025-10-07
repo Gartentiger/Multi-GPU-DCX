@@ -553,7 +553,6 @@ namespace kernels {
             MergeSuffixes sk;
             sk.index = index + offset;
             uint nexInputIndex = 0;
-            uint nexIsaIndex = 0;
             for (uint x = 0; x < DCX::X; x++) {
                 if (index + x < num_chars) {
                     sk.prefix[x] = Input[index + x];
@@ -562,20 +561,24 @@ namespace kernels {
                     sk.prefix[x] = (next_Input ? next_Input[nexInputIndex] : 0);
                     nexInputIndex++;
                 }
+            }
+            uint nexIsaIndex = 0;
+            for (uint c = 0; c < DCX::C; c++) {
+                if ((i + c) < N) {
 
-                if ((i + x) < N) {
-                    sk.ranks[x] = Isa[i + x] + 1;
+                    sk.ranks[c] = Isa[i + c] + 1;
                 }
                 else {
                     if (next_Isa) {
-                        sk.ranks[x] = next_Isa[nexIsaIndex] + 1;
+                        sk.ranks[c] = next_Isa[nexIsaIndex] + 1;
                     }
                     else {
-                        sk.ranks[x] = index < num_chars - 1 ? 1 : 0;
+                        sk.ranks[c] = index < num_chars - 1 ? 1 : 0;
                     }
                     nexIsaIndex++;
                 }
             }
+
             out_keys[i_] = sk;
         }
     }
@@ -654,9 +657,6 @@ namespace kernels {
             MergeSuffixes sv;
             sv.index = index + offset;
             uint nexInputIndex = 0;
-            uint nexIsaIndex = 0;
-
-            uint starting_isa_index = i * DCX::C + f;
 
             for (uint x = 0; x < DCX::X; x++) {
                 if (index + x < num_chars) {
@@ -666,15 +666,19 @@ namespace kernels {
                     sv.prefix[x] = (next_Input ? next_Input[nexInputIndex] : 0);
                     nexInputIndex++;
                 }
+            }
+            uint nexIsaIndex = 0;
+            uint starting_isa_index = i * DCX::C + f;
+            for (uint c = 0; c < DCX::C; c++) {
                 if (starting_isa_index < isa_size) {
-                    sv.ranks[x] = Isa[starting_isa_index++] + 1;
+                    sv.ranks[c] = Isa[starting_isa_index++] + 1;
                 }
                 else {
                     if (next_Isa) {
-                        sv.ranks[x] = next_Isa[nexIsaIndex] + 1;
+                        sv.ranks[c] = next_Isa[nexIsaIndex] + 1;
                     }
                     else {
-                        sv.ranks[x] = index < num_chars - 1 ? 1 : 0;
+                        sv.ranks[c] = index < num_chars - 1 ? 1 : 0;
                     }
                     nexIsaIndex++;
                 }
