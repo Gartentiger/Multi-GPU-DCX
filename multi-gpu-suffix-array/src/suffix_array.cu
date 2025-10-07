@@ -675,7 +675,7 @@ public:
             buckets[bound - samples.begin()].push_back(keys[i]);
         }
         keys.clear();
-        std::vector<size_t> sCounts, sDispls, rCounts(NUM_GPUS), rDispls(NUM_GPUS + 1);
+        std::vector<int> sCounts, sDispls, rCounts(NUM_GPUS), rDispls(NUM_GPUS + 1);
         printf("[%lu] bucket\n", world_rank());
         for (auto& bucket : buckets) {
             keys.insert(keys.end(), bucket.begin(), bucket.end());
