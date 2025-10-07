@@ -24,6 +24,7 @@
 #include "thrust/device_ptr.h"
 #include "thrust/sort.h"
 #include "thrust/host_vector.h"
+#include "dcx_data_generation.hpp"
 static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
@@ -652,6 +653,7 @@ private:
         }
 
         thrust::host_vector<MergeSuffixes> host_tuples(total_size);
+
         size_t pre = 0;
         for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
@@ -664,7 +666,9 @@ private:
 
         thrust::sort(host_tuples.begin(), host_tuples.end(), DC7ComparatorHost{});
         mcontext.sync_default_streams();
-
+        std::vector<size_t> sa = naive_suffix_sort(minput_len, minput);
+        bool ffs = std::equal(sa.begin(), sa.end(), host_tuples.begin(), host_tuples.end());
+        printf("realy sorted %s\n", ffs ? "true" : "false");
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
