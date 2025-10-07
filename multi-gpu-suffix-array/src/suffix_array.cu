@@ -447,37 +447,7 @@ private:
         std::array<All2AllNodeInfoT<MergeStageSuffixS12HalfKey, MergeStageSuffixS12HalfValue, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
-        {
-            mcontext.sync_all_streams();
-            size_t workinLen = 0;
-            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-            {
-                SaGPU& gpu = mgpus[gpu_index];
-                workinLen += gpu.pd_elements;
-            }
-            std::vector<sa_index_t> k(workinLen);
-            size_t prefix_sum = 0;
-            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-            {
-                SaGPU& gpu = mgpus[gpu_index];
-                cudaMemcpy(k.data() + prefix_sum, gpu.prepare_S12_ptr.Isa, sizeof(sa_index_t) * gpu.pd_elements, cudaMemcpyDeviceToHost);
-                prefix_sum += gpu.pd_elements;
-            }
 
-            char fileName[18];
-            const char* text = "IsaMain";
-            sprintf(fileName, "%s", text);
-            std::ofstream out(fileName, std::ios::binary);
-            if (!out) {
-                std::cerr << "Could not open file\n";
-                //return 1;
-            }
-            printf("sa isa length: %lu\n", k.size());
-
-            out.write(reinterpret_cast<char*>(k.data()), sizeof(sa_index_t) * k.size());
-            out.close();
-
-        }
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -713,13 +683,74 @@ private:
     void final_merge()
     {
         distrib_merge::DistributedArray<MergeStageSuffix, int, sa_index_t, NUM_GPUS> inp_S12, inp_S0, result;
+        {
+            mcontext.sync_all_streams();
+            size_t workinLen = 0;
+            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                workinLen += gpu.pd_elements;
+            }
+            std::vector<sa_index_t> k(workinLen);
+            size_t prefix_sum = 0;
+            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S12_result, sizeof(sa_index_t) * gpu.pd_elements, cudaMemcpyDeviceToHost);
+                prefix_sum += gpu.pd_elements;
+            }
 
+            char fileName[18];
+            const char* text = "S12Main";
+            sprintf(fileName, "%s", text);
+            std::ofstream out(fileName, std::ios::binary);
+            if (!out) {
+                std::cerr << "Could not open file\n";
+                //return 1;
+            }
+            printf("sa isa length: %lu\n", k.size());
+
+            out.write(reinterpret_cast<char*>(k.data()), sizeof(sa_index_t) * k.size());
+            out.close();
+
+        } {
+            mcontext.sync_all_streams();
+            size_t workinLen = 0;
+            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                workinLen += gpu.num_elements - gpu.pd_elements;
+            }
+            std::vector<sa_index_t> k(workinLen);
+            size_t prefix_sum = 0;
+            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S0_result, sizeof(sa_index_t) * (gpu.num_elements - gpu.pd_elements), cudaMemcpyDeviceToHost);
+                prefix_sum += gpu.num_elements - gpu.pd_elements;
+            }
+
+            char fileName[18];
+            const char* text = "S0Main";
+            sprintf(fileName, "%s", text);
+            std::ofstream out(fileName, std::ios::binary);
+            if (!out) {
+                std::cerr << "Could not open file\n";
+                //return 1;
+            }
+            printf("sa isa length: %lu\n", k.size());
+
+            out.write(reinterpret_cast<char*>(k.data()), sizeof(sa_index_t) * k.size());
+            out.close();
+
+        }
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
 
             const size_t S0_count = gpu.num_elements - gpu.pd_elements;
             const size_t S12_count = gpu.pd_elements;
+
             const size_t result_count = gpu.num_elements;
             inp_S12[gpu_index] = { gpu_index, (sa_index_t)S12_count, gpu.merge_ptr.S12_result, nullptr, nullptr, nullptr };
             inp_S0[gpu_index] = { gpu_index, (sa_index_t)S0_count, gpu.merge_ptr.S0_result, nullptr, nullptr, nullptr };
