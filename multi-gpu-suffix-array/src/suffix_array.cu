@@ -475,7 +475,7 @@ private:
 
         //
         mcontext.sync_default_streams();
-        // comm_world().barrier();
+        comm_world().barrier();
         //
         // printf("[%lu] after write indices s12\n", world_rank());
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
@@ -496,47 +496,49 @@ private:
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[gpu_index];
-            //(mcontext.get_device_id(gpu_index));
-
-            const sa_index_t* next_Isa = nullptr;      //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
-            const unsigned char* next_Input = nullptr; //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
-
-            ncclGroupStart();
-            if (gpu_index > 0)
-            {
-                std::span<sa_index_t> sbIsa(gpu.prepare_S12_ptr.Isa, 1);
-                ncclSend(gpu.prepare_S12_ptr.Isa, 1, ncclUint32, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]);
-                // comm_world().isend(send_buf(sbIsa), send_count(1), tag(0), destination((size_t)gpu_index - 1));
-                ncclSend(gpu.prepare_S12_ptr.Input, 1, ncclChar, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]);
-
-                std::span<const unsigned char> sbInput(gpu.prepare_S12_ptr.Input, 1);
-                // comm_world().isend(send_buf(sbInput), send_count(1), tag(1), destination((size_t)gpu_index - 1));
+            if (mcontext.is_in_node()) {
+                const sa_index_t* next_Isa = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
+                const unsigned char* next_Input = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
+                kernels::prepare_S12_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
+                    gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
+                    next_Isa, next_Input, gpu.offset, gpu.num_elements,
+                    mpd_per_gpu,
+                    gpu.prepare_S12_ptr.S12_buffer1, gpu.prepare_S12_ptr.S12_buffer1_half, gpu.pd_elements);
+                CUERR;
             }
-            if (gpu_index + 1 < NUM_GPUS)
-            {
-                sa_index_t* next_Isa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(1);
-                // std::span<sa_index_t> rbIsa(tempIsa, 1);
-                ncclRecv(next_Isa, 1, ncclUint32, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
+            else {
+                sa_index_t* next_Isa_recv = nullptr;
+                unsigned char* next_Input_recv = nullptr;
+                ncclGroupStart();
+                if (gpu_index > 0)
+                {
+                    ncclSend(gpu.prepare_S12_ptr.Isa, 1, ncclUint32, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]);
 
-                // comm_world().recv(recv_buf(rbIsa), tag(0), recv_count(1));
-                // next_Isa = tempIsa;
-                unsigned char* next_Input = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(1);
-                // std::span<unsigned char> rbInput(tempInput, 1);
-                ncclRecv(next_Input, 1, ncclChar, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
-                // comm_world().recv(recv_buf(rbInput), tag(1), recv_count(1));
-                // next_Input = tempInput;
+                    ncclSend(gpu.prepare_S12_ptr.Input, 1, ncclChar, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]);
+                }
+                if (gpu_index + 1 < NUM_GPUS)
+                {
+                    next_Isa_recv = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(1);
+                    ncclRecv(next_Isa_recv, 1, ncclUint32, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
+
+                    next_Input_recv = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(1);
+                    ncclRecv(next_Input_recv, 1, ncclChar, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
+
+                }
+                const sa_index_t* const_next_isa = next_Isa_recv;
+                const unsigned char* const_next_Input = next_Input_recv;
+                kernels::prepare_S12_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
+                    gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
+                    const_next_isa, const_next_Input, gpu.offset, gpu.num_elements,
+                    mpd_per_gpu,
+                    gpu.prepare_S12_ptr.S12_buffer1, gpu.prepare_S12_ptr.S12_buffer1_half, gpu.pd_elements);
+                CUERR;
+                ncclGroupEnd();
             }
-            ncclGroupEnd();
-            kernels::prepare_S12_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
-                gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
-                next_Isa, next_Input, gpu.offset, gpu.num_elements,
-                mpd_per_gpu,
-                gpu.prepare_S12_ptr.S12_buffer1, gpu.prepare_S12_ptr.S12_buffer1_half, gpu.pd_elements);
-            CUERR;
+
         }
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)

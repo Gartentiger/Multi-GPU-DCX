@@ -1567,27 +1567,27 @@ private:
         }
         mcontext.sync_all_streams();
         comm_world().barrier();
-        {
-            SaGPU& gpu = mgpus[world_rank()];
-            std::vector<sa_index_t> k(gpu.working_len);
-            cudaMemcpy(k.data(), gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-            auto isa_h = comm_world().gatherv(send_buf(k), root(0));
-            if (world_rank() == 0) {
-                char fileName[16];
-                const char* text = "SaRank";
-                sprintf(fileName, "%s%d", text, iterations);
-                std::ofstream out(fileName, std::ios::binary);
-                if (!out) {
-                    std::cerr << "Could not open file\n";
-                    //return 1;
-                }
-                printf("sa rank length: %lu\n", isa_h.size());
+        // {
+        //     SaGPU& gpu = mgpus[world_rank()];
+        //     std::vector<sa_index_t> k(gpu.working_len);
+        //     cudaMemcpy(k.data(), gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+        //     auto isa_h = comm_world().gatherv(send_buf(k), root(0));
+        //     if (world_rank() == 0) {
+        //         char fileName[16];
+        //         const char* text = "SaRank";
+        //         sprintf(fileName, "%s%d", text, iterations);
+        //         std::ofstream out(fileName, std::ios::binary);
+        //         if (!out) {
+        //             std::cerr << "Could not open file\n";
+        //             //return 1;
+        //         }
+        //         printf("sa rank length: %lu\n", isa_h.size());
 
-                out.write(reinterpret_cast<char*>(isa_h.data()), sizeof(sa_index_t) * isa_h.size());
-                out.close();
-            }
-            comm_world().barrier();
-        }
+        //         out.write(reinterpret_cast<char*>(isa_h.data()), sizeof(sa_index_t) * isa_h.size());
+        //         out.close();
+        //     }
+        //     comm_world().barrier();
+        // }
         // if (iterations == 1) {
         //     for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         //     {
