@@ -53,7 +53,7 @@ struct DC3 {
     static constexpr uint32_t C = 2;
     static constexpr uint32_t nonSampleCount = X - C;
     static constexpr uint32_t samplePosition[C] = { 1, 2 };
-    static constexpr uint32_t inverseSamplePosition[X] = { 0, 0, 1 };
+    static constexpr uint32_t inverseSamplePosition[X - C] = { 0 };
     static constexpr uint32_t nextNonSample[X - C] = { 0 };
     static constexpr uint32_t nextSample[X][X][2] = {
         {{1,0},{1,0},{2,1}},
@@ -66,7 +66,7 @@ struct DC7 {
     static constexpr uint32_t C = 3;
     static constexpr uint32_t nonSampleCount = X - C;
     static constexpr uint32_t samplePosition[C] = { 1, 2, 4 };
-    static constexpr uint32_t inverseSamplePosition[X] = { 0, 0, 1, 0, 2, 0, 0 };
+    static constexpr uint32_t inverseSamplePosition[X - C] = { 0, 2, 3, 3 };
     static constexpr uint32_t nextNonSample[X - C] = { 0, 3, 5, 6 };
 
     static constexpr uint32_t nextSample[X][X][2] = {
@@ -86,29 +86,34 @@ struct DC7 {
 
 };
 
+
 using MergeStageSuffix = MergeStageSuffixS0;
-using DCX = DC7;
+using DCX = DC3;
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
-    sa_index_t l;
     sa_index_t index;
-    sa_index_t ranks[DCX::X];
-    unsigned char prefix[DCX::X];
+    std::array<sa_index_t, DCX::C> ranks;
+    std::array<unsigned char, DCX::X> prefix;
 };
 
+__host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffixes& b)
+{
+    uint32_t l = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0];
+    uint32_t r1 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1];
+    uint32_t r2 = DCX::nextSample[b.index % DCX::X][a.index % DCX::X][1];
+    for (size_t i = 0; i < l; i++)
+    {
+        if (a.prefix[i] < b.prefix[i]) {
+            return true;
+        }
+        if (a.prefix[i] > b.prefix[i]) {
+            return false;
+        }
+    }
+    return a.ranks[r1] < b.ranks[r2];
 
+}
 __constant__ uint32_t lookupNext[DCX::X][DCX::X][2];
-
-struct NonSampleKey {
-    sa_index_t rankL;
-    unsigned char prefix[DCX::X];
-};
-
-
-struct NonSampleValue {
-    sa_index_t index;
-    sa_index_t ranks[DCX::X];
-};
 
 struct non_sample_prefix_decomp
 {
@@ -118,30 +123,53 @@ struct non_sample_prefix_decomp
     }
 };
 
-struct index_decomposer
+struct rank_decomposer
 {
     __host__ __device__ cuda::std::tuple<sa_index_t&> operator()(MergeSuffixes& key) const
     {
 
-        return { key.index };
+        return { key.ranks[0] };
     }
 };
 
-struct DC7Comparator : public std::binary_function<sa_index_t, sa_index_t, bool>
+struct DC7Comparator
 {
-    __host__ __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const
+    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
     {
-        for (size_t i = 0; i < lookupNext[a.index % DCX::X][b.index % DCX::X][0]; i++)
+        uint32_t l = lookupNext[a.index % DCX::X][b.index % DCX::X][0];
+        uint32_t r1 = lookupNext[a.index % DCX::X][b.index % DCX::X][1];
+        uint32_t r2 = lookupNext[b.index % DCX::X][a.index % DCX::X][1];
+        for (size_t i = 0; i < l; i++)
         {
             if (a.prefix[i] < b.prefix[i]) {
                 return true;
             }
-            else if (a.prefix[i] > b.prefix[i]) {
-                return true;
+            if (a.prefix[i] > b.prefix[i]) {
+                return false;
             }
         }
-        return a.ranks[lookupNext[a.index % DCX::X][b.index % DCX::X][1]] < b.ranks[lookupNext[b.index % DCX::X][a.index % DCX::X][1]];
+
+        return a.ranks[r1] < b.ranks[r2];
     }
 };
+struct DC7ComparatorHost
+{
+    __host__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
+    {
+        uint32_t l = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0];
+        uint32_t r1 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1];
+        uint32_t r2 = DCX::nextSample[b.index % DCX::X][a.index % DCX::X][1];
+        for (size_t i = 0; i < l; i++)
+        {
+            if (a.prefix[i] < b.prefix[i]) {
+                return true;
+            }
+            if (a.prefix[i] > b.prefix[i]) {
+                return false;
+            }
+        }
 
+        return a.ranks[r1] < b.ranks[r2];
+    }
+};
 #endif // CONFIG_H
