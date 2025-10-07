@@ -1080,8 +1080,11 @@ private:
         thrust::host_vector<MergeSuffixes> tuples_host = merge_tuple_vec;
         std::vector<MergeSuffixes> host_vec(tuples_host.begin(), tuples_host.end());
         auto all_vec = comm_world().gatherv(send_buf(host_vec), root(0));
+        printf("[%lu] send all vec\n", world_rank());
         if (world_rank() == 0) {
             std::sort(all_vec.begin(), all_vec.end(), DC7ComparatorHost{});
+            printf("[%lu] sorted\n", world_rank());
+
             std::vector<sa_index_t> sa(all_vec.size());
             for (size_t i = 0; i < sa.size(); i++)
             {
@@ -1499,7 +1502,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 
 
