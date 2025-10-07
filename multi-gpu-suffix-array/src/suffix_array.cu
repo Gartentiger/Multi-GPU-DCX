@@ -1082,8 +1082,26 @@ private:
         auto all_vec = comm_world().gatherv(send_buf(host_vec), root(0));
         if (world_rank() == 0) {
             std::sort(all_vec.begin(), all_vec.end(), DC7ComparatorHost{});
+            std::vector<sa_index_t> sa(all_vec.size());
+            for (size_t i = 0; i < sa.size(); i++)
+            {
+                sa[i] = all_vec[i].index;
+            }
 
+            char fileName[16];
+            const char* text = "outputDC3";
+            sprintf(fileName, "%s", text);
+            std::ofstream out(fileName, std::ios::binary);
+            if (!out) {
+                std::cerr << "Could not open file\n";
+                //return 1;
+            }
+            printf("isa 12 length: %lu\n", sa.size());
+
+            out.write(reinterpret_cast<char*>(sa.data()), sizeof(sa_index_t) * sa.size());
+            out.close();
         }
+        comm_world().barrier();
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec;
         SampleSort(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DC7Comparator{});
         // using merge_types = crossGPUReMerge::mergeTypes<MergeSuffixes, MergeSuffixes>;
@@ -1481,7 +1499,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 
 
