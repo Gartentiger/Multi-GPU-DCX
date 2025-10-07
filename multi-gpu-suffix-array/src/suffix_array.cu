@@ -1012,37 +1012,42 @@ private:
 
         uint gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
-
-        sa_index_t* next_Isa = nullptr;      //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
-        unsigned char* next_Input = nullptr; //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
-
-        ncclGroupStart();
-        if (gpu_index > 0)
-        {
-            NCCLCHECK(ncclSend(gpu.prepare_S12_ptr.Isa, DCX::X, ncclUint32, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]));
-            NCCLCHECK(ncclSend(gpu.prepare_S12_ptr.Input, DCX::X, ncclChar, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]));
-        }
-        if (gpu_index + 1 < NUM_GPUS)
-        {
-            next_Isa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(DCX::X);
-            NCCLCHECK(ncclRecv(next_Isa, DCX::X, ncclUint32, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index)));
-
-            next_Input = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(DCX::X);
-            NCCLCHECK(ncclRecv(next_Input, DCX::X, ncclChar, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index)));
-        }
-        ncclGroupEnd();
-
         D_DCX* dcx;
         cudaMalloc(&dcx, sizeof(D_DCX));
         cudaMemcpy(dcx->inverseSamplePosition, DCX::inverseSamplePosition, DCX::X * sizeof(uint32_t), cudaMemcpyHostToDevice);
         cudaMemcpy(dcx->nextNonSample, DCX::nextNonSample, DCX::nonSampleCount * sizeof(uint32_t), cudaMemcpyHostToDevice);
         cudaMemcpy(dcx->nextSample, DCX::nextSample, DCX::X * DCX::X * 2 * sizeof(uint32_t), cudaMemcpyHostToDevice);
         cudaMemcpy(dcx->samplePosition, DCX::samplePosition, DCX::C * sizeof(uint32_t), cudaMemcpyHostToDevice);
+        unsigned char* next_Input = nullptr;
+        sa_index_t* next_Isa = nullptr;      //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
+        if (mcontext.is_in_node()) {
+            next_Isa = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
+        }
+        else {
+            ncclGroupStart();
+            if (gpu_index > 0)
+            {
+                NCCLCHECK(ncclSend(gpu.prepare_S12_ptr.Isa, DCX::X, ncclUint32, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]));
+                NCCLCHECK(ncclSend(gpu.prepare_S12_ptr.Input, DCX::X, ncclChar, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]));
+            }
+            if (gpu_index + 1 < NUM_GPUS)
+            {
+                next_Isa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(DCX::X);
+                NCCLCHECK(ncclRecv(next_Isa, DCX::X, ncclUint32, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index)));
+
+                next_Input = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(DCX::X);
+                NCCLCHECK(ncclRecv(next_Input, DCX::X, ncclChar, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index)));
+            }
+            ncclGroupEnd();
+        }
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        const unsigned char* c_next_Input = mcontext.is_in_node() ? ((gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr) : next_Input;
+
 
         kernels::prepare_SK_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result,
             gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
-            next_Isa, next_Input, gpu.offset, gpu.num_elements,
-            mpd_per_gpu,
+            next_Isa, c_next_Input, gpu.offset, gpu.num_elements,
             thrust::raw_pointer_cast(merge_tuple_vec.data()), gpu.pd_elements, dcx);
         CUERR;
         // printArrayss << <1, 1 >> > (merge_tuple, mgpus[world_rank()].pd_elements, world_rank());
@@ -1062,7 +1067,7 @@ private:
                 _KLC_SIMPLE_(count2, mcontext.get_gpu_default_stream(gpu_index))
                 // << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> >
 
-                (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, next_Input, gpu.offset, gpu.num_elements,
+                (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, c_next_Input, gpu.offset, gpu.num_elements,
                     mpd_per_gpu,
                     thrust::raw_pointer_cast(merge_tuple_vec.data()) + gpu.pd_elements + noSampleCount, count2, DCX::nextNonSample[i], DCX::inverseSamplePosition[i]);
             CUERR;
@@ -1079,12 +1084,12 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         thrust::host_vector<MergeSuffixes> tuples_host = merge_tuple_vec;
         std::vector<MergeSuffixes> host_vec(tuples_host.begin(), tuples_host.end());
-        std::vector<MergeSuffixes> host_key_out;
-        HostSampleSort(host_vec, host_key_out, host_vec.size(), std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2));
-        auto all_vec = comm_world().gatherv(send_buf(host_key_out), root(0));
+        // std::vector<MergeSuffixes> host_key_out;
+        // HostSampleSort(host_vec, host_key_out, host_vec.size(), std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2));
+        auto all_vec = comm_world().gatherv(send_buf(host_vec), root(0));
         printf("[%lu] send all vec\n", world_rank());
         if (world_rank() == 0) {
-            // std::sort(all_vec.begin(), all_vec.end(), DC7ComparatorHost{});
+            std::sort(all_vec.begin(), all_vec.end(), DC7ComparatorHost{});
             printf("[%lu] sorted\n", world_rank());
 
             std::vector<sa_index_t> sa(all_vec.size());
@@ -2063,7 +2068,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(1 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;

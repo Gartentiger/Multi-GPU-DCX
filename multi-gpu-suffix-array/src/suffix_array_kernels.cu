@@ -579,8 +579,8 @@ namespace kernels {
     }
 
     __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
-        sa_index_t* next_Isa, unsigned char* next_Input,
-        sa_index_t offset, size_t num_chars, size_t pd_per_gpu,
+        sa_index_t* next_Isa, const unsigned char* next_Input,
+        sa_index_t offset, size_t num_chars,
         MergeSuffixes* out_keys, size_t N, D_DCX* dcx)
     {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -592,7 +592,14 @@ namespace kernels {
             uint nexInputIndex = 0;
             uint nexIsaIndex = 0;
             for (uint x = 0; x < DCX::X; x++) {
-                sk.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
+                if (index + x < num_chars) {
+                    sk.prefix[x] = Input[index + x];
+                }
+                else {
+                    sk.prefix[x] = (next_Input ? next_Input[nexInputIndex] : 0);
+                    nexInputIndex++;
+                }
+
                 if ((i + x) < N) {
                     sk.ranks[x] = Isa[i + x] + 1;
                 }
@@ -684,7 +691,7 @@ namespace kernels {
         }
     }
     __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
-        sa_index_t* next_Isa, unsigned char* next_Input,
+        sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t isa_size,
         MergeSuffixes* out_keys, size_t N, sa_index_t non_sample_pos, sa_index_t f)
     {
@@ -700,7 +707,13 @@ namespace kernels {
             uint starting_isa_index = i * DCX::C + f;
 
             for (uint x = 0; x < DCX::X; x++) {
-                sv.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
+                if (index + x < num_chars) {
+                    sv.prefix[x] = Input[index + x];
+                }
+                else {
+                    sv.prefix[x] = (next_Input ? next_Input[nexInputIndex] : 0);
+                    nexInputIndex++;
+                }
                 if (starting_isa_index < isa_size) {
                     sv.ranks[x] = Isa[starting_isa_index++] + 1;
                 }
