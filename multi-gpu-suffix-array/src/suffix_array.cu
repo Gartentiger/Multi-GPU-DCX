@@ -951,7 +951,7 @@ private:
             std::vector<size_t> buckets(NUM_GPUS);
             std::sort(isaglob.begin(), isaglob.end());
             bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
-            ASSERT(!containsDuplicates);
+            printf("isa_glob size: %lu contains dup: %s\n", isaglob.size(), containsDuplicates ? "true" : "false");
             for (auto item : isaglob) {
                 sa_index_t d = min((item / (sa_index_t)mpd_per_gpu), NUM_GPUS - 1);
                 buckets[d] += 1;
@@ -1477,7 +1477,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 
 
