@@ -1005,7 +1005,7 @@ private:
         size_t count = mgpus[world_rank()].num_elements - mgpus[world_rank()].pd_elements;
 
         thrust::device_vector<MergeSuffixes> merge_tuple_vec(mgpus[world_rank()].num_elements);
-        MergeSuffixes* merge_tuple = thrust::raw_pointer_cast(merge_tuple_vec.data());
+
         // cudaMalloc(&merge_tuple, sizeof(MergeSuffixes) * mgpus[world_rank()].num_elements);
         // CUERR;
         // MergeSuffixes* merge_tuple_out;
@@ -1019,7 +1019,6 @@ private:
         ncclGroupStart();
         if (gpu_index > 0)
         {
-            std::span<sa_index_t> sbIsa(gpu.prepare_S12_ptr.Isa, 1);
             NCCLCHECK(ncclSend(gpu.prepare_S12_ptr.Isa, DCX::X, ncclUint32, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]));
             NCCLCHECK(ncclSend(gpu.prepare_S12_ptr.Input, DCX::X, ncclChar, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]));
         }
@@ -1044,14 +1043,12 @@ private:
             gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
             next_Isa, next_Input, gpu.offset, gpu.num_elements,
             mpd_per_gpu,
-            merge_tuple, gpu.pd_elements, dcx);
+            thrust::raw_pointer_cast(merge_tuple_vec.data()), gpu.pd_elements, dcx);
         CUERR;
         // printArrayss << <1, 1 >> > (merge_tuple, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         printf("[%lu] non samples-------------------------------------------\n", world_rank());
-
-        MergeSuffixes* nonSamples = merge_tuple + gpu.pd_elements;
 
         size_t noSampleCount = 0;
         for (uint32_t i = 0; i < DCX::nonSampleCount; i++) {
@@ -1067,7 +1064,7 @@ private:
 
                 (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, next_Input, gpu.offset, gpu.num_elements,
                     mpd_per_gpu,
-                    nonSamples + noSampleCount, count2, DCX::nextNonSample[i], DCX::inverseSamplePosition[i]);
+                    thrust::raw_pointer_cast(merge_tuple_vec.data()) + gpu.pd_elements + noSampleCount, count2, DCX::nextNonSample[i], DCX::inverseSamplePosition[i]);
             CUERR;
             noSampleCount += count2;
         }
@@ -1080,6 +1077,13 @@ private:
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
+        thrust::host_vector<MergeSuffixes> tuples_host = merge_tuple_vec;
+        std::vector<MergeSuffixes> host_vec(tuples_host.begin(), tuples_host.end());
+        auto all_vec = comm_world().gatherv(send_buf(host_vec), root(0));
+        if (world_rank() == 0) {
+            std::sort(all_vec.begin(), all_vec.end(), DC7ComparatorHost{});
+
+        }
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec;
         SampleSort(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DC7Comparator{});
         // using merge_types = crossGPUReMerge::mergeTypes<MergeSuffixes, MergeSuffixes>;
