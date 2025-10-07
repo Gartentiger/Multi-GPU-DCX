@@ -691,12 +691,12 @@ private:
                 SaGPU& gpu = mgpus[gpu_index];
                 workinLen += gpu.pd_elements;
             }
-            std::vector<sa_index_t> k(workinLen);
+            std::vector<MergeStageSuffix> k(workinLen);
             size_t prefix_sum = 0;
             for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
             {
                 SaGPU& gpu = mgpus[gpu_index];
-                cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S12_result, sizeof(sa_index_t) * gpu.pd_elements, cudaMemcpyDeviceToHost);
+                cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S12_result, sizeof(MergeStageSuffix) * gpu.pd_elements, cudaMemcpyDeviceToHost);
                 prefix_sum += gpu.pd_elements;
             }
 
@@ -710,7 +710,7 @@ private:
             }
             printf("sa isa length: %lu\n", k.size());
 
-            out.write(reinterpret_cast<char*>(k.data()), sizeof(sa_index_t) * k.size());
+            out.write(reinterpret_cast<char*>(k.data()), sizeof(MergeStageSuffix) * k.size());
             out.close();
 
         } {
@@ -721,12 +721,12 @@ private:
                 SaGPU& gpu = mgpus[gpu_index];
                 workinLen += gpu.num_elements - gpu.pd_elements;
             }
-            std::vector<sa_index_t> k(workinLen);
+            std::vector<MergeStageSuffix> k(workinLen);
             size_t prefix_sum = 0;
             for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
             {
                 SaGPU& gpu = mgpus[gpu_index];
-                cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S0_result, sizeof(sa_index_t) * (gpu.num_elements - gpu.pd_elements), cudaMemcpyDeviceToHost);
+                cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S0_result, sizeof(MergeStageSuffix) * (gpu.num_elements - gpu.pd_elements), cudaMemcpyDeviceToHost);
                 prefix_sum += gpu.num_elements - gpu.pd_elements;
             }
 
@@ -740,7 +740,7 @@ private:
             }
             printf("sa isa length: %lu\n", k.size());
 
-            out.write(reinterpret_cast<char*>(k.data()), sizeof(sa_index_t) * k.size());
+            out.write(reinterpret_cast<char*>(k.data()), sizeof(MergeStageSuffix) * k.size());
             out.close();
 
         }
