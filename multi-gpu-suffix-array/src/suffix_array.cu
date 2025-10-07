@@ -22,6 +22,8 @@
 // #include <nvToolsExt.h>
 #include "thrust/device_vector.h"
 #include "thrust/device_ptr.h"
+#include "thrust/sort.h"
+#include "thrust/host_vector.h"
 static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
@@ -649,6 +651,18 @@ private:
             mcontext.sync_all_streams();
         }
 
+        thrust::host_vector<MergeSuffixes> host_tuples(total_size);
+        size_t pre = 0;
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            cudaMemcpy(thrust::raw_pointer_cast(host_tuples.data()) + pre,
+                thrust::raw_pointer_cast(merge_tuple_vec[gpu_index].data()),
+                sizeof(MergeSuffixes) * merge_tuple_vec[gpu_index].size(), cudaMemcpyDeviceToHost);
+            pre += merge_tuple_vec[gpu_index].size();
+        }
+        mcontext.sync_default_streams();
+
+        thrust::sort(host_tuples.begin(), host_tuples.end(), DC7ComparatorHost{});
         mcontext.sync_default_streams();
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
