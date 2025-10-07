@@ -623,7 +623,7 @@ private:
                     _KLC_SIMPLE_(count2, mcontext.get_gpu_default_stream(gpu_index))
                     // << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> >
 
-                    (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, c_next_Input, gpu.offset, gpu.num_elements,
+                    (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, next_Input, gpu.offset, gpu.num_elements,
                         mpd_per_gpu,
                         thrust::raw_pointer_cast(merge_tuple_vec[gpu_index].data()) + gpu.pd_elements + noSampleCount, count2, DCX::nextNonSample[i], DCX::inverseSamplePosition[i]);
                 CUERR;
@@ -631,12 +631,17 @@ private:
             }
         }
 
+        cudaFree(dcx);
+        mcontext.sync_all_streams();
 
-        // mcontext.sync_default_streams();
-        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (nonSamples, count, gpu_index);
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (thrust::raw_pointer_cast(merge_tuple_vec[gpu_index].data()), merge_tuple_vec[gpu_index].size(), gpu_index);
+            mcontext.sync_all_streams();
+        }
+
         mcontext.sync_default_streams();
 
-        cudaFree(dcx);
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);

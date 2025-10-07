@@ -542,7 +542,7 @@ namespace kernels {
     }
 
     __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
-        sa_index_t* next_Isa, const unsigned char* next_Input,
+        const sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars,
         MergeSuffixes* out_keys, size_t N, D_DCX* dcx)
     {
@@ -645,14 +645,13 @@ namespace kernels {
     __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars, size_t isa_size,
-        MergeSuffixes* out_keys, size_t N, sa_index_t non_sample_pos, sa_index_t f, sa_index_t l)
+        MergeSuffixes* out_keys, size_t N, sa_index_t non_sample_pos, sa_index_t f)
     {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
             uint index = non_sample_pos + i * DCX::X;
             // uint index = (i / (DCX::X - DCX::C)) * DCX::X + dcx->nextNonSample[i % (DCX::X - DCX::C)];
             MergeSuffixes sv;
-            sv.l = l;
             sv.index = index + offset;
             uint nexInputIndex = 0;
             uint nexIsaIndex = 0;
@@ -660,13 +659,19 @@ namespace kernels {
             uint starting_isa_index = i * DCX::C + f;
 
             for (uint x = 0; x < DCX::X; x++) {
-                sv.prefix[x] = index + x < num_chars ? Input[index + x] : (next_Input + nexInputIndex ? *(next_Input + nexInputIndex++) : 0);
+                if (index + x < num_chars) {
+                    sv.prefix[x] = Input[index + x];
+                }
+                else {
+                    sv.prefix[x] = (next_Input ? next_Input[nexInputIndex] : 0);
+                    nexInputIndex++;
+                }
                 if (starting_isa_index < isa_size) {
-                    sv.ranks[x] = Isa[starting_isa_index++];
+                    sv.ranks[x] = Isa[starting_isa_index++] + 1;
                 }
                 else {
                     if (next_Isa) {
-                        sv.ranks[x] = next_Isa[nexIsaIndex];
+                        sv.ranks[x] = next_Isa[nexIsaIndex] + 1;
                     }
                     else {
                         sv.ranks[x] = index < num_chars - 1 ? 1 : 0;
