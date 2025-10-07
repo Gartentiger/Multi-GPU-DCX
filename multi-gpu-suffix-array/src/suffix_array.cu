@@ -1088,11 +1088,9 @@ private:
         // HostSampleSort(host_vec, host_key_out, host_vec.size(), std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2));
         auto all_vec = comm_world().gatherv(send_buf(host_vec), root(0));
         std::vector<char> inp(minput_len);
-        for (size_t i = 0; i < inp.size(); i++)
-        {
-            inp[i] = minput[i];
-        }
-
+        cudaMemcpy(inp.data(), minput, inp.size(), cudaMemcpyDeviceToHost);
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         auto allInput = comm_world().gatherv(send_buf(inp), root(0));
         printf("[%lu] send all vec\n", world_rank());
         if (world_rank() == 0) {
@@ -1520,7 +1518,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 
 
