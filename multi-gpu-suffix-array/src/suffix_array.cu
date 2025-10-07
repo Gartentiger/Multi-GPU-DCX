@@ -773,28 +773,29 @@ private:
                 out.close();
             }
             comm_world().barrier();
-        } {
-            SaGPU& gpu = mgpus[world_rank()];
-            const size_t S0_count = gpu.num_elements - gpu.pd_elements;
-            std::vector<MergeStageSuffix> k(S0_count);
-            cudaMemcpy(k.data(), gpu.merge_ptr.S0_result, sizeof(MergeStageSuffix) * S0_count, cudaMemcpyDeviceToHost);
-            auto isa_h = comm_world().gatherv(send_buf(k), root(0));
-            if (world_rank() == 0) {
-                char fileName[16];
-                const char* text = "S0Dist";
-                sprintf(fileName, "%s", text);
-                std::ofstream out(fileName, std::ios::binary);
-                if (!out) {
-                    std::cerr << "Could not open file\n";
-                    //return 1;
-                }
-                printf("isa 12 length: %lu\n", isa_h.size());
-
-                out.write(reinterpret_cast<char*>(isa_h.data()), sizeof(MergeStageSuffix) * isa_h.size());
-                out.close();
-            }
-            comm_world().barrier();
         }
+        // {
+        //     SaGPU& gpu = mgpus[world_rank()];
+        //     const size_t S0_count = gpu.num_elements - gpu.pd_elements;
+        //     std::vector<MergeStageSuffix> k(S0_count);
+        //     cudaMemcpy(k.data(), gpu.merge_ptr.S0_result, sizeof(MergeStageSuffix) * S0_count, cudaMemcpyDeviceToHost);
+        //     auto isa_h = comm_world().gatherv(send_buf(k), root(0));
+        //     if (world_rank() == 0) {
+        //         char fileName[16];
+        //         const char* text = "S0Dist";
+        //         sprintf(fileName, "%s", text);
+        //         std::ofstream out(fileName, std::ios::binary);
+        //         if (!out) {
+        //             std::cerr << "Could not open file\n";
+        //             //return 1;
+        //         }
+        //         printf("isa 12 length: %lu\n", isa_h.size());
+
+        //         out.write(reinterpret_cast<char*>(isa_h.data()), sizeof(MergeStageSuffix) * isa_h.size());
+        //         out.close();
+        //     }
+        //     comm_world().barrier();
+        // }
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
 
