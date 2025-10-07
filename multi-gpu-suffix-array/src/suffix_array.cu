@@ -479,7 +479,7 @@ private:
         printf("elements: %lu\n", mgpus[0].num_elements);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<char*>(mgpus[gpu_index].pd_ptr.Sa_rank), mgpus[gpu_index].pd_ptr.Isa, SDIV(mgpus[gpu_index].num_elements, DCX::X * 2) * DCX::X * 2, gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<char*>(mgpus[gpu_index].pd_ptr.Sa_rank), mgpus[gpu_index].pd_ptr.Isa, SDIV(mgpus[gpu_index].num_elements, DCX::X * 2) * DCX::X * 2, gpu_index);
             mcontext.sync_default_streams();
         }
         // exit(1);
@@ -505,11 +505,16 @@ private:
 
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
+        std::vector<sa_index_t> isaglob;
+        isaglob.reserve(minput_len);
+        size_t prefixsum = 0;
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
             cudaSetDevice(mcontext.get_device_id(gpu_index));
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, gpu_index);
+            cudaMemcpy(isaglob.data() + prefixsum, gpu.prepare_S12_ptr.Isa, gpu.pd_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+            prefixsum += gpu.pd_elements;
             mcontext.sync_default_streams();
             kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
             CUERR;
@@ -526,6 +531,20 @@ private:
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.prepare_S12_ptr.S12_buffer1,
                 mpd_reserved_len * sizeof(MergeSuffixes));
         }
+        isaglob.resize(prefixsum);
+        isaglob.shrink_to_fit();
+        std::sort(isaglob.begin(), isaglob.end());
+        std::vector<sa_index_t> compareIsa(isaglob.size());
+        for (size_t i = 0; i < compareIsa.size(); i++)
+        {
+            compareIsa[i] = i + 1;
+        }
+        printf("isa[0] %u\n", isaglob[0]);
+        printf("isa[1] %u\n", isaglob[1]);
+        printf("isa[2] %u\n", isaglob[2]);
+        bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
+        bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
+        printf("contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
         printf("mpd_per_gpu: %lu\n", mpd_per_gpu);
         S12PartitioningFunctor f(mpd_per_gpu, NUM_GPUS - 1);
 
@@ -539,7 +558,7 @@ private:
         {
             SaGPU& gpu = mgpus[gpu_index];
 
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > ((sa_index_t*)mgpus[gpu_index].prepare_S12_ptr.S12_buffer2, (sa_index_t*)mgpus[gpu_index].prepare_S12_ptr.S12_result_half, mgpus[gpu_index].pd_elements, gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > ((sa_index_t*)mgpus[gpu_index].prepare_S12_ptr.S12_buffer2, (sa_index_t*)mgpus[gpu_index].prepare_S12_ptr.S12_result_half, mgpus[gpu_index].pd_elements, gpu_index);
             mcontext.sync_default_streams();
             printf("[%u] %lu num elements\n", gpu_index, mgpus[gpu_index].num_elements);
             printf("[%u] %lu pd elements\n", gpu_index, mgpus[gpu_index].pd_elements);
@@ -580,7 +599,7 @@ private:
             //     gpu.prepare_S12_ptr.S12_buffer1, gpu.prepare_S12_ptr.S12_buffer1_half, gpu.pd_elements);
             // CUERR;
 
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > ((MergeSuffixes*)sk, gpu.pd_elements, gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > ((MergeSuffixes*)sk, gpu.pd_elements, gpu_index);
 
         }
 
@@ -614,7 +633,7 @@ private:
         mcontext.sync_all_streams();
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > ((MergeSuffixes*)skSample[gpu_index] + mgpus[gpu_index].pd_elements, mgpus[gpu_index].pd_elements, gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > ((MergeSuffixes*)skSample[gpu_index] + mgpus[gpu_index].pd_elements, mgpus[gpu_index].pd_elements, gpu_index);
             mcontext.sync_all_streams();
         }
         // exit(0);
@@ -656,7 +675,7 @@ private:
             //     reinterpret_cast<MergeStageSuffixS12HalfValue*>(values.Current()),
             //     gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
             // CUERR;
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (keys.Current(), mgpus[gpu_index].pd_elements, gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (keys.Current(), mgpus[gpu_index].pd_elements, gpu_index);
             // mcontext.sync_all_streams();
             mcontext.sync_default_streams();
             // nvtxRangePop();
@@ -694,7 +713,7 @@ private:
                         mpd_per_gpu,
                         (MergeSuffixes*)skNonSample[gpu_index][i], count2, DCX::nextNonSample[i], f, l);
                 CUERR;
-                printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (skNonSample[gpu_index][i], count2, gpu_index);
+                // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (skNonSample[gpu_index][i], count2, gpu_index);
                 mcontext.sync_default_streams();
 
             }
