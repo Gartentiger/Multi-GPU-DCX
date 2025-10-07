@@ -833,7 +833,7 @@ public:
         if (last_gpu_elems % DCX::X != 0) {
             for (size_t sample = 0; sample < DCX::C; sample++)
             {
-                if ((last_gpu_elems % DCX::X) > (size_t)DCX::nextSample[sample]) {
+                if ((last_gpu_elems % DCX::X) > (size_t)DCX::samplePosition[sample]) {
                     last_gpu_add_pd_elements++;
                 }
             }
