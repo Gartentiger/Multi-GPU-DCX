@@ -88,7 +88,7 @@ __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, 
             printf("%u", isa[i]);
         }
 
-        }
+    }
     printf("\n");
     printf("[%lu]  sa: ", rank);
     for (size_t i = 0; i < size; i++) {
@@ -103,7 +103,7 @@ __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, 
     }
     printf("\n");
     printf("---------------------------------------------------------------------------\n");
-    }
+}
 __global__ void printArrayss(MergeStageSuffixS12HalfValue* isa, MergeStageSuffixS12HalfKey* sa_rank, size_t size, size_t rank)
 {
     printf("[%lu] key: ", rank);
@@ -447,7 +447,37 @@ private:
         std::array<All2AllNodeInfoT<MergeStageSuffixS12HalfKey, MergeStageSuffixS12HalfValue, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
+        {
+            mcontext.sync_all_streams();
+            size_t workinLen = 0;
+            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                workinLen += gpu.pd_elements;
+            }
+            std::vector<sa_index_t> k(workinLen);
+            size_t prefix_sum = 0;
+            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                cudaMemcpy(k.data() + prefix_sum, gpu.prepare_S12_ptr.Isa, sizeof(sa_index_t) * gpu.pd_elements, cudaMemcpyDeviceToHost);
+                prefix_sum += gpu.pd_elements;
+            }
 
+            char fileName[18];
+            const char* text = "IsaMain";
+            sprintf(fileName, "%s", text);
+            std::ofstream out(fileName, std::ios::binary);
+            if (!out) {
+                std::cerr << "Could not open file\n";
+                //return 1;
+            }
+            printf("sa isa length: %lu\n", k.size());
+
+            out.write(reinterpret_cast<char*>(k.data()), sizeof(sa_index_t) * k.size());
+            out.close();
+
+        }
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {

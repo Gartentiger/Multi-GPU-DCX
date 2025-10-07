@@ -1330,37 +1330,37 @@ private:
                     gpu.num_segments, less, mgpu_context);
             }
         }
-        {
-            mcontext.sync_all_streams();
-            size_t workinLen = 0;
-            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-            {
-                SaGPU& gpu = mgpus[gpu_index];
-                workinLen += gpu.working_len;
-            }
-            std::vector<sa_index_t> k(workinLen);
-            size_t prefix_sum = 0;
-            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-            {
-                SaGPU& gpu = mgpus[gpu_index];
-                cudaMemcpy(k.data() + prefix_sum, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-                prefix_sum += gpu.working_len;
-            }
+        // {
+        //     mcontext.sync_all_streams();
+        //     size_t workinLen = 0;
+        //     for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        //     {
+        //         SaGPU& gpu = mgpus[gpu_index];
+        //         workinLen += gpu.working_len;
+        //     }
+        //     std::vector<sa_index_t> k(workinLen);
+        //     size_t prefix_sum = 0;
+        //     for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        //     {
+        //         SaGPU& gpu = mgpus[gpu_index];
+        //         cudaMemcpy(k.data() + prefix_sum, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+        //         prefix_sum += gpu.working_len;
+        //     }
 
-            char fileName[18];
-            const char* text = "SaRankMain";
-            sprintf(fileName, "%s%d", text, iterations);
-            std::ofstream out(fileName, std::ios::binary);
-            if (!out) {
-                std::cerr << "Could not open file\n";
-                //return 1;
-            }
-            printf("sa rank length: %lu\n", k.size());
+        //     char fileName[18];
+        //     const char* text = "SaRankMain";
+        //     sprintf(fileName, "%s%d", text, iterations);
+        //     std::ofstream out(fileName, std::ios::binary);
+        //     if (!out) {
+        //         std::cerr << "Could not open file\n";
+        //         //return 1;
+        //     }
+        //     printf("sa rank length: %lu\n", k.size());
 
-            out.write(reinterpret_cast<char*>(k.data()), sizeof(sa_index_t) * k.size());
-            out.close();
+        //     out.write(reinterpret_cast<char*>(k.data()), sizeof(sa_index_t) * k.size());
+        //     out.close();
 
-        }
+        // }
 
         // if (iterations == 1) {
         //     mcontext.sync_all_streams();
@@ -1742,7 +1742,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
