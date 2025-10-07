@@ -675,7 +675,7 @@ public:
             buckets[bound - samples.begin()].push_back(keys[i]);
         }
         keys.clear();
-        std::vector<int> sCounts, sDispls, rCounts(NUM_GPUS), rDispls(NUM_GPUS + 1);
+        std::vector<size_t> sCounts, sDispls, rCounts(NUM_GPUS), rDispls(NUM_GPUS + 1);
         printf("[%lu] bucket\n", world_rank());
         for (auto& bucket : buckets) {
             keys.insert(keys.end(), bucket.begin(), bucket.end());
@@ -1079,10 +1079,12 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         thrust::host_vector<MergeSuffixes> tuples_host = merge_tuple_vec;
         std::vector<MergeSuffixes> host_vec(tuples_host.begin(), tuples_host.end());
-        auto all_vec = comm_world().gatherv(send_buf(host_vec), root(0));
+        std::vector<MergeSuffixes> host_key_out;
+        HostSampleSort(host_vec, host_key_out, host_vec.size(), std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2));
+        auto all_vec = comm_world().gatherv(send_buf(host_key_out), root(0));
         printf("[%lu] send all vec\n", world_rank());
         if (world_rank() == 0) {
-            std::sort(all_vec.begin(), all_vec.end(), DC7ComparatorHost{});
+            // std::sort(all_vec.begin(), all_vec.end(), DC7ComparatorHost{});
             printf("[%lu] sorted\n", world_rank());
 
             std::vector<sa_index_t> sa(all_vec.size());
