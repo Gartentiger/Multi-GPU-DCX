@@ -1097,7 +1097,7 @@ private:
             }
         }
         mcontext.sync_default_streams();
-        check_isa_len();
+        // check_isa_len();
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
     }
     void check_isa_len() {
@@ -1711,7 +1711,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 

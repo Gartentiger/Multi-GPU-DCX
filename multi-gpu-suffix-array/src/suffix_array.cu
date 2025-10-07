@@ -88,7 +88,7 @@ __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, 
             printf("%u", isa[i]);
         }
 
-    }
+        }
     printf("\n");
     printf("[%lu]  sa: ", rank);
     for (size_t i = 0; i < size; i++) {
@@ -103,7 +103,7 @@ __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, 
     }
     printf("\n");
     printf("---------------------------------------------------------------------------\n");
-}
+    }
 __global__ void printArrayss(MergeStageSuffixS12HalfValue* isa, MergeStageSuffixS12HalfKey* sa_rank, size_t size, size_t rank)
 {
     printf("[%lu] key: ", rank);
@@ -1164,7 +1164,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
     cudaSetDevice(0);
     size_t realLen;
-    size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(1024 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
