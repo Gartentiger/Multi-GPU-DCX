@@ -949,7 +949,9 @@ private:
         auto isaglob = comm_world().gatherv(send_buf(isa), root(0));
         if (world_rank() == 0) {
             std::vector<size_t> buckets(NUM_GPUS);
-
+            std::sort(isaglob.begin(), isaglob.end());
+            bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
+            ASSERT(!containsDuplicates);
             for (auto item : isaglob) {
                 sa_index_t d = min((item / (sa_index_t)mpd_per_gpu), NUM_GPUS - 1);
                 buckets[d] += 1;
@@ -1475,7 +1477,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-    }
+}
 #endif
 
 

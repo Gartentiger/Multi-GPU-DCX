@@ -585,7 +585,7 @@ namespace kernels {
     {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i_ = tidx; i_ < N; i_ += blockDim.x * gridDim.x) {
-            uint i = indices[i_];
+            uint i = i_;
             uint index = (i / DCX::C) * DCX::X + dcx->samplePosition[i % DCX::C];
             MergeSuffixes sk;
             sk.index = index + offset;
