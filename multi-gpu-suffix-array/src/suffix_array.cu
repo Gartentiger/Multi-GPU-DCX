@@ -943,26 +943,26 @@ private:
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
-        std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
+        // std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
 
-        cudaMemcpy(isa.data(), mgpus[world_rank()].prepare_S12_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
-        auto isaglob = comm_world().gatherv(send_buf(isa), root(0));
-        if (world_rank() == 0) {
-            std::vector<size_t> buckets(NUM_GPUS);
-            std::sort(isaglob.begin(), isaglob.end());
-            bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
-            printf("isa_glob size: %lu contains dup: %s\n", isaglob.size(), containsDuplicates ? "true" : "false");
-            for (auto item : isaglob) {
-                sa_index_t d = min((item / (sa_index_t)mpd_per_gpu), NUM_GPUS - 1);
-                buckets[d] += 1;
-            }
-            for (size_t i = 0; i < NUM_GPUS; i++)
-            {
-                printf("[%lu] buckets[%lu] %lu <= %lu mgpus[%lu].pd_elements\n", world_rank(), i, buckets[i], mgpus[i].pd_elements, i);
-                // ASSERT(buckets[i] <= mgpus[i].pd_elements);
-            }
-        }
-        comm_world().barrier();
+        // cudaMemcpy(isa.data(), mgpus[world_rank()].prepare_S12_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
+        // auto isaglob = comm_world().gatherv(send_buf(isa), root(0));
+        // if (world_rank() == 0) {
+        //     std::vector<size_t> buckets(NUM_GPUS);
+        //     std::sort(isaglob.begin(), isaglob.end());
+        //     bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
+        //     printf("isa_glob size: %lu contains dup: %s\n", isaglob.size(), containsDuplicates ? "true" : "false");
+        //     for (auto item : isaglob) {
+        //         sa_index_t d = min((item / (sa_index_t)mpd_per_gpu), NUM_GPUS - 1);
+        //         buckets[d] += 1;
+        //     }
+        //     for (size_t i = 0; i < NUM_GPUS; i++)
+        //     {
+        //         printf("[%lu] buckets[%lu] %lu <= %lu mgpus[%lu].pd_elements\n", world_rank(), i, buckets[i], mgpus[i].pd_elements, i);
+        //         // ASSERT(buckets[i] <= mgpus[i].pd_elements);
+        //     }
+        // }
+        // comm_world().barrier();
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
