@@ -47,7 +47,7 @@ namespace kernels {
     __global__ void fixup_last_two_12_kmers(sa_index_t* address);
 
     __global__ void fixup_last_four_12_kmers_64(ulong1* address);
-
+    __global__ void fixup_last_six_12_kmers_64(ulong1* address);
 
     __global__ void prepare_S12(const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_input,

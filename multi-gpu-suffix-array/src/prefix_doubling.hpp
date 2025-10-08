@@ -321,11 +321,13 @@ public:
 #ifdef DUMP_EVERYTHING
         dump("After initial sort");
 #endif
-
+        mcontext.sync_all_streams();
+        printf("initial_sort_64\n");
         TIMER_START_MAIN_STAGE(MainStages::Initial_Ranking);
         write_initial_ranks();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Ranking);
-
+        mcontext.sync_all_streams();
+        printf("write_initial_ranks\n");
 #ifdef DUMP_EVERYTHING
         dump("Initial ranking");
 #endif
@@ -333,7 +335,8 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
         write_to_isa(true);
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Write_To_ISA);
-
+        mcontext.sync_all_streams();
+        printf("write_to_isa\n");
 #ifdef DUMP_EVERYTHING
         dump("Initial write to ISA");
 #endif
@@ -344,7 +347,8 @@ public:
         bool done = false;
         done = compact();
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Compacting);
-
+        mcontext.sync_all_streams();
+        printf("compact\n");
 #ifdef DUMP_EVERYTHING
         dump("Initial compact");
 #endif
@@ -363,7 +367,8 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Fetch_Rank);
             fetch_rank_for_sorting(h);
             TIMER_STOP_LOOP_STAGE(LoopStages::Fetch_Rank);
-
+            mcontext.sync_all_streams();
+            printf("fetch_rank_for_sorting %lu\n", iterations);
 #ifdef DUMP_EVERYTHING
             dump("After fetch");
 #endif
@@ -372,7 +377,8 @@ public:
 #ifdef DUMP_EVERYTHING
             dump("After sort");
 #endif
-
+            mcontext.sync_all_streams();
+            printf("do_segmented_sort %lu\n", iterations);
             TIMER_START_LOOP_STAGE(LoopStages::Rebucket);
             rebucket();
             TIMER_STOP_LOOP_STAGE(LoopStages::Rebucket);
@@ -380,11 +386,13 @@ public:
 #ifdef DUMP_EVERYTHING
             dump("After rebucket");
 #endif
-
+            mcontext.sync_all_streams();
+            printf("rebucket %lu\n", iterations);
             TIMER_START_LOOP_STAGE(LoopStages::Write_Isa);
             write_to_isa();
             TIMER_STOP_LOOP_STAGE(LoopStages::Write_Isa);
-
+            mcontext.sync_all_streams();
+            printf("write_to_isa %lu\n", iterations);
 #ifdef DUMP_EVERYTHING
             dump("After write isa");
 #endif
@@ -394,7 +402,8 @@ public:
             TIMER_START_LOOP_STAGE(LoopStages::Compacting);
             done = compact();
             TIMER_STOP_LOOP_STAGE(LoopStages::Compacting);
-
+            mcontext.sync_all_streams();
+            printf("compact %lu\n", iterations);
             //                if (h > 1024*1024*1024) {
             //                    warning("\nAborting!\n");
             //                    break;
@@ -508,8 +517,8 @@ private:
     void initial_sort_64()
     {
 
-        const size_t SORT_DOWN_TO = 16;
-        const size_t SORT_DOWN_TO_LAST = 13;
+        const size_t SORT_DOWN_TO = 16;// 16;
+        const size_t SORT_DOWN_TO_LAST = 16;//= 13;
 
         using initial_merge_types = crossGPUReMerge::mergeTypes<uint64_t, sa_index_t>;
         using InitialMergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, initial_merge_types, ReMergeTopology>;
@@ -582,19 +591,21 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU gpu = mgpus[gpu_index];
-            // printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
             mcontext.sync_default_streams();
-            // printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
-            // mcontext.sync_default_streams();
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
+            mcontext.sync_default_streams();
         }
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
+        mcontext.sync_default_streams();
         printf("after init merging\n");
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU gpu = mgpus[gpu_index];
-            // printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
             mcontext.sync_default_streams();
-            // printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
+            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
+
             mcontext.sync_default_streams();
         }
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
@@ -678,6 +689,14 @@ private:
             }
         }
         mcontext.sync_default_streams();
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
+
+            printArrayss << <1, 1 >> > (reinterpret_cast<char*>(gpu.Old_ranks), gpu.Sa_rank, gpu.working_len, gpu_index);
+            mcontext.sync_default_streams();
+
+        }
     }
 
     bool compact()
@@ -689,7 +708,7 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-        }
+}
         mcontext.sync_default_streams();
 #endif
 
@@ -882,8 +901,8 @@ private:
     void write_to_isa(bool initial = false)
     {
         const sa_index_t sort_threshold = 524288; // empirically, could need adjusting
-        const sa_index_t low_bit = 13;
-        const sa_index_t high_bit = mwrite_isa_sort_high_bit;
+        const sa_index_t low_bit = 0;//: 13;
+        const sa_index_t high_bit = sa_index_t(sizeof(sa_index_t));//mwrite_isa_sort_high_bit;
 
         std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
         std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;

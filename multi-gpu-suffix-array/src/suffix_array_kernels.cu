@@ -352,6 +352,17 @@ namespace kernels {
         out.x |= 7ull << 13;
         return out;
     }
+
+    __global__ void produce_index_kmer_tuples_12_64_dcx(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
+        ulong1* Output_kmers, size_t N, size_t pd_elements) {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+
+        for (uint i = tidx; i < N / 7; i += blockDim.x * gridDim.x) {
+
+        }
+
+    }
+
     __global__ void produce_index_kmer_tuples_12_64_dc7(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N) {
         assert(N % 14 == 0); // No one wants to deal with the "tails" here, we just write some more and don't care.
@@ -455,6 +466,21 @@ namespace kernels {
             my_value.x &= ~(7ull << 13);
 
             my_value.x |= ((3ull - tidx)) << 13;
+
+            address[tidx] = my_value;
+        }
+    }
+
+    __global__ void fixup_last_six_12_kmers_64(ulong1* address) {
+
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+
+        if (tidx < 6) {
+            ulong1 my_value;
+            my_value = address[tidx];
+            my_value.x &= ~(7ull << 13);
+
+            my_value.x |= ((5ull - tidx)) << 12;
 
             address[tidx] = my_value;
         }
