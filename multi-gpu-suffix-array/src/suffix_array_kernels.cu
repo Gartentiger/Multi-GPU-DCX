@@ -348,19 +348,76 @@ namespace kernels {
             out = make_uchar8_be(v8.w, v12.x, v12.y, v12.z, v12.w, v16.x, v16.y, v16.z);
             break;
         }
-        out.x &= ~((1ull << 13) - 1ull);
-        out.x |= 7ull << 13;
+        out.x &= ~((1ull << 5) - 1ull);
+        out.x |= 7ull << 5;
         return out;
     }
 
-    __global__ void produce_index_kmer_tuples_12_64_dcx(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
-        ulong1* Output_kmers, size_t N, size_t pd_elements) {
+    // template<uint THREADS_PER_BLOCK>
+    __global__ void produce_index_kmer_tuples_12_64_dcx(const unsigned char* Input, sa_index_t start_index, sa_index_t* Output_index,
+        kmerDCX* Output_kmers, size_t N, sa_index_t* period, size_t rank, size_t* set_sizes, size_t set_per_gpu, size_t input_len, size_t mpd_reserved_len) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        // assert(N % DCX::X == 0);
+        for (uint i = tidx; i < (N + DCX::C - 1) / DCX::C; i += blockDim.x * gridDim.x) {
+            // printf("i: %u\n", i);
+            // uint2 inp1 = *reinterpret_cast<uint2*>(baseInput);
+            // uchar4 u0 = *reinterpret_cast<uchar4*>(inp1.x);
+            // uchar4 u4 = *reinterpret_cast<uchar4*>(inp1.y);
 
-        for (uint i = tidx; i < N / 7; i += blockDim.x * gridDim.x) {
+            // Output_kmers[i].kmer[0] = u0.x;
+            // Output_kmers[i].kmer[1] = u0.y;
+            // Output_kmers[i].kmer[2] = u0.z;
+            // Output_kmers[i].kmer[3] = u0.w;
 
+            // Output_kmers[i].kmer[4] = u4.x;
+            // Output_kmers[i].kmer[5] = u4.y;
+            // Output_kmers[i].kmer[6] = u4.z;
+            // Output_kmers[i].kmer[7] = u4.w;
+
+
+            size_t index_offset = 0;
+            // char a = 'a';
+#pragma unroll
+            for (size_t c = 0; c < DCX::C; c++)
+            {
+
+                const unsigned char* baseInput = Input + DCX::X * i + period[c];
+#pragma unroll
+                for (size_t j = 0; j < DCX::X; j++)
+                {
+                    if (DCX::X * i + period[c] + j < input_len) {
+
+                        Output_kmers[i * DCX::C + c].kmer[j] = baseInput[j];
+                    }
+                    else {
+                        Output_kmers[i * DCX::C + c].kmer[j] = 0;
+                    }
+                }
+                assert(i * DCX::C + c < mpd_reserved_len);
+                // if (i * DCX::C + c < mpd_reserved_len) {
+                Output_index[i * DCX::C + c] = i + set_per_gpu * rank + index_offset;
+                // }
+                index_offset += set_sizes[c];
+            }
+            // Output_kmers[0].kmer[1] = a;
         }
 
+        // __shared__ kmerDCX km[THREADS_PER_BLOCK];
+                // uint group_idx = tidx / THREADS_PER_BLOCK;
+                // uint local_idx = tidx % DCX::X;
+                // uint input_index = group_idx * DCX::X + local_idx;
+                // // for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+                // km[group_idx].kmer[local_idx] = Input[input_index];
+
+                // // Output_kmers[tidx].kmer[i] =
+                // __syncthreads();
+                // if (tidx < 2) {
+                //     Output_kmers[tidx] = km[tidx];
+                // }
+                // if (tidx == 2) {
+                //     Output_index[group_idx / DCX::X] = group_idx + start_index;
+                // }
+                // }
     }
 
     __global__ void produce_index_kmer_tuples_12_64_dc7(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
@@ -471,16 +528,16 @@ namespace kernels {
         }
     }
 
-    __global__ void fixup_last_six_12_kmers_64(ulong1* address) {
+    __global__ void fixup_last_three_12_kmers_64(ulong1* address) {
 
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
-        if (tidx < 6) {
+        if (tidx < 3) {
             ulong1 my_value;
             my_value = address[tidx];
-            my_value.x &= ~(7ull << 13);
+            my_value.x &= ~(7ull << 5);
 
-            my_value.x |= ((5ull - tidx)) << 12;
+            my_value.x |= ((2ull - tidx)) << 4;
 
             address[tidx] = my_value;
         }
@@ -644,12 +701,37 @@ namespace kernels {
             out_values[i_] = suffix_value;
         }
     }
-
-
     __global__ void write_indices(sa_index_t* Out, size_t N) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
             Out[i] = i;
+        }
+    }
+    __global__ void write_indices(sa_index_t* Out, size_t N, size_t set_size, uint32_t* samplePos, size_t mpd_per_gpu, size_t rank) {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+            uint index = i + mpd_per_gpu * rank;
+            // uint set_idx = 0;
+            // for (size_t j = 0; j < DCX::C - 1; j++)
+            // {
+            //     if (index / set_size[set_idx] > 0) {
+            //         set_idx++;
+            //         index -= set_size[set_idx];
+            //     }
+            //     else {
+            //         break;
+            //     }
+
+            // }
+            uint group = index / set_size;
+            uint offset = index % set_size;
+            Out[i] = samplePos[group] + DCX::X * offset;
+        }
+    }
+    __global__ void write_indices_sub2(sa_index_t* Out, size_t N, size_t last_gpu_extra_elements) {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+            Out[i] -= last_gpu_extra_elements;
         }
     }
 
@@ -826,7 +908,13 @@ namespace kernels {
         }
     }
 
+    __global__ void produce_sk_tuples(sa_index_t* isa, sa_index_t* offset, sa_index_t* backIsa) {
 
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+
+
+
+    }
 
 
 

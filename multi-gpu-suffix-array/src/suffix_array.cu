@@ -74,10 +74,10 @@ __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, 
     for (size_t i = 0; i < size; i++) {
         if (i + 1 < size) {
 
-            printf("%u, ", isa[i]);
+            printf("%2u, ", isa[i]);
         }
         else {
-            printf("%u", isa[i]);
+            printf("%2u", isa[i]);
         }
 
     }
@@ -86,10 +86,10 @@ __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, 
     for (size_t i = 0; i < size; i++) {
         if (i + 1 < size) {
 
-            printf("%u, ", sa_rank[i]);
+            printf("%2u, ", sa_rank[i]);
         }
         else {
-            printf("%u", sa_rank[i]);
+            printf("%2u", sa_rank[i]);
         }
 
     }
@@ -100,7 +100,7 @@ __global__ void printArrayss(char* kmer, sa_index_t* isa, size_t size, size_t ra
 {
     for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu] isa: %u", rank, isa[i]);
+        printf("[%2lu] isa: %2u", rank, isa[i]);
         // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
         for (int j = 0; j < 8;j++) {
             printf(", %c", kmer[i * 8 + j]);
@@ -109,7 +109,19 @@ __global__ void printArrayss(char* kmer, sa_index_t* isa, size_t size, size_t ra
     }
     printf("---------------------------------------------------------------------------\n");
 }
+__global__ void printArrayss(kmerDCX* kmer, sa_index_t* isa, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
 
+        printf("[%2lu] idx: %3u", rank, isa[i]);
+        // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
+        for (int j = 0; j < DCX::X;j++) {
+            printf(", %c", kmer[i].kmer[j]);
+        }
+        printf("\n");
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
 __global__ void printArrayss(MergeStageSuffixS12HalfValue* sk, size_t size, size_t rank)
 {
     for (size_t i = 0; i < size; i++) {
@@ -256,8 +268,9 @@ class SuffixSorter
     char* minput;
     size_t minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, mper_gpu, mpd_per_gpu;
     size_t mpd_per_gpu_max_bit;
+    size_t last_gpu_extra_elements;
     size_t mtook_pd_iterations;
-
+    thrust::host_vector<size_t> set_sizes;
     D_DCX* dcx;
 
 public:
@@ -268,6 +281,7 @@ public:
         mpd_sorter(mcontext, mmemory_manager, mmulti_split, mall2all, mperf_measure),
         minput(input), minput_len(len)
     {
+        last_gpu_extra_elements = 0;
         D_DCX host_dcx;
         memcpy(host_dcx.samplePosition, DCX::samplePosition, sizeof(uint) * DCX::C);
         memcpy(host_dcx.nextSample, DCX::nextSample, sizeof(uint) * DCX::X * DCX::X);
@@ -290,7 +304,7 @@ public:
         TIMER_STOP_MAIN_STAGE(MainStages::Produce_KMers);
         //            mpd_sorter.dump("After K-Mers");
 
-        mtook_pd_iterations = mpd_sorter.sort(4);
+        mtook_pd_iterations = mpd_sorter.sort(1);
 
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
@@ -347,19 +361,17 @@ public:
         mreserved_len = std::max(mreserved_len, 1024ul);                       // Min len because of temp memory for CUB.
 
         mpd_reserved_len = SDIV(mreserved_len, DCX::X) * DCX::C;
-
+        printf("mpd_reserved_len: %lu\n", mpd_reserved_len);
         ms0_reserved_len = mreserved_len - mpd_reserved_len;
 
         auto cub_temp_mem = get_needed_cub_temp_memory(ms0_reserved_len, mpd_reserved_len);
 
         // Can do it this way since CUB temp memory is limited for large inputs.
         ms0_reserved_len = std::max(ms0_reserved_len, SDIV(cub_temp_mem.first, sizeof(MergeSuffixes)));
-        mpd_reserved_len = std::max(mpd_reserved_len, SDIV(cub_temp_mem.second, sizeof(MergeStageSuffix)));
-
+        mpd_reserved_len = std::max(mpd_reserved_len, SDIV(cub_temp_mem.second, sizeof(MergeSuffixes)));
+        printf("mpd_reserved_len after cub temp: %lu\n", mpd_reserved_len);
         mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true);
-
-        mpd_per_gpu = mper_gpu / DCX::X * DCX::C;
-        mpd_per_gpu_max_bit = std::min(sa_index_t(log2(float(mpd_per_gpu))) + 1, sa_index_t(sizeof(sa_index_t) * 8));
+        mpd_per_gpu = (mper_gpu / DCX::X) * DCX::C;
 
         size_t pd_total_len = 0, offset = 0, pd_offset = 0;
         for (uint i = 0; i < NUM_GPUS - 1; i++)
@@ -377,6 +389,8 @@ public:
         mgpus.back().num_elements = last_gpu_elems;
 
         size_t last_gpu_add_pd_elements = 0;
+
+
         // if last_gpu_elems = 9 elements left and X=7 then we have 3+1 sample positions, last_gpu_elems = 10 3+2, last_gpu_elems = 11 3+2...
         if (last_gpu_elems % DCX::X != 0) {
             for (size_t sample = 0; sample < DCX::C; sample++)
@@ -386,21 +400,45 @@ public:
                 }
             }
         }
+        // makes kmers easier because the set_sizes are now always set_sizes[0]=...=set_sizes[N-2]=set_sizes[N-1]+1=pd_elements/DCX::C
+        last_gpu_extra_elements = DCX::C - last_gpu_add_pd_elements - 1 + DCX::C;
+        mgpus.back().pd_elements = (last_gpu_elems / DCX::X) * DCX::C + last_gpu_add_pd_elements + last_gpu_extra_elements;
+        // mpd_per_gpu_max_bit = std::min(sa_index_t(log2(float(mpd_per_gpu + last_gpu_extra_elements))) + 1, sa_index_t(sizeof(sa_index_t) * 8));
+        for (size_t i = 0; i < NUM_GPUS; i++)
+        {
+            printf("%lu bytes for kmer: %lu\n", i, mgpus[i].pd_elements * sizeof(kmerDCX));
+        }
 
-        mgpus.back().pd_elements = (last_gpu_elems / DCX::X) * DCX::C + last_gpu_add_pd_elements;
+
+        set_sizes.resize(DCX::C);
+        for (size_t i = 0; i < DCX::C; i++)
+        {
+            set_sizes[i] = 0;
+            for (size_t gpu_idx = 0; gpu_idx < NUM_GPUS; gpu_idx++)
+            {
+                set_sizes[i] += mgpus[gpu_idx].pd_elements / DCX::C;
+            }
+            if ((mgpus.back().pd_elements % DCX::C) > i) {
+                set_sizes[i]++;
+            }
+        }
+        for (size_t i = 0; i < DCX::C; i++)
+        {
+            printf("S%lu: %lu\n", i, set_sizes[i]);
+        }
 
         mgpus.back().offset = offset;
         mgpus.back().pd_offset = pd_offset;
 
         // Because of fixup.
-        ASSERT(mgpus.back().pd_elements >= 6);
+        ASSERT(mgpus.back().pd_elements >= 3);
 
         pd_total_len += mgpus.back().pd_elements;
         init_gpu_ptrs(NUM_GPUS - 1);
 
         printf("Every node gets %zu (%zu) elements, last node: %zu (%zu), reserved len: %zu.\n", mper_gpu,
             mpd_per_gpu, last_gpu_elems, mgpus.back().pd_elements, mreserved_len);
-
+        printf("mpd_reserved_len: %lu\n", mpd_reserved_len);
         mpd_sorter.init(pd_total_len, mpd_per_gpu, mgpus.back().pd_elements, mpd_reserved_len);
     }
 
@@ -433,6 +471,9 @@ private:
         CUERR_CHECK(err);
         err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_S12,
             keys, values, S12_count, 0, 40);
+        err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_SK,
+            keys, values, S12_count, 0, sizeof(kmer) * 8);
+        temp_storage_size_S12 = std::max(temp_storage_size_S12, temp_storage_size_SK);
         CUERR_CHECK(err);
         // err = cub::DeviceRadixSort::SortKeys(nullptr, temp_storage_size_SK,
         //     key, S0_count + S12_count, index_decomposer{}, 0, sizeof(MergeSuffixes) * 8);
@@ -442,13 +483,13 @@ private:
 
     void copy_input()
     {
-        using kmer_t = uint64_t;
+        // using kmer_t = uint64_t;
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
 
             // Need the halo to the right for kmers...
-            size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
+            size_t copy_len = std::min(gpu.num_elements + sizeof(kmer), minput_len - gpu.offset);
 
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             cudaMemcpyAsync(gpu.pd_ptr.Input, minput + gpu.offset, copy_len, cudaMemcpyHostToDevice,
@@ -456,7 +497,7 @@ private:
             CUERR;
             if (gpu_index + 1 == NUM_GPUS)
             {
-                cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer_t),
+                cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer) * last_gpu_extra_elements,
                     mcontext.get_gpu_default_stream(gpu_index));
                 CUERR;
             }
@@ -467,40 +508,66 @@ private:
 
     void produce_kmers()
     {
+        thrust::device_vector<size_t> d_set_sizes = set_sizes;
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+            printf("[%u] produce kmer\n", gpu_index);
             SaGPU& gpu = mgpus[gpu_index];
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             //                kernels::produce_index_kmer_tuples _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))
             //                        ((char*)gpu.input, offset, gpu.pd_index, gpu.pd_kmers, gpu.num_elements); CUERR;
             // kernels::produce_index_kmer_tuples_12_64_dc7 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
             //     SDIV(gpu.num_elements, DCX::X * 2) * DCX::X * 2);
-            kernels::produce_index_kmer_tuples_12_64_dc7 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
-                SDIV(gpu.num_elements, 14) * 14);
+            // kernels::produce_index_kmer_tuples_12_64 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
+            //     SDIV(gpu.num_elements, 12) * 12);
+            // CUERR;
+            // for (size_t i = 0; i < DCX::C; i++)
+            // {
+            uint32_t* samplePos;
+            cudaMallocAsync(&samplePos, sizeof(uint32_t) * DCX::C, mcontext.get_gpu_default_stream(gpu_index));
+            cudaMemcpyAsync(samplePos, DCX::samplePosition, sizeof(uint32_t) * DCX::C, cudaMemcpyHostToDevice, mcontext.get_gpu_default_stream(gpu_index));
+            // size_t* samplesPerGPU;
+            // cudaMalloc(&samplesPerGPU, sizeof(uint32_t) * (DCX::C - 1));
+
+            // mgpus.back().pd_elements / DCX::C;
+            // for (size_t i = 0; i < mgpus.back().pd_elements % DCX::C; i++)
+            // {
+
+            // }
+            mcontext.sync_all_streams();
+            kernels::produce_index_kmer_tuples_12_64_dcx << <1, 1 >> > //_KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
+                ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<kmerDCX*>(gpu.pd_ptr.Sa_rank),
+                    gpu.pd_elements, samplePos, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
             CUERR;
+            cudaFreeAsync(samplePos, mcontext.get_gpu_default_stream(gpu_index));
+            mcontext.sync_all_streams();
+            printf("[%u] gpu_index\n", gpu_index);
+            // }
         }
 
-        kernels::fixup_last_six_12_kmers_64 << <1, 6, 0, mcontext.get_gpu_default_stream(NUM_GPUS - 1) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 6);
+        // kernels::fixup_last_three_12_kmers_64 << <1, 3, 0, mcontext.get_gpu_default_stream(NUM_GPUS - 1) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 3);
         mcontext.sync_default_streams();
         printf("elements: %lu\n", mgpus[0].num_elements);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<char*>(mgpus[gpu_index].pd_ptr.Sa_rank), mgpus[gpu_index].pd_ptr.Isa, mgpus[gpu_index].pd_elements + 2, gpu_index);
+            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(mgpus[gpu_index].pd_ptr.Sa_rank) + (mgpus[gpu_index].pd_elements - 5), mgpus[gpu_index].pd_ptr.Isa + (mgpus[gpu_index].pd_elements - 5), 5, gpu_index);
             mcontext.sync_default_streams();
         }
         // exit(1);
     }
 
 
+
+
     void prepare_S12_for_merge()
     {
         std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
-        std::array<All2AllNodeInfoT<MergeSuffixes, char, sa_index_t>, NUM_GPUS> all2all_node_info;
+        std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
 
-
+        cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 3, 0, cudaMemcpyHostToDevice);
         // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         // {
         //     SaGPU& gpu = mgpus[gpu_index];
@@ -511,111 +578,187 @@ private:
 
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
-
-        std::vector<sa_index_t> isaglob(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements);
-        size_t prefixsum = 0;
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
-            cudaSetDevice(mcontext.get_device_id(gpu_index));
-            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, gpu_index);
-            cudaMemcpy(isaglob.data() + prefixsum, gpu.prepare_S12_ptr.Isa, gpu.pd_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
-            prefixsum += gpu.pd_elements;
-            mcontext.sync_default_streams();
-            kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
-            CUERR;
-
-            multi_split_node_info[gpu_index].src_keys = gpu.prepare_S12_ptr.Isa;
-            // s12_result == sa_index 
-            multi_split_node_info[gpu_index].src_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result;
-            multi_split_node_info[gpu_index].src_len = gpu.pd_elements;
-
-            multi_split_node_info[gpu_index].dest_keys = (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2;
-            multi_split_node_info[gpu_index].dest_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half;
-            multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
-
-            mcontext.get_device_temp_allocator(gpu_index).init(gpu.prepare_S12_ptr.S12_buffer1,
-                mpd_reserved_len * sizeof(MergeSuffixes));
-        }
         std::vector<size_t> sa = naive_suffix_sort(minput_len, minput);
-        printf("size sa %lu\n", sa.size());
-        thrust::host_vector<sa_index_t> sampleSa(sa.size());
-        for (size_t i = 0; i < sa.size(); i++)
         {
-            sampleSa[i] = sa[i];
-        }
-        thrust::host_vector<sa_index_t> inverter(sampleSa.size());
-        for (size_t i = 0; i < inverter.size(); i++)
-        {
-            inverter[i] = i;
-        }
-        thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter.begin());
-        size_t satotal = 0;
-        for (size_t i = 0; i < sa.size(); i++)
-        {
-            for (size_t c = 0; c < DCX::C; c++)
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
-                if (i % DCX::X == DCX::samplePosition[c]) {
-                    sampleSa[satotal++] = ((sa_index_t)inverter[i]);
-                    printf("[%2lu]%c, %u: ", i, minput[i], (sa_index_t)inverter[i]);
-                    break;
+                SaGPU& gpu = mgpus[gpu_index];
+                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                uint32_t* sample_pos;
+                cudaMalloc(&sample_pos, sizeof(uint32_t) * DCX::C);
+                cudaMemcpy(sample_pos, DCX::samplePosition, sizeof(uint32_t) * DCX::C, cudaMemcpyHostToDevice);
+                mcontext.sync_default_streams();
+                // thrust::device_vector<size_t> d_set_sizes = set_sizes;
+                kernels::write_indices _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, set_sizes[0], sample_pos, mpd_per_gpu, gpu_index);
+                CUERR;
+
+                multi_split_node_info[gpu_index].src_keys = (sa_index_t*)gpu.prepare_S12_ptr.S12_result;
+                // s12_result == sa_index 
+                multi_split_node_info[gpu_index].src_values = gpu.prepare_S12_ptr.Isa;
+                multi_split_node_info[gpu_index].src_len = gpu.pd_elements;
+
+                multi_split_node_info[gpu_index].dest_keys = (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half;
+                multi_split_node_info[gpu_index].dest_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2;
+                multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
+
+                mcontext.get_device_temp_allocator(gpu_index).init(gpu.prepare_S12_ptr.S12_buffer1,
+                    mpd_reserved_len * sizeof(MergeSuffixes));
+            }
+
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+
+                // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, gpu_index);
+                mcontext.sync_all_streams();
+            }
+            PartitioningFunctor<sa_index_t> f(mper_gpu, NUM_GPUS - 1);
+
+            mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+
+            mcontext.sync_default_streams();
+
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                //                fprintf(stderr,"GPU %u, src: %zu, dest: %zu.\n", gpu_index, src_lens[gpu_index], dest_lens[gpu_index]);
+                all2all_node_info[gpu_index].src_keys = (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half;
+                all2all_node_info[gpu_index].src_values = (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2;
+                all2all_node_info[gpu_index].src_len = gpu.pd_elements;
+
+                all2all_node_info[gpu_index].dest_keys = (sa_index_t*)gpu.prepare_S12_ptr.S12_result;
+                all2all_node_info[gpu_index].dest_values = gpu.prepare_S12_ptr.Isa;
+                all2all_node_info[gpu_index].dest_len = gpu.pd_elements;
+            }
+
+            mall2all.execKVAsync(all2all_node_info, split_table);
+            mcontext.sync_all_streams();
+            std::vector<sa_index_t> isaglob(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
+            size_t prefixsum = 0;
+            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+            {
+                cudaSetDevice(mcontext.get_device_id(gpu_index));
+                SaGPU& gpu = mgpus[gpu_index];
+
+                size_t temp_storage_bytes = 0;
+                cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
+                    (sa_index_t*)gpu.prepare_S12_ptr.S12_result,
+                    (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
+                    gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2,
+                    gpu.pd_elements, 0, sizeof(sa_index_t) * 8,
+                    mcontext.get_gpu_default_stream(gpu_index));
+
+                void* temp;
+                cudaMalloc(&temp, temp_storage_bytes);
+                err = cub::DeviceRadixSort::SortPairs(temp, temp_storage_bytes,
+                    (sa_index_t*)gpu.prepare_S12_ptr.S12_result,
+                    (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
+                    gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2,
+                    gpu.pd_elements, 0, sizeof(sa_index_t) * 8,
+                    mcontext.get_gpu_default_stream(gpu_index));
+
+                if (gpu_index + 1 < NUM_GPUS) {
+                    kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, last_gpu_extra_elements);
+                    CUERR;
+
+                    cudaMemcpyAsync(isaglob.data() + prefixsum, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
+                }
+                else {
+                    gpu.pd_elements -= last_gpu_extra_elements;
+                    kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, last_gpu_extra_elements);
+                    CUERR;
+                    cudaMemcpyAsync(isaglob.data() + prefixsum, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
+                }
+                cudaFreeAsync(temp, mcontext.get_gpu_default_stream(gpu_index));
+                prefixsum += gpu.pd_elements;
+            }
+            mcontext.sync_all_streams();
+            // for (auto& i : isaglob)
+            // {
+            //     i -= 2;
+            // }
+
+            size_t per_set = 0;
+
+            printf("size sa %lu\n", sa.size());
+            thrust::host_vector<sa_index_t> sampleSa(sa.size());
+            for (size_t i = 0; i < sa.size(); i++)
+            {
+                sampleSa[i] = sa[i];
+            }
+            thrust::host_vector<sa_index_t> inverter(sampleSa.size());
+            for (size_t i = 0; i < inverter.size(); i++)
+            {
+                inverter[i] = i;
+            }
+            thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter.begin());
+            size_t satotal = 0;
+            for (size_t i = 0; i < sa.size(); i++)
+            {
+                for (size_t c = 0; c < DCX::C; c++)
+                {
+                    if (i % DCX::X == DCX::samplePosition[c]) {
+                        sampleSa[satotal++] = ((sa_index_t)inverter[i]);
+                        // printf("[%2lu]%c, %u: ", i, minput[i], (sa_index_t)inverter[i]);
+                        break;
+                    }
                 }
             }
-        }
-        sampleSa.resize(satotal);
+            sampleSa.resize(satotal);
 
-        thrust::host_vector<sa_index_t> inverter2(sampleSa.size());
-        for (size_t i = 0; i < inverter2.size(); i++)
-        {
-            inverter2[i] = i;
-        }
-        thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter2.begin());
-        for (size_t i = 0; i < sampleSa.size(); i++)
-        {
-            sampleSa[i] = i + 1;
-        }
-        thrust::sort_by_key(inverter2.begin(), inverter2.end(), sampleSa.begin());
-        printf("\n");
-
-        for (size_t i = 0; i < sampleSa.size(); i++)
-        {
-            printf("isa2 %lu: %u\n", i, sampleSa[i]);
-        }
-
-        for (size_t i = 0; i < isaglob.size(); i++)
-        {
-            printf("isa %lu: %u\n", i, isaglob[i]);
-        }
-
-        isaglob.resize(prefixsum);
-        isaglob.shrink_to_fit();
-        size_t max_prints = 0;
-        for (size_t i = 0; i < isaglob.size(); i++)
-        {
-            if (isaglob[i] != sampleSa[i] && max_prints < 10) {
-                printf("isa[%lu] %u != %u real Isa\n", i, isaglob[i], sampleSa[i]);
+            thrust::host_vector<sa_index_t> inverter2(sampleSa.size());
+            for (size_t i = 0; i < inverter2.size(); i++)
+            {
+                inverter2[i] = i;
             }
-            if (isaglob[i] != sampleSa[i]) {
-                max_prints++;
+            thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter2.begin());
+            for (size_t i = 0; i < sampleSa.size(); i++)
+            {
+                sampleSa[i] = i + 1;
             }
+            thrust::sort_by_key(inverter2.begin(), inverter2.end(), sampleSa.begin());
+            printf("\n");
+
+            // for (size_t i = 0; i < sampleSa.size(); i++)
+            // {
+            //     printf("isa2 %lu: %u\n", i, sampleSa[i]);
+            // }
+
+            // for (size_t i = 0; i < isaglob.size(); i++)
+            // {
+            //     printf("isa %lu: %u\n", i, isaglob[i]);
+            // }
+
+            isaglob.resize(prefixsum);
+            isaglob.shrink_to_fit();
+            size_t max_prints = 0;
+            for (size_t i = 0; i < isaglob.size(); i++)
+            {
+                if (isaglob[i] != sampleSa[i] && max_prints < 10) {
+                    printf("isa[%lu] %u != %u real Isa\n", i, isaglob[i], sampleSa[i]);
+                }
+                if (isaglob[i] != sampleSa[i]) {
+                    max_prints++;
+                }
+            }
+            printf("wrong: %lu\n", max_prints);
+            if (std::equal(isaglob.begin(), isaglob.end(), sampleSa.begin(), sampleSa.end())) {
+                printf("equal isa!\n");
+            }
+
+            std::sort(isaglob.begin(), isaglob.end());
+            std::vector<sa_index_t> compareIsa(isaglob.size());
+            for (size_t i = 0; i < compareIsa.size(); i++)
+            {
+                compareIsa[i] = i + 1;
+            }
+
+            bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
+            bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
+            printf("contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
+            printf("mpd_per_gpu: %lu\n", mpd_per_gpu);
+
         }
-        printf("wrong: %lu\n", max_prints);
-        // if (std::equal(isaglob.begin(), isaglob.end(), sampleSa.begin(), sampleSa.end())) {
-        //     printf("equal isa!\n");
-        // }
-
-        std::sort(isaglob.begin(), isaglob.end());
-        std::vector<sa_index_t> compareIsa(isaglob.size());
-        for (size_t i = 0; i < compareIsa.size(); i++)
-        {
-            compareIsa[i] = i + 1;
-        }
-
-        bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
-        bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
-        printf("contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
-        printf("mpd_per_gpu: %lu\n", mpd_per_gpu);
-
         D_DCX* dcx;
         cudaMalloc(&dcx, sizeof(D_DCX));
         cudaMemcpy(dcx->inverseSamplePosition, DCX::inverseSamplePosition, DCX::X * sizeof(uint32_t), cudaMemcpyHostToDevice);
@@ -624,8 +767,7 @@ private:
         cudaMemcpy(dcx->samplePosition, DCX::samplePosition, DCX::C * sizeof(uint32_t), cudaMemcpyHostToDevice);
 
         mcontext.sync_default_streams();
-
-        std::array<MergeSuffixes*, NUM_GPUS> skSample;
+        // std::array<MergeSuffixes*, NUM_GPUS> skSample;
 
         // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         // {
@@ -662,16 +804,16 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             std::vector<char> inputGPU(gpu.num_elements);
             cudaMemcpy(inputGPU.data(), gpu.prepare_S12_ptr.Input, gpu.num_elements, cudaMemcpyDeviceToHost);
-            for (size_t i = 0; i < inputGPU.size(); i++)
-            {
+            // for (size_t i = 0; i < inputGPU.size(); i++)
+            // {
                 // printf("[%lu] input[%lu]: %c\n", gpu_index, i, inputGPU[i]);
-            }
+            // }
 
-            const sa_index_t* next_Isa = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
+            const sa_index_t* next_Isa = (gpu_index + 1 < NUM_GPUS) ? (sa_index_t*)mgpus[gpu_index + 1].prepare_S12_ptr.S12_buffer2 : nullptr;
             const unsigned char* next_Input = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Input : nullptr;
 
             kernels::prepare_SK_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result,
-                gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input,
+                (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.prepare_S12_ptr.Input,
                 next_Isa, next_Input, gpu.offset, gpu.num_elements,
                 thrust::raw_pointer_cast(merge_tuple_vec[gpu_index].data()), gpu.pd_elements, dcx);
             prefix_sum += gpu.pd_elements;
@@ -694,7 +836,7 @@ private:
                 // printf("count2 %lu\n", count2);
 
                 kernels::prepare_non_sample _KLC_SIMPLE_(count2, mcontext.get_gpu_default_stream(gpu_index))
-                    (gpu.prepare_S12_ptr.Isa, gpu.prepare_S12_ptr.Input, next_Isa, next_Input, gpu.offset, gpu.num_elements,
+                    ((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.prepare_S12_ptr.Input, next_Isa, next_Input, gpu.offset, gpu.num_elements,
                         gpu.pd_elements,
                         thrust::raw_pointer_cast(merge_tuple_vec[gpu_index].data()) + gpu.pd_elements + noSampleCount, count2, DCX::nextNonSample[i], DCX::inverseSamplePosition[i]);
                 CUERR;
@@ -733,11 +875,15 @@ private:
             });
         printf("realy sorted %s\n", is_correct ? "true" : "false");
         printf("sa size: %lu, %lu", sa.size(), host_tuples.size());
+        std::vector<sa_index_t> fakeSa(host_tuples.size());
+
         for (size_t i = 0; i < host_tuples.size(); i++)
         {
-            printf("[%2lu] sa: %2lu, real %2lu\n", i, host_tuples[i].index, sa[i]);
+            fakeSa[i] = host_tuples[i].index;
+            // printf("[%2lu] sa: %2lu, real %2lu\n", i, host_tuples[i].index, sa[i]);
         }
-
+        const std::vector<sa_index_t> constSa = fakeSa;
+        write_array("outDCX.out", constSa.data(), constSa.size());
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
@@ -760,7 +906,7 @@ private:
         // }
         // comm_world().barrier();
 
-        exit(0);
+        // exit(0);
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
         //            dump_prepare_s12("After preparing S12");
@@ -1129,7 +1275,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
     cudaSetDevice(0);
     size_t realLen;
-    size_t maxLength = size_t(1024) * size_t(1 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(5 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
@@ -1146,15 +1292,15 @@ int main(int argc, char** argv)
     sorter.alloc();
 
     sorter.do_sa();
-    for (int i = 0; i < realLen; i++) {
-        printf("%s\n", input + sorter.get_result()[i]);
-    }
-    write_array(argv[1], sorter.get_result(), realLen);
+    // for (int i = 0; i < realLen; i++) {
+    //     printf("%s\n", input + sorter.get_result()[i]);
+    // }
+    // write_array(argv[1], sorter.get_result(), realLen);
 
-    sorter.done();
+    // sorter.done();
 
-    sorter.print_pd_stats();
-    sorter.get_perf_measurements().print(argv[2]);
+    // sorter.print_pd_stats();
+    // sorter.get_perf_measurements().print(argv[2]);
 
     cudaFreeHost(input);
     CUERR;

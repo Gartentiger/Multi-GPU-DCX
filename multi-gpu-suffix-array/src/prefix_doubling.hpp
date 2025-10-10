@@ -217,8 +217,8 @@ public:
         mhost_temp_mem = (sa_index_t*)mmemory_manager.get_host_temp_mem().first;
         mhost_temp_mem_size = mmemory_manager.get_host_temp_mem().second;
         mhost_temp_pinned_allocator.init(mhost_temp_mem, mhost_temp_mem_size);
-
-        mwrite_isa_sort_high_bit = std::min(sa_index_t(log2(float(misa_divisor))) + 1,
+        size_t max_length_per_gpu = std::max(misa_divisor, last_gpu_len);
+        mwrite_isa_sort_high_bit = std::min(sa_index_t(log2(float(max_length_per_gpu))) + 1,
             sa_index_t(sizeof(sa_index_t) * 8));
 
         mgpus[0].offset = 0;
@@ -316,8 +316,9 @@ public:
     size_t sort(sa_index_t h_initial)
     {
 
-        initial_sort_64();
 
+        // initial_sort_64();
+        initial_sort_dcx();
 #ifdef DUMP_EVERYTHING
         dump("After initial sort");
 #endif
@@ -517,8 +518,8 @@ private:
     void initial_sort_64()
     {
 
-        const size_t SORT_DOWN_TO = 16;// 16;
-        const size_t SORT_DOWN_TO_LAST = 16;//= 13;
+        const size_t SORT_DOWN_TO = 0;// 16;
+        const size_t SORT_DOWN_TO_LAST = 0;//= 13;
 
         using initial_merge_types = crossGPUReMerge::mergeTypes<uint64_t, sa_index_t>;
         using InitialMergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, initial_merge_types, ReMergeTopology>;
@@ -591,10 +592,10 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU gpu = mgpus[gpu_index];
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
-            mcontext.sync_default_streams();
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
-            mcontext.sync_default_streams();
+            // printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
+            // mcontext.sync_default_streams();
+            // printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
+            // mcontext.sync_default_streams();
         }
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
         mcontext.sync_default_streams();
@@ -602,31 +603,116 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU gpu = mgpus[gpu_index];
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
-            mcontext.sync_default_streams();
-            printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
-
-            mcontext.sync_default_streams();
+            // printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
+            // mcontext.sync_default_streams();
+            // printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
+            // mcontext.sync_default_streams();
         }
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 
-    void write_initial_ranks()
+    void initial_sort_dcx()
     {
-        using rank_t = uint64_t;
+
+        using initial_merge_types = crossGPUReMerge::mergeTypes<kmerDCX, sa_index_t>;
+        using InitialMergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, initial_merge_types, ReMergeTopology>;
+        using InitialMergeNodeInfo = crossGPUReMerge::MergeNodeInfo<initial_merge_types>;
+
+        TIMER_START_MAIN_STAGE(MainStages::Initial_Sort);
+
+        InitialMergeManager merge_manager(mcontext, mhost_temp_pinned_allocator);
+
+        std::array<InitialMergeNodeInfo, NUM_GPUS> merge_nodes_info;
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
             cudaSetDevice(mcontext.get_device_id(gpu_index));
 
-            const rank_t* last_element_prev = nullptr;
+            size_t temp_storage_bytes = 0;
+
+            cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
+                reinterpret_cast<kmerDCX*>(gpu.Sa_rank),
+                reinterpret_cast<kmerDCX*>(gpu.Old_ranks),
+                gpu.Isa,
+                gpu.Sa_index,
+                gpu.working_len,
+                DCXKmerDecomposer{}, 0, sizeof(kmerDCX) * 8,
+                mcontext.get_gpu_default_stream(gpu.index));
+
+            CUERR_CHECK(err);
+            //                if (gpu_index == 0) {
+            //                    printf("\nTemp storage required for initial sort: %zu bytes, available: %zu.\n", temp_storage_bytes,
+            //                           (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t));
+            //                }
+
+            ASSERT(temp_storage_bytes <= (3 * mreserved_len + madditional_temp_storage_size) * sizeof(sa_index_t));
+            //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
+            err = cub::DeviceRadixSort::SortPairs(gpu.Temp2, temp_storage_bytes,
+                reinterpret_cast<kmerDCX*>(gpu.Sa_rank),
+                reinterpret_cast<kmerDCX*>(gpu.Old_ranks),
+                gpu.Isa,
+                gpu.Sa_index,
+                gpu.working_len,
+                DCXKmerDecomposer{}, 0, sizeof(kmerDCX) * 8,
+                mcontext.get_gpu_default_stream(gpu.index));
+            CUERR_CHECK(err);
+            // Now Sa_rank is sorted to Old_ranks,
+            // Isa is sorted to Sa_Index
+            // Temp2, 3, 4 used as temp space
+            //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
+            merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
+                                           reinterpret_cast<kmerDCX*>(gpu.Old_ranks), gpu.Sa_index,
+                                           reinterpret_cast<kmerDCX*>(gpu.Sa_rank), gpu.Isa,
+                                           reinterpret_cast<kmerDCX*>(gpu.Temp2), gpu.Temp4 };
+            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp2, mreserved_len * 3 * sizeof(sa_index_t));
+        }
+        merge_manager.set_node_info(merge_nodes_info);
+
+        mcontext.sync_default_streams();
+        TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
+
+        TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
+
+        std::vector<crossGPUReMerge::MergeRange> ranges;
+        ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
+        printf("before init merging\n");
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU gpu = mgpus[gpu_index];
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
+            // mcontext.sync_default_streams();
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
+            // mcontext.sync_default_streams();
+        }
+        merge_manager.merge(ranges, KmerComparator{});
+        mcontext.sync_default_streams();
+        printf("after init merging\n");
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU gpu = mgpus[gpu_index];
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
+            // mcontext.sync_default_streams();
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
+            // mcontext.sync_default_streams();
+        }
+        TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
+    }
+
+    void write_initial_ranks()
+    {
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
+            cudaSetDevice(mcontext.get_device_id(gpu_index));
+
+            const kmer* last_element_prev = nullptr;
             if (gpu_index > 0)
             {
-                last_element_prev = &reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
+                last_element_prev = &reinterpret_cast<const kmer*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
             }
 
-            kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const rank_t*>(gpu.Old_ranks), last_element_prev, gpu.offset + 1, 0, gpu.Temp1, gpu.working_len);
+            kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const kmer*>(gpu.Old_ranks), last_element_prev, gpu.offset + 1, 0, gpu.Temp1, gpu.working_len);
             CUERR;
         }
         mcontext.sync_default_streams();
@@ -693,7 +779,7 @@ private:
         {
             SaGPU& gpu = mgpus[gpu_index];
 
-            printArrayss << <1, 1 >> > (reinterpret_cast<char*>(gpu.Old_ranks), gpu.Sa_rank, gpu.working_len, gpu_index);
+            // printArrayss << <1, 1 >> > (reinterpret_cast<kmer*>(gpu.Old_ranks), gpu.Sa_rank, gpu.working_len, gpu_index);
             mcontext.sync_default_streams();
 
         }
@@ -708,7 +794,7 @@ private:
             cudaSetDevice(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-}
+        }
         mcontext.sync_default_streams();
 #endif
 
@@ -901,8 +987,8 @@ private:
     void write_to_isa(bool initial = false)
     {
         const sa_index_t sort_threshold = 524288; // empirically, could need adjusting
-        const sa_index_t low_bit = 0;//: 13;
-        const sa_index_t high_bit = sa_index_t(sizeof(sa_index_t));//mwrite_isa_sort_high_bit;
+        const sa_index_t low_bit = 13;
+        const sa_index_t high_bit = mwrite_isa_sort_high_bit;
 
         std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
         std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
@@ -997,8 +1083,10 @@ private:
                 cub::DeviceRadixSort::SortPairs(nullptr, temp_storage, d_keys, d_values, dest_lens[gpu_index],
                     low_bit, high_bit, mcontext.get_gpu_default_stream(gpu_index));
 
+                printf("[%u] need: %lu, avail: %lu\n", gpu_index, temp_storage, (mreserved_len * 2 + madditional_temp_storage_size) * sizeof(sa_index_t));
                 //                    printf("Write to ISA: temp storage: %zu, reserved_len*2: %zu\n", temp_storage, mreserved_len*2);
-                ASSERT(temp_storage <= (mreserved_len * 2 + madditional_temp_storage_size) * sizeof(sa_index_t));
+
+                // ASSERT(temp_storage <= (mreserved_len * 2 + madditional_temp_storage_size) * sizeof(sa_index_t));
 
                 cub::DeviceRadixSort::SortPairs(gpu.Temp3, temp_storage, d_keys, d_values, dest_lens[gpu_index],
                     low_bit, high_bit, mcontext.get_gpu_default_stream(gpu_index));
@@ -1227,10 +1315,17 @@ private:
 
         // Sort in-place: Sa_rank, Sa_index
         // Uses: Temp2, Temp3, Temp4
-        mgpu::less_t<sa_index_t> less;
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU& gpu = mgpus[gpu_index];
 
+        //     printArrayss << <1, 1 >> > (gpu.Sa_rank, gpu.Sa_index, gpu.working_len, gpu_index);
+        //     mcontext.sync_default_streams();
+        // }
+        mgpu::less_t<sa_index_t> less;
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
+
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 1)
             {
@@ -1243,7 +1338,15 @@ private:
                     gpu.num_segments, less, mgpu_context);
             }
         }
+        mcontext.sync_default_streams();
+        printf("after seg sort\n");
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
 
+            // printArrayss << <1, 1 >> > (gpu.Sa_rank, gpu.Sa_index, gpu.working_len, gpu_index);
+            mcontext.sync_default_streams();
+        }
         // Now let's plan the merge process.
         std::vector<crossGPUReMerge::MergeRange> ranges;
 

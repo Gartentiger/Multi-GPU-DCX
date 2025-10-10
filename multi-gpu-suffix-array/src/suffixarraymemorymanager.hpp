@@ -145,9 +145,10 @@ public:
 
     void alloc(size_t input_len, size_t min_gpu_len, size_t min_pd_len, size_t min_S0_len, bool zero) {
 
+        // count elements so min_pd_len is 256 byte aligned
         mpd_array_aligned_len = align_len(min_pd_len, sizeof(sa_index_t));
         minput_aligned_len = align_len(min_gpu_len, 1);
-
+        printf("per gpu bytes for kmer: %lu, minput_aligned_len: %lu\n", mpd_array_aligned_len * sizeof(sa_index_t), minput_aligned_len);
         mhalf_merge_suffix_s12_aligned_len = align_len(min_pd_len, HALF_MERGE_STAGE_SUFFIX_SIZE);
         mhalf_merge_suffix_s0_aligned_len = align_len(min_S0_len, HALF_MERGE_STAGE_SUFFIX_SIZE);
 

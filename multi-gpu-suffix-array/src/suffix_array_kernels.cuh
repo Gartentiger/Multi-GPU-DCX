@@ -38,16 +38,17 @@ namespace kernels {
     __global__ void produce_index_kmer_tuples_12(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         sa_index_t* Output_kmers, size_t N);
 
-    __global__ void produce_index_kmer_tuples_12_64(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
-        ulong1* Output_kmers, size_t N);
-
+    __global__ void produce_index_kmer_tuples_12_64_dcx(const unsigned char* Input, sa_index_t start_index, sa_index_t* Output_index,
+        kmerDCX* Output_kmers, size_t N, sa_index_t* period, size_t rank, size_t* set_sizes, size_t set_per_gpu, size_t input_len, size_t mpd_reserved_len);
     __global__ void produce_index_kmer_tuples_12_64_dc7(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
+        ulong1* Output_kmers, size_t N);
+    __global__ void produce_index_kmer_tuples_12_64(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N);
 
     __global__ void fixup_last_two_12_kmers(sa_index_t* address);
 
     __global__ void fixup_last_four_12_kmers_64(ulong1* address);
-    __global__ void fixup_last_six_12_kmers_64(ulong1* address);
+    __global__ void fixup_last_three_12_kmers_64(ulong1* address);
 
     __global__ void prepare_S12(const sa_index_t* Isa, const unsigned char* Input,
         const sa_index_t* next_Isa, const unsigned char* next_input,
@@ -69,7 +70,8 @@ namespace kernels {
         MergeStageSuffixS12HalfKey* out_keys, MergeStageSuffixS12HalfValue* out_values, size_t N);
 
     __global__ void write_indices(sa_index_t* Out, size_t N);
-
+    __global__ void write_indices(sa_index_t* Out, size_t N, size_t set_size, uint32_t* samplePos, size_t mpd_per_gpu, size_t rank);
+    __global__ void write_indices_sub2(sa_index_t* Out, size_t N, size_t last_gpu_extra_elements);
     __global__ void write_S12_back(const MergeStageSuffixS12* inp, MergeStageSuffix* outp, size_t base_offset, size_t N);
 
     __global__ void prepare_non_sample(const sa_index_t* Isa, const unsigned char* Input,
