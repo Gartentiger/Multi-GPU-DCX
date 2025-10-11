@@ -160,6 +160,11 @@ public:
         mmerge_suffix_s0_aligned_len = align_len(two_halves_s0_len, sizeof(MergeStageSuffix));
 
         size_t pd_total_bytes = NUM_PD_ARRAYS * mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len;
+        // only for dcx with x>7 necessariy because sa_rank + temp1, old_ranks + segment_heads are both one array of size
+        // mpd_array_aligned_len * sizeof(uint64_t). If sizeof(kmer)>sizeof(uint64_t) <=> x>7  we need more storage
+        const size_t arrays_for_kmer = (sizeof(kmerDCX) + sizeof(sa_index_t) - 1) / sizeof(sa_index_t);
+        // 2 * isa + input + 2 * kmer arrays for initial sort
+        size_t initial_sort_kmer_produce_extra = 2 * mpd_array_aligned_len + minput_aligned_len + 2 * arrays_for_kmer * mpd_array_aligned_len * sizeof(sa_index_t);
 
         size_t prepareS12_total_bytes = mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len +
             3 * sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len;
@@ -254,17 +259,23 @@ private:
         ASSERT(8 * mpd_array_aligned_len * sizeof(sa_index_t) < misa_offset);
 
         PDArrays arr;
-
+        // one before last
         arr.Isa = (sa_index_t*)(base + misa_offset);
+        // last
         arr.Input = (base + minput_offset);
+
         arr.Sa_index = (sa_index_t*)(base);
+
         arr.Old_ranks = (sa_index_t*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t));
         arr.Segment_heads = (sa_index_t*)(base + 2 * mpd_array_aligned_len * sizeof(sa_index_t));
+
         arr.Sa_rank = (sa_index_t*)(base + 3 * mpd_array_aligned_len * sizeof(sa_index_t));
         arr.Temp1 = (sa_index_t*)(base + 4 * mpd_array_aligned_len * sizeof(sa_index_t));
+
         arr.Temp2 = (sa_index_t*)(base + 5 * mpd_array_aligned_len * sizeof(sa_index_t));
         arr.Temp3 = (sa_index_t*)(base + 6 * mpd_array_aligned_len * sizeof(sa_index_t));
         arr.Temp4 = (sa_index_t*)(base + 7 * mpd_array_aligned_len * sizeof(sa_index_t));
+        // after this additional storage
         return arr;
     }
 

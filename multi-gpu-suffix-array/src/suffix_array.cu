@@ -370,7 +370,6 @@ public:
         ms0_reserved_len = std::max(ms0_reserved_len, SDIV(cub_temp_mem.first, sizeof(MergeSuffixes)));
         mpd_reserved_len = std::max(mpd_reserved_len, SDIV(cub_temp_mem.second, sizeof(MergeSuffixes)));
         printf("mpd_reserved_len after cub temp: %lu\n", mpd_reserved_len);
-        mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true);
         mpd_per_gpu = (mper_gpu / DCX::X) * DCX::C;
 
         size_t pd_total_len = 0, offset = 0, pd_offset = 0;
@@ -409,6 +408,7 @@ public:
             printf("%lu bytes for kmer: %lu\n", i, mgpus[i].pd_elements * sizeof(kmerDCX));
         }
 
+        mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true);
 
         set_sizes.resize(DCX::C);
         for (size_t i = 0; i < DCX::C; i++)
@@ -497,7 +497,7 @@ private:
             CUERR;
             if (gpu_index + 1 == NUM_GPUS)
             {
-                cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer) * last_gpu_extra_elements,
+                cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer),
                     mcontext.get_gpu_default_stream(gpu_index));
                 CUERR;
             }
@@ -539,6 +539,7 @@ private:
                 ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<kmerDCX*>(gpu.pd_ptr.Sa_rank),
                     gpu.pd_elements, samplePos, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
             CUERR;
+
             cudaFreeAsync(samplePos, mcontext.get_gpu_default_stream(gpu_index));
             mcontext.sync_all_streams();
             printf("[%u] gpu_index\n", gpu_index);
@@ -1275,7 +1276,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
     cudaSetDevice(0);
     size_t realLen;
-    size_t maxLength = size_t(1024 * 1024) * size_t(5 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(50 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
