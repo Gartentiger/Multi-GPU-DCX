@@ -386,7 +386,7 @@ struct KmerComparator
                 return false;
             }
         }
-        return true;
+        return false;
     }
 };
 

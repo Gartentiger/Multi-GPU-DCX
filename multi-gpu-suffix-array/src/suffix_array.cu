@@ -25,7 +25,7 @@
 #include "thrust/sort.h"
 #include "thrust/host_vector.h"
 #include "dcx_data_generation.hpp"
-static const uint NUM_GPUS = 2;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -578,7 +578,7 @@ private:
 
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
-        std::vector<size_t> sa(minput_len);// = naive_suffix_sort(minput_len, minput);
+        std::vector<size_t> sa(minput_len); //= naive_suffix_sort(minput_len, minput);
         {
             for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
@@ -1285,7 +1285,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0 };
+    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #endif
     SuffixSorter sorter(context, realLen, input);
