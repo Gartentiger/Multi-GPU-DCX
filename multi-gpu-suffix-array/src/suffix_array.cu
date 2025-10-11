@@ -30,7 +30,7 @@
 #include <chrono>
 // #include <nvToolsExt.h>
 #include "moderngpu/kernel_mergesort.hxx"
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 2;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -447,7 +447,37 @@ private:
         std::array<All2AllNodeInfoT<MergeStageSuffixS12HalfKey, MergeStageSuffixS12HalfValue, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
+        {
+            mcontext.sync_all_streams();
+            size_t workinLen = 0;
+            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                workinLen += gpu.pd_elements;
+            }
+            std::vector<sa_index_t> k(workinLen);
+            size_t prefix_sum = 0;
+            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+            {
+                SaGPU& gpu = mgpus[gpu_index];
+                cudaMemcpy(k.data() + prefix_sum, gpu.prepare_S12_ptr.Isa, sizeof(sa_index_t) * gpu.pd_elements, cudaMemcpyDeviceToHost);
+                prefix_sum += gpu.pd_elements;
+            }
 
+            char fileName[18];
+            const char* text = "ISA";
+            sprintf(fileName, "%s", text);
+            std::ofstream out(fileName, std::ios::binary);
+            if (!out) {
+                std::cerr << "Could not open file\n";
+                //return 1;
+            }
+            printf("sa isa length: %lu\n", k.size());
+
+            out.write(reinterpret_cast<char*>(k.data()), sizeof(sa_index_t) * k.size());
+            out.close();
+
+        }
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -683,67 +713,67 @@ private:
     void final_merge()
     {
         distrib_merge::DistributedArray<MergeStageSuffix, int, sa_index_t, NUM_GPUS> inp_S12, inp_S0, result;
-        {
-            mcontext.sync_all_streams();
-            size_t workinLen = 0;
-            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-            {
-                SaGPU& gpu = mgpus[gpu_index];
-                workinLen += gpu.pd_elements;
-            }
-            std::vector<MergeStageSuffix> k(workinLen);
-            size_t prefix_sum = 0;
-            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-            {
-                SaGPU& gpu = mgpus[gpu_index];
-                cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S12_result, sizeof(MergeStageSuffix) * gpu.pd_elements, cudaMemcpyDeviceToHost);
-                prefix_sum += gpu.pd_elements;
-            }
+        // {
+        //     mcontext.sync_all_streams();
+        //     size_t workinLen = 0;
+        //     for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        //     {
+        //         SaGPU& gpu = mgpus[gpu_index];
+        //         workinLen += gpu.pd_elements;
+        //     }
+        //     std::vector<MergeStageSuffix> k(workinLen);
+        //     size_t prefix_sum = 0;
+        //     for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        //     {
+        //         SaGPU& gpu = mgpus[gpu_index];
+        //         cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S12_result, sizeof(MergeStageSuffix) * gpu.pd_elements, cudaMemcpyDeviceToHost);
+        //         prefix_sum += gpu.pd_elements;
+        //     }
 
-            char fileName[18];
-            const char* text = "S12Main";
-            sprintf(fileName, "%s", text);
-            std::ofstream out(fileName, std::ios::binary);
-            if (!out) {
-                std::cerr << "Could not open file\n";
-                //return 1;
-            }
-            printf("sa isa length: %lu\n", k.size());
+        //     char fileName[18];
+        //     const char* text = "S12Main";
+        //     sprintf(fileName, "%s", text);
+        //     std::ofstream out(fileName, std::ios::binary);
+        //     if (!out) {
+        //         std::cerr << "Could not open file\n";
+        //         //return 1;
+        //     }
+        //     printf("sa isa length: %lu\n", k.size());
 
-            out.write(reinterpret_cast<char*>(k.data()), sizeof(MergeStageSuffix) * k.size());
-            out.close();
+        //     out.write(reinterpret_cast<char*>(k.data()), sizeof(MergeStageSuffix) * k.size());
+        //     out.close();
 
-        } {
-            mcontext.sync_all_streams();
-            size_t workinLen = 0;
-            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-            {
-                SaGPU& gpu = mgpus[gpu_index];
-                workinLen += gpu.num_elements - gpu.pd_elements;
-            }
-            std::vector<MergeStageSuffix> k(workinLen);
-            size_t prefix_sum = 0;
-            for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-            {
-                SaGPU& gpu = mgpus[gpu_index];
-                cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S0_result, sizeof(MergeStageSuffix) * (gpu.num_elements - gpu.pd_elements), cudaMemcpyDeviceToHost);
-                prefix_sum += gpu.num_elements - gpu.pd_elements;
-            }
+        // } {
+        //     mcontext.sync_all_streams();
+        //     size_t workinLen = 0;
+        //     for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        //     {
+        //         SaGPU& gpu = mgpus[gpu_index];
+        //         workinLen += gpu.num_elements - gpu.pd_elements;
+        //     }
+        //     std::vector<MergeStageSuffix> k(workinLen);
+        //     size_t prefix_sum = 0;
+        //     for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        //     {
+        //         SaGPU& gpu = mgpus[gpu_index];
+        //         cudaMemcpy(k.data() + prefix_sum, gpu.merge_ptr.S0_result, sizeof(MergeStageSuffix) * (gpu.num_elements - gpu.pd_elements), cudaMemcpyDeviceToHost);
+        //         prefix_sum += gpu.num_elements - gpu.pd_elements;
+        //     }
 
-            char fileName[18];
-            const char* text = "S0Main";
-            sprintf(fileName, "%s", text);
-            std::ofstream out(fileName, std::ios::binary);
-            if (!out) {
-                std::cerr << "Could not open file\n";
-                //return 1;
-            }
-            printf("sa isa length: %lu\n", k.size());
+        //     char fileName[18];
+        //     const char* text = "S0Main";
+        //     sprintf(fileName, "%s", text);
+        //     std::ofstream out(fileName, std::ios::binary);
+        //     if (!out) {
+        //         std::cerr << "Could not open file\n";
+        //         //return 1;
+        //     }
+        //     printf("sa isa length: %lu\n", k.size());
 
-            out.write(reinterpret_cast<char*>(k.data()), sizeof(MergeStageSuffix) * k.size());
-            out.close();
+        //     out.write(reinterpret_cast<char*>(k.data()), sizeof(MergeStageSuffix) * k.size());
+        //     out.close();
 
-        }
+        // }
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
@@ -1225,7 +1255,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
     cudaSetDevice(0);
     size_t realLen;
-    size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(5 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
@@ -1235,8 +1265,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else 
-    // const std::array<uint, NUM_GPUS> gpu_ids{ 0,0,0,0 };
-    MultiGPUContext<NUM_GPUS> context;
+    const std::array<uint, NUM_GPUS> gpu_ids{ 0,0 };
+    MultiGPUContext<NUM_GPUS> context(&gpu_ids);
     // alltoallMeasure(context, std::stoi(argv[1]));
     // return 0;
     // sample_sort_merge_measure(context);
