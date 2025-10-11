@@ -518,8 +518,8 @@ private:
     void initial_sort_64()
     {
 
-        const size_t SORT_DOWN_TO = 0;// 16;
-        const size_t SORT_DOWN_TO_LAST = 0;//= 13;
+        const size_t SORT_DOWN_TO = 16;
+        const size_t SORT_DOWN_TO_LAST = 13;
 
         using initial_merge_types = crossGPUReMerge::mergeTypes<uint64_t, sa_index_t>;
         using InitialMergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, initial_merge_types, ReMergeTopology>;
@@ -1086,7 +1086,7 @@ private:
                 printf("[%u] need: %lu, avail: %lu\n", gpu_index, temp_storage, (mreserved_len * 2 + madditional_temp_storage_size) * sizeof(sa_index_t));
                 //                    printf("Write to ISA: temp storage: %zu, reserved_len*2: %zu\n", temp_storage, mreserved_len*2);
 
-                // ASSERT(temp_storage <= (mreserved_len * 2 + madditional_temp_storage_size) * sizeof(sa_index_t));
+                ASSERT(temp_storage <= (mreserved_len * 2 + madditional_temp_storage_size) * sizeof(sa_index_t));
 
                 cub::DeviceRadixSort::SortPairs(gpu.Temp3, temp_storage, d_keys, d_values, dest_lens[gpu_index],
                     low_bit, high_bit, mcontext.get_gpu_default_stream(gpu_index));

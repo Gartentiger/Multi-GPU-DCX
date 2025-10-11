@@ -403,7 +403,7 @@ public:
         // makes kmers easier because the set_sizes are now always set_sizes[0]=...=set_sizes[N-2]=set_sizes[N-1]+1=pd_elements/DCX::C
         last_gpu_extra_elements = DCX::C - last_gpu_add_pd_elements - 1 + DCX::C;
         mgpus.back().pd_elements = (last_gpu_elems / DCX::X) * DCX::C + last_gpu_add_pd_elements + last_gpu_extra_elements;
-        // mpd_per_gpu_max_bit = std::min(sa_index_t(log2(float(mpd_per_gpu + last_gpu_extra_elements))) + 1, sa_index_t(sizeof(sa_index_t) * 8));
+        mpd_per_gpu_max_bit = std::min(sa_index_t(log2((NUM_GPUS - 1) * mpd_per_gpu + mgpus.back().pd_elements)) + 3, sa_index_t(sizeof(sa_index_t) * 8));
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
             printf("%lu bytes for kmer: %lu\n", i, mgpus[i].pd_elements * sizeof(kmerDCX));
@@ -578,7 +578,7 @@ private:
 
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
-        std::vector<size_t> sa = naive_suffix_sort(minput_len, minput);
+        std::vector<size_t> sa(minput_len);// = naive_suffix_sort(minput_len, minput);
         {
             for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
@@ -645,7 +645,7 @@ private:
                     (sa_index_t*)gpu.prepare_S12_ptr.S12_result,
                     (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                     gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2,
-                    gpu.pd_elements, 0, sizeof(sa_index_t) * 8,
+                    gpu.pd_elements, 0, mpd_per_gpu_max_bit,
                     mcontext.get_gpu_default_stream(gpu_index));
 
                 void* temp;
@@ -654,7 +654,7 @@ private:
                     (sa_index_t*)gpu.prepare_S12_ptr.S12_result,
                     (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                     gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2,
-                    gpu.pd_elements, 0, sizeof(sa_index_t) * 8,
+                    gpu.pd_elements, 0, mpd_per_gpu_max_bit,
                     mcontext.get_gpu_default_stream(gpu_index));
 
                 if (gpu_index + 1 < NUM_GPUS) {

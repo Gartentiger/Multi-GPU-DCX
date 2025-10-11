@@ -282,7 +282,7 @@ struct DC13 {
 
 
 using MergeStageSuffix = MergeStageSuffixS0;
-using DCX = DC7;
+using DCX = DC3;
 
 struct kmerDCX {
     unsigned char kmer[DCX::X];
@@ -312,7 +312,7 @@ using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjust
 
 
 
-using DCXKmerDecomposer = dc7_kmer_decomposer;
+using DCXKmerDecomposer = dc3_kmer_decomposer;
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 
 struct MergeSuffixes {
