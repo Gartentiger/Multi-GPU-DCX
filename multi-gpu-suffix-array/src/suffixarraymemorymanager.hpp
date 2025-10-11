@@ -20,6 +20,11 @@ struct PDArrays {
     sa_index_t* Temp2;
     sa_index_t* Temp3;
     sa_index_t* Temp4;
+
+    kmer* Kmer;
+    kmer* Kmer_buffer;
+    sa_index_t* Kmer_temp1;
+    sa_index_t* Kmer_temp2;
     unsigned char* Input;
 };
 
@@ -64,9 +69,9 @@ class SuffixArrayMemoryManager
 {
 public:
     static const size_t ALIGN_BYTES = 256;
-    static const size_t NUM_PD_ARRAYS = 9;
+    static const size_t NUM_PD_ARRAYS = 13;
     static const size_t HOST_TEMP_MEM_SIZE = 1024 * NUM_GPUS;
-
+    static const size_t ARRAYS_FOR_KMER = (sizeof(kmerDCX) + sizeof(sa_index_t) - 1) / sizeof(sa_index_t);
     static const size_t HALF_MERGE_STAGE_SUFFIX_SIZE = sizeof(MergeStageSuffix) / 2;
 
     static_assert(sizeof(MergeStageSuffixS12) == sizeof(MergeStageSuffixS0),
@@ -92,7 +97,9 @@ public:
     const sa_index_t* get_h_result() const {
         return mh_result;
     }
-
+    size_t get_temp_mem_kmer() {
+        return kmer_additional_space;
+    }
     sa_index_t* get_h_result() {
         return mh_result;
     }
@@ -143,12 +150,13 @@ public:
         return std::make_pair(mhost_temp_mem, HOST_TEMP_MEM_SIZE);
     }
 
-    void alloc(size_t input_len, size_t min_gpu_len, size_t min_pd_len, size_t min_S0_len, bool zero) {
-
+    void alloc(size_t input_len, size_t min_gpu_len, size_t min_pd_len, size_t min_S0_len, bool zero, size_t bytes_for_kmer, size_t kmertempstorage) {
+        kmer_temp_storage = kmertempstorage;
         // count elements so min_pd_len is 256 byte aligned
         mpd_array_aligned_len = align_len(min_pd_len, sizeof(sa_index_t));
         minput_aligned_len = align_len(min_gpu_len, 1);
-        printf("per gpu bytes for kmer: %lu, minput_aligned_len: %lu\n", mpd_array_aligned_len * sizeof(sa_index_t), minput_aligned_len);
+        kmer_aligned_len = align_len(bytes_for_kmer, 1);
+        printf("per gpu bytes for kmer: %lu, minput_aligned_len: %lu, kmer_aligned_len: %lu\n", mpd_array_aligned_len * sizeof(sa_index_t), minput_aligned_len, kmer_aligned_len);
         mhalf_merge_suffix_s12_aligned_len = align_len(min_pd_len, HALF_MERGE_STAGE_SUFFIX_SIZE);
         mhalf_merge_suffix_s0_aligned_len = align_len(min_S0_len, HALF_MERGE_STAGE_SUFFIX_SIZE);
 
@@ -160,11 +168,11 @@ public:
         mmerge_suffix_s0_aligned_len = align_len(two_halves_s0_len, sizeof(MergeStageSuffix));
 
         size_t pd_total_bytes = NUM_PD_ARRAYS * mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len;
+
         // only for dcx with x>7 necessariy because sa_rank + temp1, old_ranks + segment_heads are both one array of size
         // mpd_array_aligned_len * sizeof(uint64_t). If sizeof(kmer)>sizeof(uint64_t) <=> x>7  we need more storage
-        const size_t arrays_for_kmer = (sizeof(kmerDCX) + sizeof(sa_index_t) - 1) / sizeof(sa_index_t);
-        // 2 * isa + input + 2 * kmer arrays for initial sort
-        size_t initial_sort_kmer_produce_extra = 2 * mpd_array_aligned_len + minput_aligned_len + 2 * arrays_for_kmer * mpd_array_aligned_len * sizeof(sa_index_t);
+        // 2 * isa + input + 2 * kmer + 3 * temp + temp arrays for initial sort
+        size_t initial_sort_kmer_produce_extra = 2 * mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len + 2 * kmer_aligned_len + std::max(kmer_temp_storage, 3 * mpd_array_aligned_len * sizeof(sa_index_t));
 
         size_t prepareS12_total_bytes = mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len +
             3 * sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len;
@@ -175,7 +183,7 @@ public:
 
         size_t merge_total_bytes = 2 * (mmerge_suffix_s12_aligned_len + mmerge_suffix_s0_aligned_len) * sizeof(MergeStageSuffix);
 
-        malloc_size = std::max(std::max(std::max(prepareS0_total_bytes, prepareS12_total_bytes), pd_total_bytes), merge_total_bytes);
+        malloc_size = std::max(std::max(std::max(std::max(prepareS0_total_bytes, prepareS12_total_bytes), pd_total_bytes), merge_total_bytes), initial_sort_kmer_produce_extra);
 
 
         printf("Allocating %zu K per node (%zu K for prefix doubling, %zu K for prepare_S_12, %zu K for prepare_S_0, "
@@ -188,6 +196,7 @@ public:
         misa_offset = align_down(minput_offset - mpd_array_aligned_len * sizeof(sa_index_t));
 
         madditional_pd_space_size = (misa_offset - 8 * mpd_array_aligned_len * sizeof(sa_index_t));
+        kmer_additional_space = misa_offset - 1 * mpd_array_aligned_len * sizeof(sa_index_t) - 2 * kmer_aligned_len;
 
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu) {
             cudaSetDevice(mcontext.get_device_id(gpu));
@@ -239,7 +248,7 @@ private:
     MultiGPUContext<NUM_GPUS>& mcontext;
 
     size_t mpd_array_aligned_len, minput_aligned_len, mmerge_suffix_s12_aligned_len, mmerge_suffix_s0_aligned_len,
-        mhalf_merge_suffix_s12_aligned_len, mhalf_merge_suffix_s0_aligned_len;
+        mhalf_merge_suffix_s12_aligned_len, mhalf_merge_suffix_s0_aligned_len, kmer_aligned_len, kmer_temp_storage, kmer_additional_space;
     size_t madditional_pd_space_size;
     size_t malloc_size, minput_offset, misa_offset;
     std::array<unsigned char*, NUM_GPUS> malloc_base;
@@ -275,7 +284,15 @@ private:
         arr.Temp2 = (sa_index_t*)(base + 5 * mpd_array_aligned_len * sizeof(sa_index_t));
         arr.Temp3 = (sa_index_t*)(base + 6 * mpd_array_aligned_len * sizeof(sa_index_t));
         arr.Temp4 = (sa_index_t*)(base + 7 * mpd_array_aligned_len * sizeof(sa_index_t));
-        // after this additional storage
+        // after this additional storage madditional_pd_space_size
+
+        // only for kmer
+        arr.Kmer = (kmer*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t));
+        // for temp storage kmer
+        arr.Kmer_buffer = (kmer*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t) + 1 * kmer_aligned_len);
+        arr.Kmer_temp1 = (sa_index_t*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t) + 2 * kmer_aligned_len);
+        arr.Kmer_temp2 = (sa_index_t*)(base + 2 * mpd_array_aligned_len * sizeof(sa_index_t) + 2 * kmer_aligned_len);
+        // after this additional storage kmer_additional_space
         return arr;
     }
 

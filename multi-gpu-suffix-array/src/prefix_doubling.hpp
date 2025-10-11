@@ -160,6 +160,11 @@ class PrefixDoublingSuffixSorter
         sa_index_t* Temp3;
         sa_index_t* Temp4;
 
+        kmer* Kmer;
+        kmer* Kmer_buffer;
+        sa_index_t* Kmer_temp1;
+        sa_index_t* Kmer_temp2;
+
         size_t working_len;
         size_t isa_len;
         size_t offset;
@@ -264,6 +269,10 @@ public:
         gpu.Temp2 = pd_ptr.Temp2;
         gpu.Temp3 = pd_ptr.Temp3;
         gpu.Temp4 = pd_ptr.Temp4;
+        gpu.Kmer = pd_ptr.Kmer;
+        gpu.Kmer_buffer = pd_ptr.Kmer_buffer;
+        gpu.Kmer_temp1 = pd_ptr.Kmer_temp1;
+        gpu.Kmer_temp2 = pd_ptr.Kmer_temp2;
     }
 
     void print_stats(size_t iterations) const
@@ -632,8 +641,8 @@ private:
             size_t temp_storage_bytes = 0;
 
             cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
-                reinterpret_cast<kmerDCX*>(gpu.Sa_rank),
-                reinterpret_cast<kmerDCX*>(gpu.Old_ranks),
+                reinterpret_cast<kmerDCX*>(gpu.Kmer),
+                reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer),
                 gpu.Isa,
                 gpu.Sa_index,
                 gpu.working_len,
@@ -646,11 +655,11 @@ private:
             //                           (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t));
             //                }
 
-            ASSERT(temp_storage_bytes <= (3 * mreserved_len + madditional_temp_storage_size) * sizeof(sa_index_t));
+            ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
             //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
-            err = cub::DeviceRadixSort::SortPairs(gpu.Temp2, temp_storage_bytes,
-                reinterpret_cast<kmerDCX*>(gpu.Sa_rank),
-                reinterpret_cast<kmerDCX*>(gpu.Old_ranks),
+            err = cub::DeviceRadixSort::SortPairs(gpu.Kmer_temp1, temp_storage_bytes,
+                reinterpret_cast<kmerDCX*>(gpu.Kmer),
+                reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer),
                 gpu.Isa,
                 gpu.Sa_index,
                 gpu.working_len,
@@ -662,10 +671,10 @@ private:
             // Temp2, 3, 4 used as temp space
             //                printf("GPU %u, working len: %zu\n", gpu_index, gpu.working_len);
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
-                                           reinterpret_cast<kmerDCX*>(gpu.Old_ranks), gpu.Sa_index,
-                                           reinterpret_cast<kmerDCX*>(gpu.Sa_rank), gpu.Isa,
-                                           reinterpret_cast<kmerDCX*>(gpu.Temp2), gpu.Temp4 };
-            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Temp2, mreserved_len * 3 * sizeof(sa_index_t));
+                                           reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer), gpu.Sa_index,
+                                           reinterpret_cast<kmerDCX*>(gpu.Kmer), gpu.Isa,
+                                            nullptr,  nullptr };
+            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Kmer_temp1, mreserved_len * 3 * sizeof(sa_index_t));
         }
         merge_manager.set_node_info(merge_nodes_info);
 
@@ -680,9 +689,9 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU gpu = mgpus[gpu_index];
-            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index + 10);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer), gpu.Isa, gpu.working_len, gpu_index + 10);
             // mcontext.sync_default_streams();
-            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index + 10);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer), gpu.Sa_index, gpu.working_len, gpu_index + 10);
             // mcontext.sync_default_streams();
         }
         merge_manager.merge(ranges, KmerComparator{});
@@ -691,9 +700,9 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU gpu = mgpus[gpu_index];
-            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer), gpu.Isa, gpu.working_len, gpu_index);
             // mcontext.sync_default_streams();
-            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer), gpu.Sa_index, gpu.working_len, gpu_index);
             // mcontext.sync_default_streams();
         }
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
@@ -709,19 +718,27 @@ private:
             const kmer* last_element_prev = nullptr;
             if (gpu_index > 0)
             {
-                last_element_prev = &reinterpret_cast<const kmer*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
+                last_element_prev = &reinterpret_cast<const kmer*>(mgpus[gpu_index - 1].Kmer_buffer)[mgpus[gpu_index - 1].working_len - 1];
             }
 
-            kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const kmer*>(gpu.Old_ranks), last_element_prev, gpu.offset + 1, 0, gpu.Temp1, gpu.working_len);
+            kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const kmer*>(gpu.Kmer_buffer), last_element_prev, gpu.offset + 1, 0, gpu.Kmer_temp1, gpu.working_len);
             CUERR;
         }
         mcontext.sync_default_streams();
-        do_max_scan_on_ranks();
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        //     SaGPU& gpu = mgpus[gpu_index];
+
+        //     printArrayss << <1, 1 >> > (gpu.Kmer_temp1, gpu.Kmer_temp1, gpu.working_len, gpu_index);
+        //     mcontext.sync_default_streams();
+        // }
+        do_max_scan_on_ranks(true);
     }
 
     // From Temp1 to Ranks
-    void do_max_scan_on_ranks()
+    void do_max_scan_on_ranks(bool initial = false)
     {
+
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
@@ -731,17 +748,23 @@ private:
                 // Temp1 --> Sa_rank
                 // uses: Temp3, 4
 
+                sa_index_t* in_buffer = gpu.Temp1;
+                sa_index_t* temp_buffer = gpu.Temp3;
+                if (initial) {
+                    in_buffer = gpu.Kmer_temp1;
+                    temp_buffer = gpu.Kmer_temp2;
+                }
                 MaxFunctor max_op;
 
                 size_t temp_storage_bytes = 0;
-                cudaError_t err = cub::DeviceScan::InclusiveScan(nullptr, temp_storage_bytes, gpu.Temp1,
+                cudaError_t err = cub::DeviceScan::InclusiveScan(nullptr, temp_storage_bytes, in_buffer,
                     gpu.Sa_rank, max_op, gpu.working_len,
                     mcontext.get_gpu_default_stream(gpu_index));
                 CUERR_CHECK(err)
 
                     // Run inclusive prefix max-scan
                     ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t));
-                err = cub::DeviceScan::InclusiveScan(gpu.Temp3, temp_storage_bytes, gpu.Temp1, gpu.Sa_rank,
+                err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, in_buffer, gpu.Sa_rank,
                     max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
 
                 CUERR_CHECK(err);
@@ -779,9 +802,8 @@ private:
         {
             SaGPU& gpu = mgpus[gpu_index];
 
-            // printArrayss << <1, 1 >> > (reinterpret_cast<kmer*>(gpu.Old_ranks), gpu.Sa_rank, gpu.working_len, gpu_index);
-            mcontext.sync_default_streams();
-
+            // printArrayss << <1, 1 >> > (reinterpret_cast<kmer*>(gpu.Kmer_buffer), gpu.Sa_rank, gpu.working_len, gpu_index);
+            // mcontext.sync_default_streams();
         }
     }
 

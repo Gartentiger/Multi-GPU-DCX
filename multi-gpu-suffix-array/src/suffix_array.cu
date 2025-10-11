@@ -358,19 +358,25 @@ public:
         ASSERT(last_gpu_elems <= mper_gpu); // Because of merge.
 
         mreserved_len = SDIV(std::max(last_gpu_elems, mper_gpu) + 8, DCX::X * 2) * DCX::X * 2; // Ensure there are 12 elems more space.
-        mreserved_len = std::max(mreserved_len, 1024ul);                       // Min len because of temp memory for CUB.
+        mreserved_len = std::max(mreserved_len, 1024ul) + 10 * DCX::X;                       // Min len because of temp memory for CUB.
 
         mpd_reserved_len = SDIV(mreserved_len, DCX::X) * DCX::C;
         printf("mpd_reserved_len: %lu\n", mpd_reserved_len);
         ms0_reserved_len = mreserved_len - mpd_reserved_len;
 
         auto cub_temp_mem = get_needed_cub_temp_memory(ms0_reserved_len, mpd_reserved_len);
+        cub::DoubleBuffer<uint64_t> keys(nullptr, nullptr);
+        cub::DoubleBuffer<uint64_t> values(nullptr, nullptr);
+        size_t temp_storage_size_S12 = 0;
 
+        cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_S12,
+            keys, values, mpd_reserved_len, 0, sizeof(kmer) * 8);
         // Can do it this way since CUB temp memory is limited for large inputs.
         ms0_reserved_len = std::max(ms0_reserved_len, SDIV(cub_temp_mem.first, sizeof(MergeSuffixes)));
         mpd_reserved_len = std::max(mpd_reserved_len, SDIV(cub_temp_mem.second, sizeof(MergeSuffixes)));
         printf("mpd_reserved_len after cub temp: %lu\n", mpd_reserved_len);
         mpd_per_gpu = (mper_gpu / DCX::X) * DCX::C;
+        mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true, (mpd_per_gpu + 2 * DCX::X - 1) * sizeof(kmerDCX), temp_storage_size_S12);
 
         size_t pd_total_len = 0, offset = 0, pd_offset = 0;
         for (uint i = 0; i < NUM_GPUS - 1; i++)
@@ -408,7 +414,6 @@ public:
             printf("%lu bytes for kmer: %lu\n", i, mgpus[i].pd_elements * sizeof(kmerDCX));
         }
 
-        mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true);
 
         set_sizes.resize(DCX::C);
         for (size_t i = 0; i < DCX::C; i++)
@@ -471,9 +476,9 @@ private:
         CUERR_CHECK(err);
         err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_S12,
             keys, values, S12_count, 0, 40);
-        err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_SK,
-            keys, values, S12_count, 0, sizeof(kmer) * 8);
-        temp_storage_size_S12 = std::max(temp_storage_size_S12, temp_storage_size_SK);
+        // err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_SK,
+        //     keys, values, S12_count, 0, sizeof(kmer) * 8);
+        // temp_storage_size_S12 = std::max(temp_storage_size_S12, temp_storage_size_SK);
         CUERR_CHECK(err);
         // err = cub::DeviceRadixSort::SortKeys(nullptr, temp_storage_size_SK,
         //     key, S0_count + S12_count, index_decomposer{}, 0, sizeof(MergeSuffixes) * 8);
@@ -497,7 +502,7 @@ private:
             CUERR;
             if (gpu_index + 1 == NUM_GPUS)
             {
-                cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer),
+                cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, 1,
                     mcontext.get_gpu_default_stream(gpu_index));
                 CUERR;
             }
@@ -536,7 +541,7 @@ private:
             // }
             mcontext.sync_all_streams();
             kernels::produce_index_kmer_tuples_12_64_dcx << <1, 1 >> > //_KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
-                ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<kmerDCX*>(gpu.pd_ptr.Sa_rank),
+                ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<kmerDCX*>(gpu.pd_ptr.Kmer),
                     gpu.pd_elements, samplePos, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
             CUERR;
 
@@ -551,7 +556,7 @@ private:
         printf("elements: %lu\n", mgpus[0].num_elements);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(mgpus[gpu_index].pd_ptr.Sa_rank) + (mgpus[gpu_index].pd_elements - 5), mgpus[gpu_index].pd_ptr.Isa + (mgpus[gpu_index].pd_elements - 5), 5, gpu_index);
+            // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(mgpus[gpu_index].pd_ptr.Kmer), mgpus[gpu_index].pd_ptr.Isa, (mgpus[gpu_index].pd_elements - 5) + 5, gpu_index);
             mcontext.sync_default_streams();
         }
         // exit(1);
