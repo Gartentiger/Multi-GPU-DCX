@@ -176,6 +176,13 @@ __global__ void printArrayss(const unsigned char* input, size_t size, size_t ran
     }
     printf("---------------------------------------------------------------------------\n");
 }
+__global__ void printArrayss(sa_index_t* isa, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
+        printf("[%4lu] %4u\n", i, isa[i]);
+    }
+}
+
 __global__ void printArrayss(uint64_t* input, size_t size, size_t rank)
 {
     for (size_t i = 0; i < size; i++) {
@@ -253,7 +260,19 @@ __global__ void printArrayss(char* kmer, sa_index_t* isa, size_t size, size_t ra
     }
     printf("---------------------------------------------------------------------------\n");
 }
+__global__ void printArrayss(kmerDCX* kmer, sa_index_t* isa, size_t size, size_t rank)
+{
+    for (size_t i = 0; i < size; i++) {
 
+        printf("[%2lu] idx: %3u", rank, isa[i]);
+        // unsigned char* kmerI = reinterpret_cast<*>(kmer[i]);
+        for (int j = 0; j < DCX::X;j++) {
+            printf(", %c", kmer[i].kmer[j]);
+        }
+        printf("\n");
+    }
+    printf("---------------------------------------------------------------------------\n");
+}
 __global__ void printArrayss(MergeStageSuffixS12HalfValue* sk, size_t size, size_t rank)
 {
     for (size_t i = 0; i < size; i++) {
