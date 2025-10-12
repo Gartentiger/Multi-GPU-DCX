@@ -174,7 +174,7 @@ class PrefixDoublingSuffixSorter
         sa_index_t* Temp2;
         sa_index_t* Temp3;
         sa_index_t* Temp4;
-        
+
         kmer* Kmer;
         kmer* Kmer_buffer;
         sa_index_t* Kmer_temp1;
@@ -237,15 +237,14 @@ public:
         mhost_temp_mem = (sa_index_t*)mmemory_manager.get_host_temp_mem().first;
         mhost_temp_mem_size = mmemory_manager.get_host_temp_mem().second;
         mhost_temp_pinned_allocator.init(mhost_temp_mem, mhost_temp_mem_size);
-
-        mwrite_isa_sort_high_bit = std::min(sa_index_t(log2(float(misa_divisor))) + 1,
+        size_t max_length_per_gpu = std::max(misa_divisor, last_gpu_len);
+        mwrite_isa_sort_high_bit = std::min(sa_index_t(log2(float(max_length_per_gpu))) + 1,
             sa_index_t(sizeof(sa_index_t) * 8));
 
         mgpus[0].offset = 0;
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            //uint gpu_index = world_rank();
             // Not sure whether we have to associate the device with host memory planned for it.
             SaGPU& gpu = mgpus[gpu_index];
             gpu.index = gpu_index;
@@ -285,6 +284,10 @@ public:
         gpu.Temp2 = pd_ptr.Temp2;
         gpu.Temp3 = pd_ptr.Temp3;
         gpu.Temp4 = pd_ptr.Temp4;
+        gpu.Kmer = pd_ptr.Kmer;
+        gpu.Kmer_buffer = pd_ptr.Kmer_buffer;
+        gpu.Kmer_temp1 = pd_ptr.Kmer_temp1;
+        gpu.Kmer_temp2 = pd_ptr.Kmer_temp2;
     }
 
     void print_stats(size_t iterations) const
