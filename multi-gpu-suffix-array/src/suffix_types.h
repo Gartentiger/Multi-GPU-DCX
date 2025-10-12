@@ -373,6 +373,44 @@ struct DC21 {
 
 using MergeStageSuffix = MergeStageSuffixS0;
 using DCX = DC3;
+
+struct kmerDCX {
+    unsigned char kmer[DCX::X];
+};
+struct dc3_kmer_decomposer
+{
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
+    {
+        return { key.kmer[0],key.kmer[1],key.kmer[2] };
+    }
+};
+struct dc7_kmer_decomposer
+{
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
+    {
+        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3],key.kmer[4],key.kmer[5],key.kmer[6] };
+    }
+};
+struct dc13_kmer_decomposer
+{
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned  char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
+    {
+        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3],key.kmer[4],key.kmer[5],key.kmer[6],key.kmer[7],key.kmer[8],key.kmer[9],key.kmer[10],key.kmer[11],key.kmer[12] };
+    }
+};
+struct dc21_kmer_decomposer
+{
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned  char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
+    {
+        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3],key.kmer[4],key.kmer[5],key.kmer[6],key.kmer[7],key.kmer[8],key.kmer[9],key.kmer[10],key.kmer[11],key.kmer[12],key.kmer[13],key.kmer[14],key.kmer[15],key.kmer[16],key.kmer[17],key.kmer[18],key.kmer[19],key.kmer[20] };
+    }
+};
+
+using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjustment in code
+
+
+using DCXKmerDecomposer = dc21_kmer_decomposer;
+
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
     sa_index_t index;
