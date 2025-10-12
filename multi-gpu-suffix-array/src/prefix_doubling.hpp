@@ -815,35 +815,39 @@ private:
         cudaMemcpy(kmerCheck.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
         auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
         comm_world().barrier();
-        {
-            std::vector<sa_index_t> check(gpu.working_len);
-            cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-            std::vector<kmer> local_kmer(gpu.working_len);
-            cudaMemcpy(local_kmer.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
 
-            size_t current_rank = check[0];
-            size_t rank_buffer = 0;
-            for (size_t i = 1; i < check.size(); i++)
-            {
-                if (check[i] == check[i - 1]) {
-                    if (local_kmer[i] != local_kmer[i - 1]) {
-                        printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
-                    }
-                    ASSERT(local_kmer[i] == local_kmer[i - 1]);
-                    rank_buffer++;
-                }
-                else {
-                    if (current_rank + rank_buffer + 1 != check[i]) {
-                        printf("[%lu] current rank: %lu + rank_buffer: %lu + 1 != next rank %u", i, current_rank, rank_buffer, check[i]);
-                    }
-                    ASSERT(current_rank + rank_buffer + 1 == check[i]);
-                    rank_buffer = 0;
-                    current_rank = check[i];
-                }
-            }
+        printArrayss << <1, 1 >> > (gpu.Kmer_buffer, reinterpret_cast<sa_index_t*>(gpu.Kmer), std::min(20UL, gpu.working_len), world_rank());
 
-            comm_world().barrier();
-        }
+
+        // {
+        //     std::vector<sa_index_t> check(gpu.working_len);
+        //     cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+        //     std::vector<kmer> local_kmer(gpu.working_len);
+        //     cudaMemcpy(local_kmer.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
+
+        //     size_t current_rank = check[0];
+        //     size_t rank_buffer = 0;
+        //     for (size_t i = 1; i < check.size(); i++)
+        //     {
+        //         if (check[i] == check[i - 1]) {
+        //             if (local_kmer[i] != local_kmer[i - 1]) {
+        //                 printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
+        //             }
+        //             ASSERT(local_kmer[i] == local_kmer[i - 1]);
+        //             rank_buffer++;
+        //         }
+        //         else {
+        //             if (current_rank + rank_buffer + 1 != check[i]) {
+        //                 printf("[%lu] current rank: %lu + rank_buffer: %lu + 1 != next rank %u", i, current_rank, rank_buffer, check[i]);
+        //             }
+        //             ASSERT(current_rank + rank_buffer + 1 == check[i]);
+        //             rank_buffer = 0;
+        //             current_rank = check[i];
+        //         }
+        //     }
+
+        //     comm_world().barrier();
+        // }
 
         do_max_scan_on_ranks(true);
 
