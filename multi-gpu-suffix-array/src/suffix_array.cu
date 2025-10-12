@@ -544,14 +544,7 @@ private:
             uint32_t* samplePos;
             cudaMallocAsync(&samplePos, sizeof(uint32_t) * DCX::C, mcontext.get_gpu_default_stream(gpu_index));
             cudaMemcpyAsync(samplePos, DCX::samplePosition, sizeof(uint32_t) * DCX::C, cudaMemcpyHostToDevice, mcontext.get_gpu_default_stream(gpu_index));
-            // size_t* samplesPerGPU;
-            // cudaMalloc(&samplesPerGPU, sizeof(uint32_t) * (DCX::C - 1));
 
-            // mgpus.back().pd_elements / DCX::C;
-            // for (size_t i = 0; i < mgpus.back().pd_elements % DCX::C; i++)
-            // {
-
-            // }
             mcontext.sync_all_streams();
             kernels::produce_index_kmer_tuples_12_64_dcx _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
                 ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<kmerDCX*>(gpu.pd_ptr.Kmer),
@@ -561,7 +554,6 @@ private:
             cudaFreeAsync(samplePos, mcontext.get_gpu_default_stream(gpu_index));
             mcontext.sync_all_streams();
             printf("[%u] gpu_index\n", gpu_index);
-            // }
         }
 
         // kernels::fixup_last_three_12_kmers_64 << <1, 3, 0, mcontext.get_gpu_default_stream(NUM_GPUS - 1) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 3);
