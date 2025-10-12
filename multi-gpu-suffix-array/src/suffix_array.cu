@@ -1078,7 +1078,7 @@ private:
                 (sa_index_t*)gpu.prepare_S12_ptr.S12_result,
                 (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                 gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2,
-                gpu.pd_elements, 0, mpd_per_gpu_max_bit,
+                gpu.pd_elements, 0, sizeof(sa_index_t) * 8,
                 mcontext.get_gpu_default_stream(gpu_index));
 
             void* temp;
@@ -1087,7 +1087,7 @@ private:
                 (sa_index_t*)gpu.prepare_S12_ptr.S12_result,
                 (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                 gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2,
-                gpu.pd_elements, 0, mpd_per_gpu_max_bit,
+                gpu.pd_elements, 0, sizeof(sa_index_t) * 8,
                 mcontext.get_gpu_default_stream(gpu_index));
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(gpu_index));
 
