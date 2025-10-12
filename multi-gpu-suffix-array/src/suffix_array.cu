@@ -995,7 +995,7 @@ private:
         std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
-        printArrayss << <1, 1 >> > (mgpus[world_rank()].prepare_S12_ptr.Isa, mgpus[world_rank()].pd_elements, world_rank());
+        // printArrayss << <1, 1 >> > (mgpus[world_rank()].prepare_S12_ptr.Isa, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         {
@@ -1110,99 +1110,99 @@ private:
             std::vector<char> input_all = comm_world().gatherv(send_buf(std::span<char>(minput, mper_gpu)), root(0));
             printf("[%lu] all input received\n", world_rank());
 
-            if (world_rank() == 0) {
-                input_all.resize(minput_len);
-                for (size_t i = 0; i < input_all.size(); i++)
-                {
-                    printf("%c", input_all[i]);
-                }
-                printf("\n");
-                auto sa = naive_suffix_sort(minput_len, input_all.data());
-                printf("sorted sa, size: %lu\n", sa.size());
-                thrust::host_vector<sa_index_t> sampleSa(sa.size());
-                for (size_t i = 0; i < sa.size(); i++)
-                {
-                    sampleSa[i] = sa[i];
-                }
-                thrust::host_vector<sa_index_t> inverter(sampleSa.size());
-                for (size_t i = 0; i < inverter.size(); i++)
-                {
-                    inverter[i] = i;
-                }
-                thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter.begin());
-                size_t satotal = 0;
-                for (size_t i = 0; i < sa.size(); i++)
-                {
-                    for (size_t c = 0; c < DCX::C; c++)
-                    {
-                        if (i % DCX::X == DCX::samplePosition[c]) {
-                            sampleSa[satotal++] = ((sa_index_t)inverter[i]);
-                            // printf("[%2lu]%c, %u: ", i, minput[i], (sa_index_t)inverter[i]);
-                            break;
-                        }
-                    }
-                }
-                sampleSa.resize(satotal);
+            // if (world_rank() == 0) {
+            //     input_all.resize(minput_len);
+            //     for (size_t i = 0; i < input_all.size(); i++)
+            //     {
+            //         printf("%c", input_all[i]);
+            //     }
+            //     printf("\n");
+            //     auto sa = naive_suffix_sort(minput_len, input_all.data());
+            //     printf("sorted sa, size: %lu\n", sa.size());
+            //     thrust::host_vector<sa_index_t> sampleSa(sa.size());
+            //     for (size_t i = 0; i < sa.size(); i++)
+            //     {
+            //         sampleSa[i] = sa[i];
+            //     }
+            //     thrust::host_vector<sa_index_t> inverter(sampleSa.size());
+            //     for (size_t i = 0; i < inverter.size(); i++)
+            //     {
+            //         inverter[i] = i;
+            //     }
+            //     thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter.begin());
+            //     size_t satotal = 0;
+            //     for (size_t i = 0; i < sa.size(); i++)
+            //     {
+            //         for (size_t c = 0; c < DCX::C; c++)
+            //         {
+            //             if (i % DCX::X == DCX::samplePosition[c]) {
+            //                 sampleSa[satotal++] = ((sa_index_t)inverter[i]);
+            //                 // printf("[%2lu]%c, %u: ", i, minput[i], (sa_index_t)inverter[i]);
+            //                 break;
+            //             }
+            //         }
+            //     }
+            //     sampleSa.resize(satotal);
 
-                thrust::host_vector<sa_index_t> inverter2(sampleSa.size());
-                for (size_t i = 0; i < inverter2.size(); i++)
-                {
-                    inverter2[i] = i;
-                }
-                thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter2.begin());
-                for (size_t i = 0; i < sampleSa.size(); i++)
-                {
-                    sampleSa[i] = i + 1;
-                }
-                thrust::sort_by_key(inverter2.begin(), inverter2.end(), sampleSa.begin());
-                printf("\n");
-                printf("created isa\n");
-                for (size_t i = 0; i < sampleSa.size(); i++)
-                {
-                    printf("isa2 %lu: %u\n", i, sampleSa[i]);
-                }
+            //     thrust::host_vector<sa_index_t> inverter2(sampleSa.size());
+            //     for (size_t i = 0; i < inverter2.size(); i++)
+            //     {
+            //         inverter2[i] = i;
+            //     }
+            //     thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter2.begin());
+            //     for (size_t i = 0; i < sampleSa.size(); i++)
+            //     {
+            //         sampleSa[i] = i + 1;
+            //     }
+            //     thrust::sort_by_key(inverter2.begin(), inverter2.end(), sampleSa.begin());
+            //     printf("\n");
+            //     printf("created isa\n");
+            //     // for (size_t i = 0; i < sampleSa.size(); i++)
+            //     // {
+            //     //     printf("isa2 %lu: %u\n", i, sampleSa[i]);
+            //     // }
 
-                for (size_t i = 0; i < isaglob.size(); i++)
-                {
-                    printf("isa %lu: %u\n", i, isaglob[i]);
-                }
+            //     // for (size_t i = 0; i < isaglob.size(); i++)
+            //     // {
+            //     //     printf("isa %lu: %u\n", i, isaglob[i]);
+            //     // }
 
-                size_t max_prints = 0;
-                for (size_t i = 0; i < isaglob.size(); i++)
-                {
-                    if (isaglob[i] != sampleSa[i] && max_prints < 10) {
-                        printf("isa[%lu] %u != %u real Isa\n", i, isaglob[i], sampleSa[i]);
-                    }
-                    if (isaglob[i] != sampleSa[i]) {
-                        max_prints++;
-                    }
-                }
-                printf("wrong: %lu\n", max_prints);
-                if (std::equal(isaglob.begin(), isaglob.end(), sampleSa.begin(), sampleSa.end())) {
-                    printf("equal isa!\n");
-                }
+            //     size_t max_prints = 0;
+            //     for (size_t i = 0; i < isaglob.size(); i++)
+            //     {
+            //         if (isaglob[i] != sampleSa[i] && max_prints < 10) {
+            //             printf("isa[%lu] %u != %u real Isa\n", i, isaglob[i], sampleSa[i]);
+            //         }
+            //         if (isaglob[i] != sampleSa[i]) {
+            //             max_prints++;
+            //         }
+            //     }
+            //     printf("wrong: %lu\n", max_prints);
+            //     if (std::equal(isaglob.begin(), isaglob.end(), sampleSa.begin(), sampleSa.end())) {
+            //         printf("equal isa!\n");
+            //     }
 
-                std::sort(isaglob.begin(), isaglob.end());
-                std::vector<sa_index_t> compareIsa(isaglob.size());
-                for (size_t i = 0; i < compareIsa.size(); i++)
-                {
-                    compareIsa[i] = i + 1;
-                }
-                size_t write_counter = 0;
-                for (size_t i = 0; i < compareIsa.size(); i++)
-                {
-                    if (isaglob[i] != compareIsa[i] && write_counter < 30) {
+            //     std::sort(isaglob.begin(), isaglob.end());
+            //     std::vector<sa_index_t> compareIsa(isaglob.size());
+            //     for (size_t i = 0; i < compareIsa.size(); i++)
+            //     {
+            //         compareIsa[i] = i + 1;
+            //     }
+            //     size_t write_counter = 0;
+            //     for (size_t i = 0; i < compareIsa.size(); i++)
+            //     {
+            //         if (isaglob[i] != compareIsa[i] && write_counter < 30) {
 
-                        printf("[%lu] %u != %u\n", i, isaglob[i], compareIsa[i]);
-                        write_counter++;
-                    }
-                }
+            //             printf("[%lu] %u != %u\n", i, isaglob[i], compareIsa[i]);
+            //             write_counter++;
+            //         }
+            //     }
 
-                bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
-                bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
-                printf("contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
-                printf("mpd_per_gpu: %lu\n", mpd_per_gpu);
-            }
+            //     bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
+            //     bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
+            //     printf("contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
+            //     printf("mpd_per_gpu: %lu\n", mpd_per_gpu);
+            // }
         }
         comm_world().barrier();
 
