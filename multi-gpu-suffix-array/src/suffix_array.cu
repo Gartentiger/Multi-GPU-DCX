@@ -329,7 +329,9 @@ class SuffixSorter
     char* minput;
     size_t minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, mper_gpu, mpd_per_gpu;
     size_t mpd_per_gpu_max_bit;
+    size_t last_gpu_extra_elements;
     size_t mtook_pd_iterations;
+    thrust::host_vector<size_t> set_sizes;
 
 public:
     SuffixSorter(Context& context, size_t len, char* input)
@@ -690,19 +692,13 @@ public:
 
     void do_sa()
     {
-
-
-
-
         // TIMER_START_MAIN_STAGE(MainStages::Copy_Input);
         copy_input();
 
-
-
         //
-        // mcontext.sync_all_streams();
-        // printf("[%lu] Copy Input\n", world_rank());
-        // comm_world().barrier();
+        mcontext.sync_all_streams();
+        printf("[%lu] Copy Input\n", world_rank());
+        comm_world().barrier();
         //
 
         TIMERSTART(Total);
@@ -711,9 +707,9 @@ public:
         TIMER_START_MAIN_STAGE(MainStages::Produce_KMers);
         produce_kmers();
         //
-        // mcontext.sync_all_streams();
-        // printf("[%lu] Produce kmers\n", world_rank());
-        // comm_world().barrier();
+        mcontext.sync_all_streams();
+        printf("[%lu] Produce kmers\n", world_rank());
+        comm_world().barrier();
         //
 
         TIMER_STOP_MAIN_STAGE(MainStages::Produce_KMers);
@@ -1394,7 +1390,7 @@ private:
             CUERR;
         }
         mcontext.sync_default_streams();
-    }
+        }
 
     void copy_result_to_host()
     {
