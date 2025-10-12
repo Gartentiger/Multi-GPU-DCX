@@ -55,10 +55,11 @@ struct DC3 {
     static constexpr uint32_t samplePosition[C] = { 1, 2 };
     static constexpr uint32_t inverseSamplePosition[X - C] = { 0 };
     static constexpr uint32_t nextNonSample[X - C] = { 0 };
-    static constexpr uint32_t nextSample[X][X][2] = {
-        {{1,0},{1,0},{2,1}},
-        {{1,1},{0,0},{0,0}},
-        {{2,1},{0,0},{0,0}} };
+    static constexpr uint32_t nextSample[X][X][3] = { {{1, 0, 0}, {1, 0, 1}, {2, 1, 1}},
+
+                                                            {{1, 1, 0}, {0, 0, 0}, {0, 0, 0}},
+
+                                                            {{2, 1, 1}, {0, 0, 0}, {0, 0, 0}} };
 };
 
 struct DC7 {
@@ -69,20 +70,20 @@ struct DC7 {
     static constexpr uint32_t inverseSamplePosition[X - C] = { 0, 2, 3, 3 };
     static constexpr uint32_t nextNonSample[X - C] = { 0, 3, 5, 6 };
 
-    static constexpr uint32_t nextSample[X][X][2] = {
-        {{1,0}, {1,0}, {2,1}, {1,0}, {4,2}, {4,2}, {2,1}},
+    static constexpr uint32_t nextSample[X][X][3] = {
+        {{1, 0, 0}, {1, 0, 1}, {2, 1, 1}, {1, 0, 0}, {4, 2, 1}, {4, 2, 1}, {2, 1, 0}},
 
-        {{1,1}, {0,0}, {0,0}, {1,1}, {0,0}, {3,2}, {3,2}},
+        {{1, 1, 0}, {0, 0, 0}, {0, 0, 0}, {1, 1, 0}, {0, 0, 0}, {3, 2, 0}, {3, 2, 1}},
 
-        {{2,1}, {0,0}, {0,0}, {6,2}, {0,0}, {6,2}, {2,1}},
+        {{2, 1, 1}, {0, 0, 0}, {0, 0, 0}, {6, 2, 2}, {0, 0, 0}, {6, 2, 2}, {2, 1, 0}},
 
-        {{1,0}, {1,0}, {6,2}, {1,0}, {5,1}, {6,2}, {5,1}},
+        {{1, 0, 0}, {1, 0, 1}, {6, 2, 2}, {1, 0, 0}, {5, 1, 2}, {6, 2, 2}, {5, 1, 2}},
 
-        {{4,1}, {0,0}, {0,0}, {5,2}, {0,0}, {4,1}, {5,2}},
+        {{4, 1, 2}, {0, 0, 0}, {0, 0, 0}, {5, 2, 1}, {0, 0, 0}, {4, 1, 1}, {5, 2, 2}},
 
-        {{4,1}, {3,0}, {6,2}, {6,2}, {4,1}, {3,0}, {3,0}},
+        {{4, 1, 2}, {3, 0, 2}, {6, 2, 2}, {6, 2, 2}, {4, 1, 1}, {3, 0, 0}, {3, 0, 1}},
 
-        {{2,0}, {3,1}, {2,0}, {5,2}, {5,2}, {3,1}, {2,0}} };
+        {{2, 0, 1}, {3, 1, 2}, {2, 0, 1}, {5, 2, 1}, {5, 2, 2}, {3, 1, 0}, {2, 0, 0}} };
 
 };
 
@@ -422,7 +423,7 @@ __host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffi
 {
     uint32_t l = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0];
     uint32_t r1 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1];
-    uint32_t r2 = DCX::nextSample[b.index % DCX::X][a.index % DCX::X][1];
+    uint32_t r2 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][2];
     for (size_t i = 0; i < l; i++)
     {
         if (a.prefix[i] < b.prefix[i]) {
@@ -435,7 +436,7 @@ __host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffi
     return a.ranks[r1] < b.ranks[r2];
 
 }
-__constant__ uint32_t lookupNext[DCX::X][DCX::X][2];
+__constant__ uint32_t lookupNext[DCX::X][DCX::X][3];
 
 struct non_sample_prefix_decomp
 {
@@ -490,7 +491,7 @@ struct DC7Comparator
     {
         uint32_t l = lookupNext[a.index % DCX::X][b.index % DCX::X][0];
         uint32_t r1 = lookupNext[a.index % DCX::X][b.index % DCX::X][1];
-        uint32_t r2 = lookupNext[b.index % DCX::X][a.index % DCX::X][1];
+        uint32_t r2 = lookupNext[a.index % DCX::X][b.index % DCX::X][2];
         for (size_t i = 0; i < l; i++)
         {
             if (a.prefix[i] < b.prefix[i]) {
@@ -510,7 +511,7 @@ struct DC7ComparatorHost
     {
         uint32_t l = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0];
         uint32_t r1 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1];
-        uint32_t r2 = DCX::nextSample[b.index % DCX::X][a.index % DCX::X][1];
+        uint32_t r2 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][2];
         for (size_t i = 0; i < l; i++)
         {
             if (a.prefix[i] < b.prefix[i]) {

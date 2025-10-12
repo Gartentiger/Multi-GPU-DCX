@@ -2228,7 +2228,7 @@ int main(int argc, char** argv)
     // ncclMeasure(context);
     // return 0;
 #endif
-    cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 2, 0, cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(lookupNext, DCX::nextSample, sizeof(uint32_t) * DCX::X * DCX::X * 3, 0, cudaMemcpyHostToDevice);
     CUERR;
     SuffixSorter sorter(context, realLen, input);
     CUERR;
