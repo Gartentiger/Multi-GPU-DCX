@@ -668,20 +668,6 @@ __host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmer
     }
     return true;
 }
-// __host__ __device__ __forceinline__ bool operator<(const kmerDCX& a, const kmerDCX& b)
-// {
-//     for (size_t i = 0; i < DCX::X; i++)
-//     {
-//         if (a.kmer[i] < b.kmer[i]) {
-//             return true;
-//         }
-//         if (a.kmer[i] > b.kmer[i]) {
-//             return false;
-//         }
-//     }
-//     return false;
-// }
-
 
 struct KmerComparator
 {
