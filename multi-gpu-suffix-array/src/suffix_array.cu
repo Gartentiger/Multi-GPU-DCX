@@ -978,13 +978,13 @@ private:
 
         mcontext.sync_all_streams();
         kernels::produce_index_kmer_tuples_12_64_dcx _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
-            ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<kmerDCX*>(gpu.pd_ptr.Kmer),
+            ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, gpu.pd_ptr.Kmer,
                 gpu.pd_elements, samplePos, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
         CUERR;
 
         cudaFreeAsync(samplePos, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
-        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (reinterpret_cast<char*>(gpu.pd_ptr.Sa_rank), gpu.pd_ptr.Isa, SDIV(gpu.num_elements, DCX::X * 2) * DCX::X * 2, world_rank());
+        printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.pd_ptr.Kmer, gpu.pd_ptr.Isa, gpu.pd_elements, world_rank());
         mcontext.sync_default_streams();
         comm_world().barrier();
     }
