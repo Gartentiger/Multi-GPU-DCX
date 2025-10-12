@@ -1078,7 +1078,7 @@ private:
                 (sa_index_t*)gpu.prepare_S12_ptr.S12_result,
                 (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                 gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2,
-                gpu.pd_elements, 0, mpd_per_gpu_max_bit,
+                gpu.pd_elements, 0, sizeof(sa_index_t) * 8,
                 mcontext.get_gpu_default_stream(gpu_index));
 
             void* temp;
@@ -1087,20 +1087,16 @@ private:
                 (sa_index_t*)gpu.prepare_S12_ptr.S12_result,
                 (sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
                 gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2,
-                gpu.pd_elements, 0, mpd_per_gpu_max_bit,
+                gpu.pd_elements, 0, sizeof(sa_index_t) * 8,
                 mcontext.get_gpu_default_stream(gpu_index));
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(gpu_index));
 
             mgpus.back().pd_elements -= last_gpu_extra_elements;
 
-            if (gpu_index + 1 < NUM_GPUS) {
-                kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, last_gpu_extra_elements);
-                CUERR;
-            }
-            else {
-                kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, last_gpu_extra_elements);
-                CUERR;
-            }
+
+            kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, last_gpu_extra_elements);
+            CUERR;
+
         }
         mcontext.sync_all_streams();
         comm_world().barrier();
@@ -1109,12 +1105,17 @@ private:
             cudaMemcpy(isa_local.data(), (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, isa_local.size() * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
             std::vector<sa_index_t> isaglob = comm_world().gatherv(send_buf(isa_local), root(0)); //(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
             printf("[%lu] all suffixes received\n", world_rank());
-            auto input_all = comm_world().gatherv(send_buf(std::span<char>(minput, minput_len)), root(0));
+            std::vector<char> input_all = comm_world().gatherv(send_buf(std::span<char>(minput, mper_gpu)), root(0));
             printf("[%lu] all input received\n", world_rank());
 
             if (world_rank() == 0) {
-
-                auto sa = naive_suffix_sort(minput_len, minput);
+                input_all.resize(minput_len);
+                for (size_t i = 0; i < input_all.size(); i++)
+                {
+                    printf("%c", input_all[i]);
+                }
+                printf("\n");
+                auto sa = naive_suffix_sort(minput_len, input_all.data());
                 printf("sorted sa, size: %lu\n", sa.size());
                 thrust::host_vector<sa_index_t> sampleSa(sa.size());
                 for (size_t i = 0; i < sa.size(); i++)
