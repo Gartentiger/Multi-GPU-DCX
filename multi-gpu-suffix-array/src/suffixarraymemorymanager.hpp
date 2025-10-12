@@ -78,7 +78,7 @@ class SuffixArrayMemoryManager
 {
 public:
     static const size_t ALIGN_BYTES = 256;
-    static const size_t NUM_PD_ARRAYS = 9;
+    static const size_t NUM_PD_ARRAYS = 13;
     static const size_t HOST_TEMP_MEM_SIZE = 1024 * NUM_GPUS;
 
     static const size_t HALF_MERGE_STAGE_SUFFIX_SIZE = sizeof(MergeStageSuffix) / 2;
@@ -296,7 +296,7 @@ public:
             }
 
             // //(mcontext.get_device_id(gpu));
-            }
+        }
 
         cudaFreeHost(mhost_temp_mem);
         cudaFreeHost(mh_result);
@@ -304,7 +304,7 @@ public:
 #ifdef ENABLE_DUMPING
         cudaFreeHost(mhost_alloc_base);
 #endif
-        }
+    }
 
 #ifdef ENABLE_DUMPING
     void copy_down_for_inspection(uint gpu)
@@ -318,7 +318,7 @@ private:
     MultiGPUContext<NUM_GPUS>& mcontext;
 
     size_t mpd_array_aligned_len, minput_aligned_len, mmerge_suffix_s12_aligned_len, mmerge_suffix_s0_aligned_len,
-        mhalf_merge_suffix_s12_aligned_len, mhalf_merge_suffix_s0_aligned_len;
+        mhalf_merge_suffix_s12_aligned_len, mhalf_merge_suffix_s0_aligned_len, kmer_aligned_len, kmer_temp_storage, kmer_additional_space;
     size_t madditional_pd_space_size;
     size_t malloc_size, minput_offset, misa_offset;
     std::array<unsigned char*, NUM_GPUS> malloc_base;
@@ -426,6 +426,6 @@ private:
     {
         return (offset / ALIGN_BYTES) * ALIGN_BYTES;
     }
-    };
+};
 
 #endif // SUFFIXARRAYMEMORYMANAGER_H
