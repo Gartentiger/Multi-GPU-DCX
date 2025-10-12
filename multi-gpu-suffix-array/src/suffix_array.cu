@@ -1155,15 +1155,15 @@ private:
                 thrust::sort_by_key(inverter2.begin(), inverter2.end(), sampleSa.begin());
                 printf("\n");
                 printf("created isa\n");
-                // for (size_t i = 0; i < sampleSa.size(); i++)
-                // {
-                    //     printf("isa2 %lu: %u\n", i, sampleSa[i]);
-                    // }
+                for (size_t i = 0; i < sampleSa.size(); i++)
+                {
+                    printf("isa2 %lu: %u\n", i, sampleSa[i]);
+                }
 
-                    // for (size_t i = 0; i < isaglob.size(); i++)
-                    // {
-                        //     printf("isa %lu: %u\n", i, isaglob[i]);
-                        // }
+                for (size_t i = 0; i < isaglob.size(); i++)
+                {
+                    printf("isa %lu: %u\n", i, isaglob[i]);
+                }
 
                 size_t max_prints = 0;
                 for (size_t i = 0; i < isaglob.size(); i++)
