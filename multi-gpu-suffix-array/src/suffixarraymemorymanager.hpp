@@ -25,7 +25,7 @@ struct PDArrays
     sa_index_t* Temp2;
     sa_index_t* Temp3;
     sa_index_t* Temp4;
-    
+
     kmer* Kmer;
     kmer* Kmer_buffer;
     sa_index_t* Kmer_temp1;
@@ -102,7 +102,9 @@ public:
         : mcontext(context_)
     {
     }
-
+    size_t get_temp_mem_kmer() {
+        return kmer_additional_space;
+    }
     const sa_index_t* get_h_result() const
     {
         return mh_result;
@@ -244,7 +246,7 @@ public:
                 printf("[%lu] opened mem handle from %d\n", world_rank(), src);
                 malloc_base[src] = reinterpret_cast<unsigned char*>(ptrHandle);
             }
-        }
+                }
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
             marrays_pd[gpu] = make_pd_arrays(malloc_base[gpu]);
@@ -270,7 +272,7 @@ public:
         marrays_prepare_S0[NUM_GPUS] = make_prepare_S0_arrays(mhost_alloc_base);
         marrays_merge_S12_S0[NUM_GPUS] = make_merge_S12_S0_arrays(mhost_alloc_base);
 #endif
-    }
+            }
 
     void free()
     {
@@ -415,6 +417,6 @@ private:
     {
         return (offset / ALIGN_BYTES) * ALIGN_BYTES;
     }
-};
+        };
 
 #endif // SUFFIXARRAYMEMORYMANAGER_H
