@@ -626,7 +626,21 @@ namespace kernels {
             Out[i] = i;
         }
     }
-
+    __global__ void write_indices_opt(sa_index_t* Out, size_t N, size_t set_size, size_t mpd_per_gpu, size_t rank) {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+            uint index = i + mpd_per_gpu * rank;
+            uint group = index / set_size;
+            uint offset = index % set_size;
+            Out[i] = group + DCX::C * offset;
+        }
+    }
+    __global__ void write_indices_sub2(sa_index_t* Out, size_t N, size_t last_gpu_extra_elements) {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+            Out[i] -= last_gpu_extra_elements;
+        }
+    }
     __global__ void write_sa(MergeSuffixes* In, sa_index_t* Out, size_t N) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
