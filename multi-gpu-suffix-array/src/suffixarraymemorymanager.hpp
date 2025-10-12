@@ -171,12 +171,16 @@ public:
         return std::make_pair(mhost_temp_mem, HOST_TEMP_MEM_SIZE);
     }
 
-    void alloc(size_t input_len, size_t min_gpu_len, size_t min_pd_len, size_t min_S0_len, bool zero)
-    {
-
+    void alloc(size_t input_len, size_t min_gpu_len, size_t min_pd_len, size_t min_S0_len, bool zero, size_t bytes_for_kmer, size_t kmertempstorage) {
+        kmer_temp_storage = kmertempstorage;
+        // count elements so min_pd_len is 256 byte aligned
         mpd_array_aligned_len = align_len(min_pd_len, sizeof(sa_index_t));
         minput_aligned_len = align_len(min_gpu_len, 1);
+        kmer_aligned_len = align_len(bytes_for_kmer, 1);
+        // only relevant for dc3 
+        kmer_aligned_len = std::max(kmer_aligned_len, mpd_array_aligned_len * sizeof(sa_index_t));
 
+        printf("per gpu bytes for kmer: %lu, minput_aligned_len: %lu, kmer_aligned_len: %lu\n", mpd_array_aligned_len * sizeof(sa_index_t), minput_aligned_len, kmer_aligned_len);
         mhalf_merge_suffix_s12_aligned_len = align_len(min_pd_len, HALF_MERGE_STAGE_SUFFIX_SIZE);
         mhalf_merge_suffix_s0_aligned_len = align_len(min_S0_len, HALF_MERGE_STAGE_SUFFIX_SIZE);
 
@@ -189,6 +193,11 @@ public:
 
         size_t pd_total_bytes = NUM_PD_ARRAYS * mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len;
 
+        // only for dcx with x>7 necessariy because sa_rank + temp1, old_ranks + segment_heads are both one array of size
+        // mpd_array_aligned_len * sizeof(uint64_t). If sizeof(kmer)>sizeof(uint64_t) <=> x>7  we need more storage
+        // 2 * isa + input + 2 * kmer + 3 * temp + temp arrays for initial sort
+        size_t initial_sort_kmer_produce_extra = 2 * mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len + 2 * kmer_aligned_len + std::max(kmer_temp_storage, 3 * mpd_array_aligned_len * sizeof(sa_index_t));
+
         size_t prepareS12_total_bytes = mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len +
             3 * sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len;
 
@@ -198,11 +207,11 @@ public:
 
         size_t merge_total_bytes = 2 * (mmerge_suffix_s12_aligned_len + mmerge_suffix_s0_aligned_len) * sizeof(MergeStageSuffix);
 
-        malloc_size = std::max(std::max(std::max(prepareS0_total_bytes, prepareS12_total_bytes), pd_total_bytes), merge_total_bytes);
+        malloc_size = std::max(std::max(std::max(std::max(prepareS0_total_bytes, prepareS12_total_bytes), pd_total_bytes), merge_total_bytes), initial_sort_kmer_produce_extra);
+
 
         printf("Allocating %zu K per node (%zu K for prefix doubling, %zu K for prepare_S_12, %zu K for prepare_S_0, "
-            "%zu K for final merge).\n",
-            malloc_size / 1024, pd_total_bytes / 1024, prepareS12_total_bytes / 1024,
+            "%zu K for final merge).\n", malloc_size / 1024, pd_total_bytes / 1024, prepareS12_total_bytes / 1024,
             prepareS0_total_bytes / 1024, merge_total_bytes / 1024);
 
         // Place this at the end.
@@ -211,7 +220,7 @@ public:
         misa_offset = align_down(minput_offset - mpd_array_aligned_len * sizeof(sa_index_t));
 
         madditional_pd_space_size = (misa_offset - 8 * mpd_array_aligned_len * sizeof(sa_index_t));
-
+        kmer_additional_space = misa_offset - 1 * mpd_array_aligned_len * sizeof(sa_index_t) - 2 * kmer_aligned_len;
         //for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
             uint gpu = world_rank();
@@ -246,7 +255,7 @@ public:
                 printf("[%lu] opened mem handle from %d\n", world_rank(), src);
                 malloc_base[src] = reinterpret_cast<unsigned char*>(ptrHandle);
             }
-                }
+        }
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
             marrays_pd[gpu] = make_pd_arrays(malloc_base[gpu]);
@@ -272,7 +281,7 @@ public:
         marrays_prepare_S0[NUM_GPUS] = make_prepare_S0_arrays(mhost_alloc_base);
         marrays_merge_S12_S0[NUM_GPUS] = make_merge_S12_S0_arrays(mhost_alloc_base);
 #endif
-            }
+    }
 
     void free()
     {
@@ -287,7 +296,7 @@ public:
             }
 
             // //(mcontext.get_device_id(gpu));
-        }
+            }
 
         cudaFreeHost(mhost_temp_mem);
         cudaFreeHost(mh_result);
@@ -295,7 +304,7 @@ public:
 #ifdef ENABLE_DUMPING
         cudaFreeHost(mhost_alloc_base);
 #endif
-    }
+        }
 
 #ifdef ENABLE_DUMPING
     void copy_down_for_inspection(uint gpu)
@@ -417,6 +426,6 @@ private:
     {
         return (offset / ALIGN_BYTES) * ALIGN_BYTES;
     }
-        };
+    };
 
 #endif // SUFFIXARRAYMEMORYMANAGER_H
