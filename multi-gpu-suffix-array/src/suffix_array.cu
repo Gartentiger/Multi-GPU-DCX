@@ -735,7 +735,7 @@ public:
 
         //            mpd_sorter.dump("After K-Mers");
 
-        mtook_pd_iterations = mpd_sorter.sort(4);
+        mtook_pd_iterations = mpd_sorter.sort(1);
         // comm_world().barrier();
         auto& t = kamping::measurements::timer();
         t.aggregate_and_print(
