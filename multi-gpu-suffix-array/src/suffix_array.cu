@@ -792,27 +792,34 @@ public:
         // Ensure each gpu has a multiple of 3 because of triplets.
         mper_gpu = SDIV(mper_gpu, DCX::X) * DCX::X;
         printf("minput_len: %lu, mper_gpu %lu\n", minput_len, mper_gpu);
-        ASSERT(minput_len > (NUM_GPUS - 1) * mper_gpu + 3); // Because of merge
+        ASSERT(minput_len > (NUM_GPUS - 1) * mper_gpu + DCX::X); // Because of merge
         size_t last_gpu_elems = minput_len - (NUM_GPUS - 1) * mper_gpu;
         ASSERT(last_gpu_elems <= mper_gpu); // Because of merge.
 
-        mreserved_len = SDIV(std::max(last_gpu_elems, mper_gpu) + 8, 14) * 14; // Ensure there are 12 elems more space.
-        mreserved_len = std::max(mreserved_len, 1024ul);                       // Min len because of temp memory for CUB.
+        mreserved_len = SDIV(std::max(last_gpu_elems, mper_gpu) + 8, DCX::X * 2) * DCX::X * 2; // Ensure there are 12 elems more space.
+        mreserved_len = std::max(mreserved_len, 1024ul) + 10 * DCX::X;                       // Min len because of temp memory for CUB.
 
         mpd_reserved_len = SDIV(mreserved_len, DCX::X) * DCX::C;
 
         ms0_reserved_len = mreserved_len - mpd_reserved_len;
 
         auto cub_temp_mem = get_needed_cub_temp_memory(ms0_reserved_len, mpd_reserved_len);
+        cub::DoubleBuffer<uint64_t> keys(nullptr, nullptr);
+
+        cub::DoubleBuffer<uint64_t> values(nullptr, nullptr);
+
+        size_t temp_storage_size_S12 = 0;
+        cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_S12,
+            keys, values, mpd_reserved_len, 0, sizeof(kmer) * 8);
 
         // Can do it this way since CUB temp memory is limited for large inputs.
         ms0_reserved_len = std::max(ms0_reserved_len, SDIV(cub_temp_mem.first, sizeof(MergeStageSuffix)));
         mpd_reserved_len = std::max(mpd_reserved_len, SDIV(cub_temp_mem.second, sizeof(MergeStageSuffix)));
+        printf("mpd_reserved_len after cub temp: %lu\n", mpd_reserved_len);
 
-        mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true);
+        mpd_per_gpu = (mper_gpu / DCX::X) * DCX::C;
 
-        mpd_per_gpu = mper_gpu / DCX::X * DCX::C;
-        mpd_per_gpu_max_bit = std::min(sa_index_t(log2(float(mpd_per_gpu))) + 1, sa_index_t(sizeof(sa_index_t) * 8));
+        mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true, (mpd_per_gpu + 3 * DCX::X) * sizeof(kmerDCX), temp_storage_size_S12);
 
         size_t pd_total_len = 0, offset = 0, pd_offset = 0;
         for (uint i = 0; i < NUM_GPUS - 1; i++)
@@ -838,20 +845,46 @@ public:
                 }
             }
         }
+        // makes kmers easier because the set_sizes are now always set_sizes[0]=...=set_sizes[N-2]=set_sizes[N-1]+1=pd_elements/DCX::C
+        last_gpu_extra_elements = DCX::C - last_gpu_add_pd_elements - 1 + DCX::C;
+        mgpus.back().pd_elements = (last_gpu_elems / DCX::X) * DCX::C + last_gpu_add_pd_elements + last_gpu_extra_elements;
+        mpd_per_gpu_max_bit = std::min(sa_index_t(log2((NUM_GPUS - 1) * mpd_per_gpu + mgpus.back().pd_elements)) + 1, sa_index_t(sizeof(sa_index_t) * 8));
 
-        mgpus.back().pd_elements = (last_gpu_elems / DCX::X) * DCX::C + last_gpu_add_pd_elements;
+        for (size_t i = 0; i < NUM_GPUS; i++)
+        {
+            printf("%lu bytes for kmer: %lu\n", i, mgpus[i].pd_elements * sizeof(kmerDCX));
+        }
+
+        set_sizes.resize(DCX::C);
+
+        for (size_t i = 0; i < DCX::C; i++)
+        {
+            set_sizes[i] = 0;
+            for (size_t gpu_idx = 0; gpu_idx < NUM_GPUS; gpu_idx++)
+            {
+                set_sizes[i] += mgpus[gpu_idx].pd_elements / DCX::C;
+            }
+            if ((mgpus.back().pd_elements % DCX::C) > i) {
+                set_sizes[i]++;
+            }
+        }
+        for (size_t i = 0; i < DCX::C; i++)
+        {
+            printf("S%lu: %lu\n", i, set_sizes[i]);
+        }
+
         mgpus.back().offset = offset;
         mgpus.back().pd_offset = pd_offset;
 
         // Because of fixup.
-        ASSERT(mgpus.back().pd_elements >= 4);
+        ASSERT(mgpus.back().pd_elements >= DCX::X);
 
         pd_total_len += mgpus.back().pd_elements;
         init_gpu_ptrs(NUM_GPUS - 1);
 
         printf("Every node gets %zu (%zu) elements, last node: %zu (%zu), reserved len: %zu.\n", mper_gpu,
             mpd_per_gpu, last_gpu_elems, mgpus.back().pd_elements, mreserved_len);
-
+        printf("mpd_reserved_len: %lu\n", mpd_reserved_len);
         mpd_sorter.init(pd_total_len, mpd_per_gpu, mgpus.back().pd_elements, mpd_reserved_len);
     }
 
