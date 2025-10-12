@@ -975,8 +975,9 @@ private:
         }
 
         mcontext.sync_default_streams();
-        // printf("after write if eq, rank: %lu\n", world_rank());
-        //}
+        printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, std::min(20UL, mgpus[world_rank()].working_len), world_rank());
+        mcontext.sync_default_streams();
+        comm_world().barrier();
     }
 
     bool compact()
@@ -1311,6 +1312,7 @@ private:
         }
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
 
+        comm_world().barrier();
 
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
         mcontext.sync_default_streams();
@@ -1344,9 +1346,9 @@ private:
             // printf("[%lu] isa len [%u] %lu, work len %lu\n", world_rank(), gpu_index, gpu.isa_len, gpu.working_len);
         }
         mall2all.execKVAsync(all2all_node_info, split_table);
-        // mcontext.sync_all_streams();
+        mcontext.sync_all_streams();
         // printf("[%lu] After all2all isa\n", world_rank());
-        // comm_world().barrier();
+        comm_world().barrier();
 
         // printf("[%lu] mall2all isa stage\n", world_rank());
         // comm_world().barrier();
@@ -1550,6 +1552,9 @@ private:
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Prepare_Indices);
 
         TIMER_START_FETCH_RANK_STAGE(FetchRankStages::Multisplit);
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -1598,7 +1603,9 @@ private:
                 cudaMemsetAsync(gpu.Sa_rank, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_streams(gpu_index)[1]);
             }
         }
+
         mcontext.sync_default_streams();
+        comm_world().barrier();
         // printf("[%lu] fetch isa multi\n", world_rank());
 
         TIMER_STOP_FETCH_RANK_STAGE(FetchRankStages::Fetch);
@@ -1704,8 +1711,13 @@ private:
                     gpu.num_segments, less, mgpu_context);
             }
         }
+        printf("after seg\n", world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
+        printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, mgpus[world_rank()].Sa_index, mgpus[world_rank()].working_len, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+
         // if (iterations == 1) {
         //     for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         //     {
@@ -1799,8 +1811,13 @@ private:
         //            dump("Before merge");
         TIMER_START_LOOP_STAGE(LoopStages::Merge);
         mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>());
+        mcontext.sync_all_streams();
         comm_world().barrier(); // because of copie_async
         //            dump("After merge");
+        printf("[%lu] after merge seg sort\n", world_rank());
+        printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, mgpus[world_rank()].Sa_index, mgpus[world_rank()].working_len, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         TIMER_STOP_LOOP_STAGE(LoopStages::Merge);
     }
 
@@ -2061,8 +2078,8 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+        }
 #endif
-};
+    };
 
 #endif // PREFIX_DOUBLING_HPP

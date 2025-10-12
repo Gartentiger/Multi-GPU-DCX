@@ -179,7 +179,7 @@ __global__ void printArrayss(const unsigned char* input, size_t size, size_t ran
 __global__ void printArrayss(sa_index_t* isa, size_t size, size_t rank)
 {
     for (size_t i = 0; i < size; i++) {
-        printf("[%4lu] %4u\n", i, isa[i]);
+        printf("[%lu] [%4lu] %4u\n", rank, i, isa[i]);
     }
 }
 
@@ -197,10 +197,10 @@ __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, 
     for (size_t i = 0; i < size; i++) {
         if (i + 1 < size) {
 
-            printf("%u, ", isa[i]);
+            printf("%3u, ", isa[i]);
         }
         else {
-            printf("%u", isa[i]);
+            printf("%3u", isa[i]);
         }
 
     }
@@ -209,10 +209,10 @@ __global__ void printArrayss(sa_index_t* isa, sa_index_t* sa_rank, size_t size, 
     for (size_t i = 0; i < size; i++) {
         if (i + 1 < size) {
 
-            printf("%u, ", sa_rank[i]);
+            printf("%3u, ", sa_rank[i]);
         }
         else {
-            printf("%u", sa_rank[i]);
+            printf("%3u", sa_rank[i]);
         }
 
     }
