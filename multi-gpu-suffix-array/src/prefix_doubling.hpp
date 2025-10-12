@@ -852,7 +852,6 @@ private:
 
         // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         // {
-        SaGPU& gpu = mgpus[world_rank()];
         printArrayss << <1, 1 >> > (gpu.Kmer_buffer, gpu.Sa_rank, std::min(20UL, gpu.working_len), world_rank());
         mcontext.sync_default_streams();
         // }
