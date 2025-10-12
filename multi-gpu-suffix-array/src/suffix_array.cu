@@ -335,6 +335,8 @@ class SuffixSorter
         MergeS12S0Arrays merge_ptr;
     };
 
+
+
     Context& mcontext;
     MemoryManager mmemory_manager;
     MultiSplit<NUM_GPUS> mmulti_split;
@@ -1320,7 +1322,7 @@ private:
             {
                 sa[i] = all_vec[i].index;
             }
-            std::vector<size_t> realsa = naive_suffix_sort(allInput.size(), allInput.data());
+            std::vector<size_t> realsa(sa.size());// = naive_suffix_sort(allInput.size(), allInput.data());
             if (std::equal(realsa.begin(), realsa.end(), sa.begin(), sa.end())) {
                 printf("real sorted\n");
             }
