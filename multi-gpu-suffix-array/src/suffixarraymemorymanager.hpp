@@ -333,6 +333,14 @@ private:
         arr.Temp2 = (sa_index_t*)(base + 5 * mpd_array_aligned_len * sizeof(sa_index_t));
         arr.Temp3 = (sa_index_t*)(base + 6 * mpd_array_aligned_len * sizeof(sa_index_t));
         arr.Temp4 = (sa_index_t*)(base + 7 * mpd_array_aligned_len * sizeof(sa_index_t));
+
+        // only for kmer
+        arr.Kmer = (kmer*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t));
+        // for temp storage kmer
+        arr.Kmer_buffer = (kmer*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t) + 1 * kmer_aligned_len);
+        arr.Kmer_temp1 = (sa_index_t*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t) + 2 * kmer_aligned_len);
+        arr.Kmer_temp2 = (sa_index_t*)(base + 2 * mpd_array_aligned_len * sizeof(sa_index_t) + 2 * kmer_aligned_len);
+        // after this additional storage kmer_additional_space
         return arr;
     }
 
