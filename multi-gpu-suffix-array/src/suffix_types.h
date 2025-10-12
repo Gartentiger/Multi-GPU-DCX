@@ -454,6 +454,36 @@ struct rank_decomposer
     }
 };
 
+__host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmerDCX& b)
+{
+    for (size_t i = 0; i < DCX::X; i++)
+    {
+        if (a.kmer[i] == b.kmer[i]) {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
+struct KmerComparator
+{
+    __host__ __device__ __forceinline__ bool operator()(const kmerDCX& a, const kmerDCX& b)
+    {
+
+        for (size_t i = 0; i < DCX::X; i++)
+        {
+            if (a.kmer[i] < b.kmer[i]) {
+                return true;
+            }
+            if (a.kmer[i] > b.kmer[i]) {
+                return false;
+            }
+        }
+        return false;
+    }
+};
+
 struct DC7Comparator
 {
     __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
