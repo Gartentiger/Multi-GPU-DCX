@@ -724,6 +724,7 @@ private:
         merge_manager.set_node_info(merge_nodes_info);
 
         mcontext.sync_default_streams();
+        comm_world().barrier();
         // t.stop();
 
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
@@ -756,13 +757,15 @@ private:
 
                 // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer), gpu.Isa, gpu.working_len, gpu_index);
                 // mcontext.sync_default_streams();
-                printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer), gpu.Sa_index, 10, gpu_index);
+                printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer), gpu.Sa_index, std::min(20UL, gpu.working_len), gpu_index);
                 mcontext.sync_default_streams();
                 prefix_sum += gpu.working_len;
             }
             ASSERT(thrust::is_sorted(sortedList.begin(), sortedList.end(), KmerComparator{}));
         }
         comm_world().barrier();
+        printf("[%lu] after check\n", world_rank());
+
         // t.stop();
         t.aggregate_and_print(
             kamping::measurements::SimpleJsonPrinter{ std::cout }
@@ -806,15 +809,16 @@ private:
         //printf("write ranks diff multi\n");
         mcontext.sync_default_streams();
         mcontext.get_device_temp_allocator(gpu_index).reset();
+        printf("[%lu] after write ranks diff\n", world_rank());
 
         std::vector<kmer> kmerCheck(mgpus[world_rank()].working_len);
         cudaMemcpy(kmerCheck.data(), mgpus[world_rank()].Kmer_buffer, sizeof(kmer) * mgpus[world_rank()].working_len, cudaMemcpyDeviceToHost);
         auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
         comm_world().barrier();
         do_max_scan_on_ranks(true);
-
         mcontext.sync_all_streams();
         comm_world().barrier();
+        printf("[%lu] after do max\n", world_rank());
 
         std::vector<sa_index_t> sa(mgpus[world_rank()].working_len);
         cudaMemcpy(sa.data(), mgpus[world_rank()].Sa_rank, sizeof(sa_index_t) * mgpus[world_rank()].working_len, cudaMemcpyDeviceToHost);
@@ -846,12 +850,12 @@ private:
         }
         comm_world().barrier();
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU& gpu = mgpus[gpu_index];
-            printArrayss << <1, 1 >> > (gpu.Kmer_buffer, gpu.Sa_rank, gpu.working_len, gpu_index);
-            mcontext.sync_default_streams();
-        }
+        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        // {
+        SaGPU& gpu = mgpus[world_rank()];
+        printArrayss << <1, 1 >> > (gpu.Kmer_buffer, gpu.Sa_rank, std::min(20UL, gpu.working_len), world_rank());
+        mcontext.sync_default_streams();
+        // }
     }
 
     // From Temp1 to Ranks
@@ -2014,7 +2018,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
