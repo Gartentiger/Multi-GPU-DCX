@@ -1047,11 +1047,12 @@ private:
         }
 
         PartitioningFunctor<sa_index_t> f(mpd_per_gpu, NUM_GPUS - 1);
-
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
         mcontext.sync_default_streams();
-
+        comm_world().barrier();
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
@@ -1067,6 +1068,7 @@ private:
 
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
+        comm_world().barrier();
         {
             uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[world_rank()];
@@ -1100,8 +1102,8 @@ private:
                 CUERR;
             }
         }
-        comm_world().barrier();
         mcontext.sync_all_streams();
+        comm_world().barrier();
         {
             std::vector<sa_index_t> isa_local(mgpus[world_rank()].pd_elements);
             cudaMemcpy(isa_local.data(), (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, isa_local.size() * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
