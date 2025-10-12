@@ -803,7 +803,7 @@ private:
             last_element_prev = temp;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
         }
         //printf("last element\n");
-        kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const kmer*>(gpu.Kmer_buffer), last_element_prev, gpu.offset + 1, 0, reinterpret_cast<sa_index_t*>(gpu.Kmer), gpu.working_len);
+        kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(gpu.Kmer_buffer, last_element_prev, gpu.offset + 1, 0, reinterpret_cast<sa_index_t*>(gpu.Kmer), gpu.working_len);
         CUERR;
         //}
         //printf("write ranks diff multi\n");
@@ -811,11 +811,43 @@ private:
         mcontext.get_device_temp_allocator(gpu_index).reset();
         printf("[%lu] after write ranks diff\n", world_rank());
 
-        std::vector<kmer> kmerCheck(mgpus[world_rank()].working_len);
-        cudaMemcpy(kmerCheck.data(), mgpus[world_rank()].Kmer_buffer, sizeof(kmer) * mgpus[world_rank()].working_len, cudaMemcpyDeviceToHost);
+        std::vector<kmer> kmerCheck(gpu.working_len);
+        cudaMemcpy(kmerCheck.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
         auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
         comm_world().barrier();
+        {
+            std::vector<sa_index_t> check(gpu.working_len);
+            cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+            std::vector<kmer> local_kmer(gpu.working_len);
+            cudaMemcpy(local_kmer.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
+
+            size_t current_rank = check[0];
+            size_t rank_buffer = 0;
+            for (size_t i = 1; i < check.size(); i++)
+            {
+                if (check[i] == check[i - 1]) {
+                    if (local_kmer[i] != local_kmer[i - 1]) {
+                        printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
+                    }
+                    ASSERT(local_kmer[i] == local_kmer[i - 1]);
+                    rank_buffer++;
+                }
+                else {
+                    if (current_rank + rank_buffer + 1 != check[i]) {
+                        printf("[%lu] current rank: %lu + rank_buffer: %lu + 1 != next rank %u", i, current_rank, rank_buffer, check[i]);
+                    }
+                    ASSERT(current_rank + rank_buffer + 1 == check[i]);
+                    rank_buffer = 0;
+                    current_rank = check[i];
+                }
+            }
+
+            comm_world().barrier();
+        }
+
         do_max_scan_on_ranks(true);
+
+
         mcontext.sync_all_streams();
         comm_world().barrier();
         printf("[%lu] after do max\n", world_rank());
