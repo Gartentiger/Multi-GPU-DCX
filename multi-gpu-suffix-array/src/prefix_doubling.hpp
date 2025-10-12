@@ -733,7 +733,34 @@ private:
         merge_manager.merge(ranges, KmerComparator{});
         mcontext.sync_default_streams();
         comm_world().barrier();
+        printf("after init merging\n");
+        size_t prefix_sum = 0;
 
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU gpu = mgpus[gpu_index];
+            prefix_sum += gpu.working_len;
+
+        }
+
+        if (world_rank() == 0) {
+            thrust::host_vector<kmerDCX> sortedList(prefix_sum);
+            prefix_sum = 0;
+            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+            {
+                SaGPU gpu = mgpus[gpu_index];
+                cudaMemcpy(thrust::raw_pointer_cast(sortedList.data()) + prefix_sum, gpu.Kmer_buffer, sizeof(kmerDCX) * gpu.working_len, cudaMemcpyDeviceToDevice);
+                mcontext.sync_default_streams();
+
+                // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer), gpu.Isa, gpu.working_len, gpu_index);
+                // mcontext.sync_default_streams();
+                printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer), gpu.Sa_index, 10, gpu_index);
+                mcontext.sync_default_streams();
+                prefix_sum += gpu.working_len;
+            }
+            ASSERT(thrust::is_sorted(sortedList.begin(), sortedList.end(), KmerComparator{}));
+        }
+        comm_world().barrier();
         // t.stop();
         t.aggregate_and_print(
             kamping::measurements::SimpleJsonPrinter{ std::cout }
@@ -878,7 +905,7 @@ private:
             //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-        }
+}
         mcontext.sync_default_streams();
 #endif
         // printf("[%lu] before send compact\n", world_rank());
