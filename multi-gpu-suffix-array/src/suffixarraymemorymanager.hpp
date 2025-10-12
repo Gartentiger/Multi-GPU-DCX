@@ -25,6 +25,12 @@ struct PDArrays
     sa_index_t* Temp2;
     sa_index_t* Temp3;
     sa_index_t* Temp4;
+    
+    kmer* Kmer;
+    kmer* Kmer_buffer;
+    sa_index_t* Kmer_temp1;
+    sa_index_t* Kmer_temp2;
+    unsigned char* Input;
     unsigned char* Input;
 };
 
