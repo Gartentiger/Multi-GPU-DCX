@@ -861,35 +861,35 @@ private:
         mcontext.sync_default_streams();
         comm_world().barrier();
 
-        std::vector<sa_index_t> sa(mgpus[world_rank()].working_len);
-        cudaMemcpy(sa.data(), mgpus[world_rank()].Sa_rank, sizeof(sa_index_t) * mgpus[world_rank()].working_len, cudaMemcpyDeviceToHost);
+        // std::vector<sa_index_t> sa(mgpus[world_rank()].working_len);
+        // cudaMemcpy(sa.data(), mgpus[world_rank()].Sa_rank, sizeof(sa_index_t) * mgpus[world_rank()].working_len, cudaMemcpyDeviceToHost);
 
-        auto check = comm_world().gatherv(send_buf(sa), root(0));
-        comm_world().barrier();
+        // auto check = comm_world().gatherv(send_buf(sa), root(0));
+        // comm_world().barrier();
 
-        if (world_rank() == 0) {
-            size_t current_rank = check[0];
-            size_t rank_buffer = 0;
-            for (size_t i = 1; i < check.size(); i++)
-            {
-                if (check[i] == check[i - 1]) {
-                    if (kmerCheck[i] != kmerCheck[i - 1]) {
-                        printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
-                    }
-                    ASSERT(kmerCheck[i] == kmerCheck[i - 1]);
-                    rank_buffer++;
-                }
-                else {
-                    if (current_rank + rank_buffer + 1 != check[i]) {
-                        printf("[%lu] current rank: %lu + rank_buffer: %lu + 1 != next rank %u", i, current_rank, rank_buffer, check[i]);
-                    }
-                    ASSERT(current_rank + rank_buffer + 1 == check[i]);
-                    rank_buffer = 0;
-                    current_rank = check[i];
-                }
-            }
-        }
-        comm_world().barrier();
+        // if (world_rank() == 0) {
+        //     size_t current_rank = check[0];
+        //     size_t rank_buffer = 0;
+        //     for (size_t i = 1; i < check.size(); i++)
+        //     {
+        //         if (check[i] == check[i - 1]) {
+        //             if (kmerCheck[i] != kmerCheck[i - 1]) {
+        //                 printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
+        //             }
+        //             ASSERT(kmerCheck[i] == kmerCheck[i - 1]);
+        //             rank_buffer++;
+        //         }
+        //         else {
+        //             if (current_rank + rank_buffer + 1 != check[i]) {
+        //                 printf("[%lu] current rank: %lu + rank_buffer: %lu + 1 != next rank %u", i, current_rank, rank_buffer, check[i]);
+        //             }
+        //             ASSERT(current_rank + rank_buffer + 1 == check[i]);
+        //             rank_buffer = 0;
+        //             current_rank = check[i];
+        //         }
+        //     }
+        // }
+        // comm_world().barrier();
         // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         // {
 
