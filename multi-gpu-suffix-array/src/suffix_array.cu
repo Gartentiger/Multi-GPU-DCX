@@ -888,21 +888,21 @@ private:
 
     void copy_input()
     {
-        using kmer_t = uint64_t;
+        // using kmer_t = uint64_t;
         // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         //{
         auto gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
 
         // Need the halo to the right for kmers...
-        size_t copy_len = std::min(gpu.num_elements + sizeof(kmer_t), minput_len - gpu.offset);
+        size_t copy_len = std::min(gpu.num_elements + sizeof(kmer), minput_len - gpu.offset);
 
         cudaMemcpyAsync(gpu.pd_ptr.Input, minput, copy_len, cudaMemcpyHostToDevice,
             mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
         if (gpu_index == NUM_GPUS - 1)
         {
-            cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer_t),
+            cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer),
                 mcontext.get_gpu_default_stream(gpu_index));
             CUERR;
         }
@@ -923,14 +923,11 @@ private:
         //                        ((char*)gpu.input, offset, gpu.pd_index, gpu.pd_kmers, gpu.num_elements); CUERR;
         // kernels::produce_index_kmer_tuples_12_64_dc7 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
         //     SDIV(gpu.num_elements, 14) * 14);
-        kernels::produce_index_kmer_tuples_12_64 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
-            SDIV(gpu.num_elements, 12) * 12);
+
+        kernels::produce_index_kmer_tuples_12_64_dcx _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
+            ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<kmerDCX*>(gpu.pd_ptr.Kmer),
+                gpu.pd_elements, samplePos, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
         CUERR;
-        //}
-        if (gpu_index == NUM_GPUS - 1)
-        {
-            kernels::fixup_last_four_12_kmers_64 << <1, 4, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<ulong1*>(mgpus.back().pd_ptr.Sa_rank) + mgpus.back().pd_elements - 4);
-        }
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (reinterpret_cast<char*>(gpu.pd_ptr.Sa_rank), gpu.pd_ptr.Isa, SDIV(gpu.num_elements, DCX::X * 2) * DCX::X * 2, world_rank());
         mcontext.sync_default_streams();
         comm_world().barrier();
