@@ -654,8 +654,6 @@ private:
         //     bool containsDuplicates = (std::unique(not_isa.begin(), not_isa.end()) != not_isa.end());
         //     printf("not isa contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
         // }
-
-        printf("ffs\n");
         {
             for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
             {
@@ -683,13 +681,7 @@ private:
                     mpd_reserved_len * sizeof(MergeSuffixes));
             }
 
-            // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-            // {
-            //     SaGPU& gpu = mgpus[gpu_index];
 
-            //     // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.prepare_S12_ptr.Isa, (sa_index_t*)gpu.prepare_S12_ptr.S12_result, gpu.pd_elements, gpu_index);
-            //     mcontext.sync_all_streams();
-            // }
             PartitioningFunctor<sa_index_t> f(mpd_per_gpu, NUM_GPUS - 1);
 
             mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
