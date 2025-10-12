@@ -933,6 +933,11 @@ private:
 
                     err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, in_buffer, gpu.Sa_rank,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
+                    cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Sa_rank + gpu.working_len - 1,
+                        sizeof(sa_index_t), cudaMemcpyDeviceToHost,
+                        mcontext.get_gpu_default_stream(gpu_index));
+                    CUERR;
+
                 }
                 // Now temp1 is written to Sa_rank
             }
@@ -983,7 +988,7 @@ private:
             //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-        }
+    }
         mcontext.sync_default_streams();
 #endif
         // printf("[%lu] before send compact\n", world_rank());
@@ -1272,7 +1277,7 @@ private:
         }
 
         return false;
-    }
+}
 
     // Sa_rank, Sa_index --> Isa
     void write_to_isa(bool initial = false)
@@ -2056,8 +2061,8 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+        }
 #endif
-};
+    };
 
 #endif // PREFIX_DOUBLING_HPP
