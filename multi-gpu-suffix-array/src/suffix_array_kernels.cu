@@ -711,21 +711,18 @@ namespace kernels {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
             uint index = i + mpd_per_gpu * rank;
-            // uint set_idx = 0;
-            // for (size_t j = 0; j < DCX::C - 1; j++)
-            // {
-            //     if (index / set_size[set_idx] > 0) {
-            //         set_idx++;
-            //         index -= set_size[set_idx];
-            //     }
-            //     else {
-            //         break;
-            //     }
-
-            // }
             uint group = index / set_size;
             uint offset = index % set_size;
             Out[i] = samplePos[group] + DCX::X * offset;
+        }
+    }
+    __global__ void write_indices_opt(sa_index_t* Out, size_t N, size_t set_size, size_t mpd_per_gpu, size_t rank) {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+            uint index = i + mpd_per_gpu * rank;
+            uint group = index / set_size;
+            uint offset = index % set_size;
+            Out[i] = group + DCX::C * offset;
         }
     }
     __global__ void write_indices_sub2(sa_index_t* Out, size_t N, size_t last_gpu_extra_elements) {

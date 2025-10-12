@@ -109,6 +109,7 @@ namespace crossGPUReMerge {
                 last_split_offs = current_split_offs;
             }
             // debug_print();
+            // exit(0);
         }
 
         void debug_print() const {

@@ -168,7 +168,7 @@ namespace crossGPUReMerge {
             for (MergeNode& node : mnodes) {
                 for (auto s : node.scheduled_work.searches) {
                     s->result = *s->h_result_ptr;
-                    printf("[%lu] searches result: %ld\n", node.info.index, s->result);
+                    // printf("[%lu] searches result: %ld\n", node.info.index, s->result);
                 }
                 for (auto ms : node.scheduled_work.multi_searches) {
 

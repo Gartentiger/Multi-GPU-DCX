@@ -97,6 +97,7 @@ public:
     const sa_index_t* get_h_result() const {
         return mh_result;
     }
+
     size_t get_temp_mem_kmer() {
         return kmer_additional_space;
     }
@@ -156,6 +157,9 @@ public:
         mpd_array_aligned_len = align_len(min_pd_len, sizeof(sa_index_t));
         minput_aligned_len = align_len(min_gpu_len, 1);
         kmer_aligned_len = align_len(bytes_for_kmer, 1);
+        // only relevant for dc3 
+        kmer_aligned_len = std::max(kmer_aligned_len, mpd_array_aligned_len * sizeof(sa_index_t));
+
         printf("per gpu bytes for kmer: %lu, minput_aligned_len: %lu, kmer_aligned_len: %lu\n", mpd_array_aligned_len * sizeof(sa_index_t), minput_aligned_len, kmer_aligned_len);
         mhalf_merge_suffix_s12_aligned_len = align_len(min_pd_len, HALF_MERGE_STAGE_SUFFIX_SIZE);
         mhalf_merge_suffix_s0_aligned_len = align_len(min_S0_len, HALF_MERGE_STAGE_SUFFIX_SIZE);
@@ -357,6 +361,6 @@ private:
     static inline size_t align_down(size_t offset) {
         return (offset / ALIGN_BYTES) * ALIGN_BYTES;
     }
-};
+    };
 
 #endif // SUFFIXARRAYMEMORYMANAGER_H
