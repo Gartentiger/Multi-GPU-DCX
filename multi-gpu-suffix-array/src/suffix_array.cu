@@ -996,26 +996,34 @@ private:
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
-        // std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
+        {
+            std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
 
-        // cudaMemcpy(isa.data(), mgpus[world_rank()].prepare_S12_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
-        // auto isaglob = comm_world().gatherv(send_buf(isa), root(0));
-        // if (world_rank() == 0) {
-        //     std::vector<size_t> buckets(NUM_GPUS);
-        //     std::sort(isaglob.begin(), isaglob.end());
-        //     bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
-        //     printf("isa_glob size: %lu contains dup: %s\n", isaglob.size(), containsDuplicates ? "true" : "false");
-        //     for (auto item : isaglob) {
-        //         sa_index_t d = min((item / (sa_index_t)mpd_per_gpu), NUM_GPUS - 1);
-        //         buckets[d] += 1;
-        //     }
-        //     for (size_t i = 0; i < NUM_GPUS; i++)
-        //     {
-        //         printf("[%lu] buckets[%lu] %lu <= %lu mgpus[%lu].pd_elements\n", world_rank(), i, buckets[i], mgpus[i].pd_elements, i);
-        //         // ASSERT(buckets[i] <= mgpus[i].pd_elements);
-        //     }
-        // }
-        // comm_world().barrier();
+            cudaMemcpy(isa.data(), mgpus[world_rank()].prepare_S12_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
+            auto isaglob = comm_world().gatherv(send_buf(isa), root(0));
+            if (world_rank() == 0) {
+                std::sort(isaglob.begin(), isaglob.end());
+                std::vector<sa_index_t> compareIsa(isaglob.size());
+                for (size_t i = 0; i < compareIsa.size(); i++)
+                {
+                    compareIsa[i] = i + 1;
+                }
+                size_t write_counter = 0;
+                for (size_t i = 0; i < compareIsa.size(); i++)
+                {
+                    if (isaglob[i] != compareIsa[i] && write_counter < 30) {
+
+                        printf("[%lu] %u != %u\n", i, isaglob[i], compareIsa[i]);
+                        write_counter++;
+                    }
+                }
+                bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
+                bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
+                printf("isa before contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
+                printf("isa before mpd_per_gpu: %lu\n", mpd_per_gpu);
+            }
+        }
+
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -1059,12 +1067,8 @@ private:
 
         mall2all.execKVAsync(all2all_node_info, split_table);
         mcontext.sync_all_streams();
-        // std::vector<sa_index_t> isaglob(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
-        size_t prefixsum = 0;
-        // for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
             uint gpu_index = world_rank();
-            // cudaSetDevice(mcontext.get_device_id(gpu_index));
             SaGPU& gpu = mgpus[world_rank()];
 
             size_t temp_storage_bytes = 0;
@@ -1085,24 +1089,118 @@ private:
                 mcontext.get_gpu_default_stream(gpu_index));
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(gpu_index));
 
-            // mcontext.sync_all_streams();
-            // printArrayss << <1, 1 >> > ((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, 40, gpu_index);
-            // mcontext.sync_all_streams();
+            mgpus.back().pd_elements -= last_gpu_extra_elements;
+
             if (gpu_index + 1 < NUM_GPUS) {
                 kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, last_gpu_extra_elements);
                 CUERR;
-
-                // cudaMemcpyAsync(isaglob.data() + prefixsum, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
             }
             else {
-                gpu.pd_elements -= last_gpu_extra_elements;
                 kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements, last_gpu_extra_elements);
                 CUERR;
-                // cudaMemcpyAsync(isaglob.data() + prefixsum, (sa_index_t*)gpu.prepare_S12_ptr.S12_buffer2, gpu.pd_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
             }
-            prefixsum += gpu.pd_elements;
         }
-        // comm_world().barrier();
+        comm_world().barrier();
+        mcontext.sync_all_streams();
+        {
+            std::vector<sa_index_t> isa_local(mgpus[world_rank()].pd_elements);
+            cudaMemcpy(isa_local.data(), (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, isa_local.size() * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+            std::vector<sa_index_t> isaglob = comm_world().gatherv(send_buf(isa_local), root(0)); //(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
+            printf("[%lu] all suffixes received\n", world_rank());
+            auto input_all = comm_world().gatherv(send_buf(std::span<char>(minput, minput_len)), root(0));
+            printf("[%lu] all input received\n", world_rank());
+
+            if (world_rank() == 0) {
+
+                auto sa = naive_suffix_sort(minput_len, minput);
+                printf("sorted sa, size: %lu\n", sa.size());
+                thrust::host_vector<sa_index_t> sampleSa(sa.size());
+                for (size_t i = 0; i < sa.size(); i++)
+                {
+                    sampleSa[i] = sa[i];
+                }
+                thrust::host_vector<sa_index_t> inverter(sampleSa.size());
+                for (size_t i = 0; i < inverter.size(); i++)
+                {
+                    inverter[i] = i;
+                }
+                thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter.begin());
+                size_t satotal = 0;
+                for (size_t i = 0; i < sa.size(); i++)
+                {
+                    for (size_t c = 0; c < DCX::C; c++)
+                    {
+                        if (i % DCX::X == DCX::samplePosition[c]) {
+                            sampleSa[satotal++] = ((sa_index_t)inverter[i]);
+                            // printf("[%2lu]%c, %u: ", i, minput[i], (sa_index_t)inverter[i]);
+                            break;
+                        }
+                    }
+                }
+                sampleSa.resize(satotal);
+
+                thrust::host_vector<sa_index_t> inverter2(sampleSa.size());
+                for (size_t i = 0; i < inverter2.size(); i++)
+                {
+                    inverter2[i] = i;
+                }
+                thrust::sort_by_key(sampleSa.begin(), sampleSa.end(), inverter2.begin());
+                for (size_t i = 0; i < sampleSa.size(); i++)
+                {
+                    sampleSa[i] = i + 1;
+                }
+                thrust::sort_by_key(inverter2.begin(), inverter2.end(), sampleSa.begin());
+                printf("\n");
+                printf("created isa\n");
+                // for (size_t i = 0; i < sampleSa.size(); i++)
+                // {
+                    //     printf("isa2 %lu: %u\n", i, sampleSa[i]);
+                    // }
+
+                    // for (size_t i = 0; i < isaglob.size(); i++)
+                    // {
+                        //     printf("isa %lu: %u\n", i, isaglob[i]);
+                        // }
+
+                size_t max_prints = 0;
+                for (size_t i = 0; i < isaglob.size(); i++)
+                {
+                    if (isaglob[i] != sampleSa[i] && max_prints < 10) {
+                        printf("isa[%lu] %u != %u real Isa\n", i, isaglob[i], sampleSa[i]);
+                    }
+                    if (isaglob[i] != sampleSa[i]) {
+                        max_prints++;
+                    }
+                }
+                printf("wrong: %lu\n", max_prints);
+                if (std::equal(isaglob.begin(), isaglob.end(), sampleSa.begin(), sampleSa.end())) {
+                    printf("equal isa!\n");
+                }
+
+                std::sort(isaglob.begin(), isaglob.end());
+                std::vector<sa_index_t> compareIsa(isaglob.size());
+                for (size_t i = 0; i < compareIsa.size(); i++)
+                {
+                    compareIsa[i] = i + 1;
+                }
+                size_t write_counter = 0;
+                for (size_t i = 0; i < compareIsa.size(); i++)
+                {
+                    if (isaglob[i] != compareIsa[i] && write_counter < 30) {
+
+                        printf("[%lu] %u != %u\n", i, isaglob[i], compareIsa[i]);
+                        write_counter++;
+                    }
+                }
+
+                bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
+                bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
+                printf("contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
+                printf("mpd_per_gpu: %lu\n", mpd_per_gpu);
+            }
+        }
+        comm_world().barrier();
+
         //
         printf("[%lu] after write indices s12\n", world_rank());
         // mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
@@ -1252,20 +1350,15 @@ private:
         thrust::device_vector<MergeSuffixes>().swap(merge_tuple_vec);
         size_t out_num_elements = merge_tuple_out_vec.size();
         sa_index_t* out_sa;;
-        // cudaFreeAsync(merge_tuple, mcontext.get_gpu_default_stream(gpu_index));
-        // cudaMallocAsync(&out_sa, sizeof(sa_index_t) * out_num_elements, mcontext.get_gpu_default_stream(gpu_index));
-        // mcontext.sync_all_streams();
-        printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
-        // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (merge_tuple_out, out_num_elements, gpu_index);
-        // thrust::device_vector<sa_index_t> device_sa(out_num_elements);
 
+        printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
 
         kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements);
         mcontext.sync_all_streams();
         printf("[%lu] write sa\n", world_rank());
         std::vector<sa_index_t> sa(out_num_elements);
         cudaMemcpyAsync(sa.data(), reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
-        // cudaFreeAsync(merge_tuple_out, mcontext.get_gpu_default_stream(gpu_index));
+
         mcontext.sync_all_streams();
         comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
