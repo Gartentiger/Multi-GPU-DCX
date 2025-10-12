@@ -1326,7 +1326,7 @@ private:
             }
 
             char fileName[16];
-            const char* text = "outputDC3";
+            const char* text = "outputDC";
             sprintf(fileName, "%s", text);
             std::ofstream out(fileName, std::ios::binary);
             if (!out) {
@@ -1374,7 +1374,7 @@ private:
         printf("[%lu] acc: %lu\n", world_rank(), acc);
         int ierr;
         MPI_File outputFile;
-        ierr = MPI_File_open(MPI_COMM_WORLD, "outputTest",
+        ierr = MPI_File_open(MPI_COMM_WORLD, "outputSample",
             MPI_MODE_CREATE | MPI_MODE_WRONLY,
             MPI_INFO_NULL, &outputFile);
         if (ierr != MPI_SUCCESS) {
