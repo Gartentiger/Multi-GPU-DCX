@@ -952,7 +952,7 @@ private:
         //                        ((char*)gpu.input, offset, gpu.pd_index, gpu.pd_kmers, gpu.num_elements); CUERR;
         // kernels::produce_index_kmer_tuples_12_64_dc7 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
         //     SDIV(gpu.num_elements, 14) * 14);
-
+        thrust::device_vector<size_t> d_set_sizes = set_sizes;
         uint32_t* samplePos;
         cudaMallocAsync(&samplePos, sizeof(uint32_t) * DCX::C, mcontext.get_gpu_default_stream(gpu_index));
         cudaMemcpyAsync(samplePos, DCX::samplePosition, sizeof(uint32_t) * DCX::C, cudaMemcpyHostToDevice, mcontext.get_gpu_default_stream(gpu_index));
@@ -1390,7 +1390,7 @@ private:
             CUERR;
         }
         mcontext.sync_default_streams();
-        }
+    }
 
     void copy_result_to_host()
     {
