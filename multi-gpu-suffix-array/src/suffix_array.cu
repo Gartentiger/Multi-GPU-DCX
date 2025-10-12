@@ -995,7 +995,9 @@ private:
         std::array<All2AllNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> all2all_node_info;
         split_table_tt<sa_index_t, NUM_GPUS> split_table;
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
-
+        printArrayss << <1, 1 >> > (mgpus[world_rank()].prepare_S12_ptr.Isa, mgpus[world_rank()].pd_elements, world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         {
             std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
 
