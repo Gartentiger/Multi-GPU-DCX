@@ -606,17 +606,13 @@ private:
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
-            //uint gpu_index = mcontext.world_rank;
             SaGPU& gpu = mgpus[gpu_index];
             if (world_rank() == gpu_index) {
-                //(mcontext.get_device_id(gpu_index));
+
 
                 size_t temp_storage_bytes = 0;
 
                 const size_t SORT_DOWN_TO_G = gpu_index == NUM_GPUS - 1 ? SORT_DOWN_TO_LAST : SORT_DOWN_TO;
-
-
-                // sorted kmers in old_ranks, rank of kmer in sa_index, in isa normal rank 0,1,2..., sa_rank kmers
 
                 cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
                     reinterpret_cast<uint64_t*>(gpu.Sa_rank),
@@ -627,19 +623,7 @@ private:
 
                 CUERR_CHECK(err);
 
-
-
-                //                if (gpu_index == 0) {
-                    //                    printf("\nTemp storage required for initial sort: %zu bytes, available: %zu.\n", temp_storage_bytes,
-                    //                           (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t));
-                    //                }
-
                 ASSERT(temp_storage_bytes <= (3 * mreserved_len + madditional_temp_storage_size) * sizeof(sa_index_t));
-                //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
-
-                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, true);
-
-                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, false);
 
                 err = cub::DeviceRadixSort::SortPairs(gpu.Temp2, temp_storage_bytes,
                     reinterpret_cast<uint64_t*>(gpu.Sa_rank),
@@ -648,50 +632,8 @@ private:
                     gpu.working_len, SORT_DOWN_TO_G, sizeof(ulong1) * 8,
                     mcontext.get_gpu_default_stream(gpu.index));
                 CUERR_CHECK(err);
-
-                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa, gpu.working_len, true);
-
-                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu.index) >> > (reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index, gpu.working_len, false);
-
-
-
-
-
-
-                // Now Sa_rank is sorted to Old_ranks,
-                // Isa is sorted to Sa_Index
-                // Temp2, 3, 4 used as temp space
-
-
-
-
-                    // Span<uint64_t> d(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
-
-                    //printf("pointer gpu.Old_ranks: %lu", reinterpret_cast<uint64_t*>(gpu.Old_ranks));
-
-                // std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
-                // size_t worldSize = comm_world().size();
-                // std::vector<int> recCounts(worldSize);
-                // for (int i = 0; i < worldSize; i++) {
-                //     recCounts.push_back(mgpus[i].working_len);
-                // }
-                // std::vector<std::span<uint64_t>> recBuf(worldSize);
-                // for (int i = 0; i < worldSize; i++) {
-                //     std::span<uint64_t> n(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
-                //     recBuf.push_back(n);
-                // }
-                // comm_world().allgatherv(send_buf(sendBuf), recv_buf(recBuf), recv_counts(recCounts));
-                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (gpu.Isa, gpu.Sa_index, gpu.working_len, gpu_index);
-                //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<uint64_t*>(gpu.Sa_rank), reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len, gpu_index);
             }
 
-
-            // printf("Before pointer: %lu\n", reinterpret_cast<uint64_t*>(gpu.Old_ranks));
-            // std::span<uint64_t> dd(reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.working_len);
-            // comm_world().recv(recv_buf(dd), recv_count(gpu.working_len));
-
-
-            // working_len == num_elements
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
                 reinterpret_cast<uint64_t*>(gpu.Old_ranks), gpu.Sa_index,
                 reinterpret_cast<uint64_t*>(gpu.Sa_rank), gpu.Isa,
@@ -701,36 +643,6 @@ private:
         }
 
         merge_manager.set_node_info(merge_nodes_info);
-
-
-        // size_t k = (10. * log(minput_len));
-        // std::srand(std::time(0));
-        // std::vector<uint64_t> samples(k * NUM_GPUS);
-        // samples.clear();
-        // for (size_t i = 0; i < k; i++)
-        // {
-
-        //     gpu.Old_ranks[std::rand() % mgpus[world_rank()].working_len];
-        // }
-
-        // mcontext.sync_default_streams();
-
-        // for (int i = 0; i < world_size();i++) {
-            // all2allDevicePointer(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), i, mgpus[i].working_len);
-            // if (world_rank() == i) {
-            //     std::span<uint64_t> sendBuf(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
-            //     for (int j = 0; j < world_size(); j++) {
-            //         if (i == j) {
-            //             continue;
-            //         }
-            //         comm_world().send(send_buf(sendBuf), send_count(mgpus[i].working_len), tag(i), destination(j));
-            //     }
-            // }
-            // else {
-            //     std::span<uint64_t> recB(reinterpret_cast<uint64_t*>(mgpus[i].Old_ranks), mgpus[i].working_len);
-            //     comm_world().recv(recv_buf(recB), tag(i), recv_count(mgpus[i].working_len));
-            // }    
-        // }
 
         mcontext.sync_default_streams();
         // t.stop();
@@ -742,8 +654,6 @@ private:
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
         // t.synchronize_and_start("merge");
         merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
-        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].key_buffer, merge_nodes_info[world_rank()].keys, merge_nodes_info[world_rank()].num_elements, world_rank());
-        //printArray << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (merge_nodes_info[world_rank()].value_buffer, merge_nodes_info[world_rank()].values, merge_nodes_info[world_rank()].num_elements, world_rank());
         mcontext.sync_default_streams();
         comm_world().barrier();
 
@@ -755,10 +665,85 @@ private:
         t.aggregate_and_print(kamping::measurements::FlatPrinter{});
         std::cout << std::endl;
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
-        // comm_world().barrier();
-        // exit(0);
-    }
 
+    }
+    void initial_sort_dcx()
+    {
+        auto& t = kamping::measurements::timer();
+        // t.synchronize_and_start("initial_sort");
+
+        using initial_merge_types = crossGPUReMerge::mergeTypes<kmerDCX, sa_index_t>;
+        using InitialMergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, initial_merge_types, ReMergeTopology>;
+        using InitialMergeNodeInfo = crossGPUReMerge::MergeNodeInfo<initial_merge_types>;
+
+        TIMER_START_MAIN_STAGE(MainStages::Initial_Sort);
+
+        InitialMergeManager merge_manager(mcontext, mhost_temp_pinned_allocator);
+
+        std::array<InitialMergeNodeInfo, NUM_GPUS> merge_nodes_info;
+
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
+            if (world_rank() == gpu_index) {
+                size_t temp_storage_bytes = 0;
+
+                err = cub::DeviceRadixSort::SortPairs(gpu.Kmer_temp1, temp_storage_bytes,
+                    reinterpret_cast<kmerDCX*>(gpu.Kmer),
+                    reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer),
+                    gpu.Isa,
+                    gpu.Sa_index,
+                    gpu.working_len,
+                    DCXKmerDecomposer{}, 0, sizeof(kmerDCX) * 8,
+                    mcontext.get_gpu_default_stream(gpu.index));
+                CUERR_CHECK(err);
+
+                ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
+                //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
+                err = cub::DeviceRadixSort::SortPairs(gpu.Kmer_temp1, temp_storage_bytes,
+                    reinterpret_cast<kmerDCX*>(gpu.Kmer),
+                    reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer),
+                    gpu.Isa,
+                    gpu.Sa_index,
+                    gpu.working_len,
+                    DCXKmerDecomposer{}, 0, sizeof(kmerDCX) * 8,
+                    mcontext.get_gpu_default_stream(gpu.index));
+                CUERR_CHECK(err);
+            }
+
+            merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
+                gpu.Kmer_buffer, gpu.Sa_index,
+                gpu.Kmer, gpu.Isa,
+                nullptr, nullptr };
+            mcontext.get_device_temp_allocator(gpu_index).init(gpu.Kmer_temp1, mreserved_len * 3 * sizeof(sa_index_t));
+
+        }
+
+        merge_manager.set_node_info(merge_nodes_info);
+
+        mcontext.sync_default_streams();
+        // t.stop();
+
+        TIMER_STOP_MAIN_STAGE(MainStages::Initial_Sort);
+        TIMER_START_MAIN_STAGE(MainStages::Initial_Merge);
+
+        std::vector<crossGPUReMerge::MergeRange> ranges;
+        ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
+        // t.synchronize_and_start("merge");
+        merge_manager.merge(ranges, KmerComparator{});
+        mcontext.sync_default_streams();
+        comm_world().barrier();
+
+        // t.stop();
+        t.aggregate_and_print(
+            kamping::measurements::SimpleJsonPrinter{ std::cout }
+        );
+        std::cout << std::endl;
+        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        std::cout << std::endl;
+        TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
+
+    }
     void write_initial_ranks()
     {
         using rank_t = uint64_t;
