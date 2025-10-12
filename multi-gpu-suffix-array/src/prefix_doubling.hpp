@@ -773,7 +773,7 @@ private:
     }
     void write_initial_ranks()
     {
-        using rank_t = uint64_t;
+        // using rank_t = uint64_t;
 
         //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         //{
@@ -781,24 +781,24 @@ private:
         SaGPU& gpu = mgpus[gpu_index];
         //(mcontext.get_device_id(gpu_index));
         //printf("initial\n");
-        const rank_t* last_element_prev = nullptr;
+        const kmer* last_element_prev = nullptr;
 
         mcontext.get_device_temp_allocator(gpu_index).reset();
         if (world_rank() < world_size() - 1) {
-            std::span<rank_t> sb(reinterpret_cast<rank_t*>(gpu.Old_ranks) + gpu.working_len - 1, 1);
+            std::span<kmer> sb(gpu.Kmer_buffer + gpu.working_len - 1, 1);
             comm_world().send(send_buf(sb), send_count(1), destination(world_rank() + 1));
         }
         if (gpu_index > 0)
         {
-            rank_t* temp = mcontext.get_device_temp_allocator(gpu_index).get<rank_t>(1);
-            std::span<rank_t> rb(temp, 1);
+            kmer* temp = mcontext.get_device_temp_allocator(gpu_index).get<kmer>(1);
+            std::span<kmer> rb(temp, 1);
             comm_world().recv(recv_buf(rb), recv_count(1));
 
             //  last element of previous gpu
             last_element_prev = temp;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
         }
         //printf("last element\n");
-        kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const rank_t*>(gpu.Old_ranks), last_element_prev, gpu.offset + 1, 0, gpu.Temp1, gpu.working_len);
+        kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(reinterpret_cast<const kmer*>(gpu.Kmer_buffer), last_element_prev, gpu.offset + 1, 0, reinterpret_cast<sa_index_t*>(gpu.Kmer), gpu.working_len);
         CUERR;
         //}
         //printf("write ranks diff multi\n");
@@ -860,12 +860,7 @@ private:
 
         }
         mcontext.sync_default_streams();
-        //printf("sync streams\n");
-        // Send mhost_temp_mem[world_rank()] to all other processes 
 
-        // for (int i = 0; i < world_size(); i++) {
-        //     printf("check temp mem: %u, rank: %lu\n", mhost_temp_mem[i], world_rank());
-        // }
 
         std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
         std::span<uint32_t> rb(mhost_temp_mem, world_size());
@@ -905,7 +900,7 @@ private:
             //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-}
+        }
         mcontext.sync_default_streams();
 #endif
         // printf("[%lu] before send compact\n", world_rank());
@@ -1194,7 +1189,7 @@ private:
         }
 
         return false;
-    }
+        }
 
     // Sa_rank, Sa_index --> Isa
     void write_to_isa(bool initial = false)
