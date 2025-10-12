@@ -37,7 +37,8 @@ namespace kernels {
 
     __global__ void produce_index_kmer_tuples_12(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         sa_index_t* Output_kmers, size_t N);
-
+    __global__ void produce_index_kmer_tuples_12_64_dcx(const unsigned char* Input, sa_index_t start_index, sa_index_t* Output_index,
+        kmerDCX* Output_kmers, size_t N, sa_index_t* period, size_t rank, size_t* set_sizes, size_t set_per_gpu, size_t input_len, size_t mpd_reserved_len);
     __global__ void produce_index_kmer_tuples_12_64_dc7(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N);
 
