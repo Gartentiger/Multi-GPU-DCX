@@ -77,7 +77,7 @@ class SuffixArrayMemoryManager
 {
 public:
     static const size_t ALIGN_BYTES = 256;
-    static const size_t NUM_PD_ARRAYS = 8;
+    static const size_t NUM_PD_ARRAYS = 9;
     static const size_t HOST_TEMP_MEM_SIZE = 1024 * NUM_GPUS;
 
     static const size_t HALF_MERGE_STAGE_SUFFIX_SIZE = sizeof(MergeStageSuffix) / 2;
@@ -239,9 +239,9 @@ public:
             for (size_t dst = 0; dst < NUM_GPUS; dst++) {
                 if (mcontext.get_peer_status(world_rank(), dst) != 1) {
                     continue;
-                }
-                comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handle, 1)), send_count(1), tag(world_rank()), destination(dst));
             }
+                comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handle, 1)), send_count(1), tag(world_rank()), destination(dst));
+    }
             for (size_t src = 0; src < NUM_GPUS; src++) {
                 if (mcontext.get_peer_status(world_rank(), src) != 1) {
                     continue;
@@ -253,7 +253,7 @@ public:
                 CUERR;
                 printf("[%lu] opened mem handle from %d\n", world_rank(), src);
                 malloc_base[src] = reinterpret_cast<unsigned char*>(ptrHandle);
-            }
+}
         }
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
