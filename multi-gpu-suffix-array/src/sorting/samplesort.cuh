@@ -383,10 +383,11 @@ void HostSampleSort(std::vector<key>& keys, std::vector<key>& keys_out, size_t N
 
     std::sort(keys_out.begin(), keys_out.end());
 }
-
+template <size_t NUM_GPUS, class mtypes>
+using ReMergeTopology = crossGPUReMerge::MergeGPUAllConnectedTopologyHelper<NUM_GPUS, mtypes>;
 template<typename key, typename Compare_Device, typename Compare_Host, size_t NUM_GPUS>
 void MultiMerge(thrust::device_vector <key>& keys_vec, thrust::device_vector <key>& keys_buffer_vec, Compare_Device cmp_device, Compare_Host cmp_host, MultiGPUContext<NUM_GPUS>& mcontext) {
-    using ReMergeTopology = crossGPUReMerge::MergeGPUAllConnectedTopologyHelper<NUM_GPUS, key>;
+
     using merge_types = crossGPUReMerge::mergeTypes<key, key>;
     using MergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, merge_types, ReMergeTopology>;
     using MergeNodeInfo = crossGPUReMerge::MergeNodeInfo<merge_types>;
