@@ -466,7 +466,22 @@ __host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmer
     }
     return true;
 }
-
+__host__ __device__ __forceinline__ bool operator==(const MergeSuffixes& a, const MergeSuffixes& b)
+{
+    for (size_t i = 0; i < DCX::X; i++)
+    {
+        if (a.prefix[i] != b.prefix[i]) {
+            return false;
+        }
+    }
+    for (size_t i = 0; i < DCX::C; i++)
+    {
+        if (a.ranks[i] != b.ranks[i]) {
+            return false;
+        }
+    }
+    return a.index == b.index;
+}
 struct KmerComparator
 {
     __host__ __device__ __forceinline__ bool operator()(const kmerDCX& a, const kmerDCX& b)
