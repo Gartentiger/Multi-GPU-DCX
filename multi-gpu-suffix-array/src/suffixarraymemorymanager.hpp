@@ -333,7 +333,7 @@ public:
     }
 
     template<typename T, uint NUM_GPUS>
-    void share_ptr(std::array<T*, NUM_GPUS> share_ptr) {
+    void share_ptr(std::array<T*, NUM_GPUS>& share_ptr) {
         cudaIpcMemHandle_t handle;
         cudaIpcGetMemHandle(&handle, share_ptr[world_rank()]);
         for (size_t dst = 0; dst < NUM_GPUS; dst++) {
