@@ -346,6 +346,8 @@ private:
     size_t madditional_pd_space_size;
     size_t malloc_size, minput_offset, misa_offset;
     std::array<unsigned char*, NUM_GPUS> malloc_base;
+    std::array<unsigned char*, NUM_GPUS> inputs;
+    std::array<sa_index_t*, NUM_GPUS> isa;
 
     std::array<PDArrays, NUM_GPUS + 1> marrays_pd;
     std::array<PrepareS12Arrays, NUM_GPUS + 1> marrays_prepare_S12;
