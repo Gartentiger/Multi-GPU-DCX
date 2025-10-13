@@ -915,7 +915,7 @@ private:
                         kmer* current_buffer = in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer;
                         in_buffer = reinterpret_cast<sa_index_t*>(current_buffer);
                         out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
-                        temp_buffer = gpu.Kmer_temp1;
+                        temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
                     }
                     MaxFunctor max_op;
                     size_t temp_storage_bytes = 0;
@@ -928,8 +928,12 @@ private:
                     // Run inclusive prefix max-scan
                     // void* temp;
                     // cudaMalloc(&temp, temp_storage_bytes);
-                    ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
-                    // ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t));
+                    if (in_buffer[gpu_index]) {
+                        ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + madditional_temp_storage_size);
+                    }
+                    else {
+                        ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
+                    }
 
                     err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, in_buffer, out_buffer,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
