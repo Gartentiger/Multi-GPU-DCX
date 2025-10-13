@@ -60,7 +60,7 @@ namespace crossGPUReMerge
                 //printf("do search %lu\n", world_rank());
                 // nvtxRangePush("do_searches");
                 if (cmp_host) {
-                    mmerge_processor.do_searches(comp, cmp_host);
+                    mmerge_processor.do_searches(comp, DCXComparatorHost{});
                 }
                 else {
                     mmerge_processor.do_searches(comp, comp);
