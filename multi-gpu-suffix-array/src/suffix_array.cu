@@ -606,7 +606,7 @@ private:
         CUERR;
         if (gpu_index == NUM_GPUS - 1)
         {
-            cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, sizeof(kmer),
+            cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, 1,
                 mcontext.get_gpu_default_stream(gpu_index));
             CUERR;
         }
