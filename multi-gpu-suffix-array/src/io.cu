@@ -51,7 +51,7 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
     if (kamping::world_rank() == num_gpus - 1)
         mper_gpu = len - (num_gpus - 1) * mper_gpu;
 
-    size_t copy_len = std::min(mper_gpu + sizeof(uint64_t), len - offset);
+    size_t copy_len = std::min(mper_gpu + sizeof(kmer), len - offset);
 
     fseek(file, offset, SEEK_SET);
 
