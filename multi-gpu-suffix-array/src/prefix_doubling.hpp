@@ -737,30 +737,11 @@ private:
         mcontext.sync_default_streams();
         comm_world().barrier();
         printf("after init merging\n");
-        size_t prefix_sum = 0;
 
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        {
-            SaGPU gpu = mgpus[gpu_index];
-            prefix_sum += gpu.working_len;
-
-        }
-
+        std::vector<kmerDCX> localList(mgpus[world_rank()].working_len);
+        cudaMemcpy(localList.data(), mgpus[world_rank()].Kmer_buffer, sizeof(kmerDCX) * localList.size(), cudaMemcpyDeviceToHost);
+        std::vector<kmerDCX> sortedList = comm_world().gatherv(send_buf(localList), root(0));
         if (world_rank() == 0) {
-            thrust::host_vector<kmerDCX> sortedList(prefix_sum);
-            prefix_sum = 0;
-            for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-            {
-                SaGPU gpu = mgpus[gpu_index];
-                cudaMemcpy(thrust::raw_pointer_cast(sortedList.data()) + prefix_sum, gpu.Kmer_buffer, sizeof(kmerDCX) * gpu.working_len, cudaMemcpyDeviceToDevice);
-                mcontext.sync_default_streams();
-
-                // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer), gpu.Isa, gpu.working_len, gpu_index);
-                // mcontext.sync_default_streams();
-                printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (reinterpret_cast<kmerDCX*>(gpu.Kmer_buffer), gpu.Sa_index, std::min(20UL, gpu.working_len), gpu_index);
-                mcontext.sync_default_streams();
-                prefix_sum += gpu.working_len;
-            }
             ASSERT(thrust::is_sorted(sortedList.begin(), sortedList.end(), KmerComparator{}));
         }
         comm_world().barrier();
@@ -1007,8 +988,8 @@ private:
                 if (mgpus[gpu_index - 1].working_len > 0) {
                     std::span<sa_index_t> sb(gpu.Sa_rank, 1);
                     comm_world().isend(send_buf(sb), send_count(1), tag(gpu_index), destination((size_t)gpu_index - 1));
-                }
-            }
+        }
+    }
 
             // for Last_rank_prev
             if (gpu_index < NUM_GPUS - 1) {
@@ -1080,7 +1061,7 @@ private:
                 CUERR;
             }
 
-        }
+}
 
         mcontext.sync_default_streams();
         //dont need Last_rank_prev, First_rank_next anymore
@@ -1122,7 +1103,7 @@ private:
                     gpu.working_len = 0;
                     gpu.num_segments = 0;
                 }
-            }
+        }
             //printf("[%lu] gpu[%u].working length: %lu\n", world_rank(), gpu_index, gpu.working_len);
         }
 
