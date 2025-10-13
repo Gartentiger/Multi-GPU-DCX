@@ -753,7 +753,7 @@ private:
             ASSERT(temp_storage_bytes <= mmemory_manager.get_additional_dcx_space_size());
             // void* temp;
             // cudaMallocAsync(&temp, temp_storage_bytes, mcontext.get_gpu_default_stream(gpu_index));
-            cudaError_t err = cub::DeviceRadixSort::SortPairs(gpu.dcx_ptr.Temp4, temp_storage_bytes,
+            err = cub::DeviceRadixSort::SortPairs(gpu.dcx_ptr.Temp4, temp_storage_bytes,
                 keys,
                 values,
                 gpu.pd_elements, 0, mpd_per_gpu_max_bit,
@@ -1500,7 +1500,7 @@ private:
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
         }
-}
+    }
 #endif
 
 
