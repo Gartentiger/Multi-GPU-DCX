@@ -501,7 +501,7 @@ public:
         size_t temp_storage_size_S12 = 0;
         size_t temp_storage_size_dcx = 0;
         cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_S12,
-            keys, values, mpd_reserved_len, 0, sizeof(kmer) * 8);
+            keys, values, mpd_reserved_len, DCXKmerDecomposer{}, 0, sizeof(kmer) * 8);
         cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_dcx,
             keys_sa, values_sa, mpd_reserved_len, 0, mpd_per_gpu_max_bit);
         temp_storage_size_S12 = std::max(temp_storage_size_dcx, temp_storage_size_S12);
