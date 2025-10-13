@@ -35,7 +35,7 @@
 #include "cuda_helpers.h"
 #include "sort_kernels.cuh"
 #include "nccl.h"
-#include <context.cuh>
+#include "gossip/context.cuh"
 
 
 template<typename key, typename Compare, size_t NUM_GPUS>
