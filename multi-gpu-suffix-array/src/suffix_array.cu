@@ -959,13 +959,13 @@ private:
         // std::vector<MergeSuffixes> host_key_out;
         // HostSampleSort(host_vec, host_key_out, host_vec.size(), std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2));
         auto all_vec = comm_world().gatherv(send_buf(host_vec), root(0));
-        // std::vector<char> inp(mper_gpu);
-        // for (size_t i = 0; i < inp.size(); i++)
-        // {
-        //     inp[i] = minput[i];
-        // }
+        std::vector<char> inp(mper_gpu);
+        for (size_t i = 0; i < inp.size(); i++)
+        {
+            inp[i] = minput[i];
+        }
 
-        // auto allInput = comm_world().gatherv(send_buf(inp), root(0));
+        auto allInput = comm_world().gatherv(send_buf(inp), root(0));
         std::vector<sa_index_t> h_sa(all_vec.size());
         printf("[%lu] send all vec\n", world_rank());
         if (world_rank() == 0) {
@@ -976,7 +976,7 @@ private:
             {
                 h_sa[i] = all_vec[i].index;
             }
-            std::vector<size_t> realsa(h_sa.size());// = naive_suffix_sort(allInput.size(), allInput.data());
+            std::vector<size_t> realsa = naive_suffix_sort(allInput.size(), allInput.data());
             if (std::equal(realsa.begin(), realsa.end(), h_sa.begin(), h_sa.end())) {
                 printf("real sorted\n");
             }
