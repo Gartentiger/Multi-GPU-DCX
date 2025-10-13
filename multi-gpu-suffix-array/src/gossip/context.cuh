@@ -181,7 +181,7 @@ public:
                 }
             }
         }
-        in_node = true;
+        in_node = false;
         for (auto b : in_nodes) {
             in_node &= b;
         }
