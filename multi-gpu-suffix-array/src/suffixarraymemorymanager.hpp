@@ -32,6 +32,16 @@ struct PDArrays
     sa_index_t* Kmer_temp2;
     unsigned char* Input;
 };
+struct DCXArrays {
+    sa_index_t* Isa;
+    const unsigned char* Input;
+    thrust::device_vector<MergeSuffixes> Suffixes;
+    thrust::device_vector<MergeSuffixes> Suffixes_Sorted;
+    sa_index_t* Temp1;
+    sa_index_t* Temp2;
+    sa_index_t* Temp3;
+    sa_index_t* Temp4;
+};
 
 struct PrepareS12Arrays
 {
@@ -239,9 +249,9 @@ public:
             for (size_t dst = 0; dst < NUM_GPUS; dst++) {
                 if (mcontext.get_peer_status(world_rank(), dst) != 1) {
                     continue;
-            }
+                }
                 comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handle, 1)), send_count(1), tag(world_rank()), destination(dst));
-    }
+            }
             for (size_t src = 0; src < NUM_GPUS; src++) {
                 if (mcontext.get_peer_status(world_rank(), src) != 1) {
                     continue;
@@ -253,7 +263,7 @@ public:
                 CUERR;
                 printf("[%lu] opened mem handle from %d\n", world_rank(), src);
                 malloc_base[src] = reinterpret_cast<unsigned char*>(ptrHandle);
-}
+            }
         }
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
