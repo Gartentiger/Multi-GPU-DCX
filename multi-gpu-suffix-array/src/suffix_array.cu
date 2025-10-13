@@ -474,21 +474,40 @@ public:
 
         ms0_reserved_len = mreserved_len - mpd_reserved_len;
 
-        auto cub_temp_mem = get_needed_cub_temp_memory(ms0_reserved_len, mpd_reserved_len);
-        cub::DoubleBuffer<uint64_t> keys(nullptr, nullptr);
+        mpd_per_gpu = (mper_gpu / DCX::X) * DCX::C;
+        size_t last_gpu_add_pd_elements = 0;
+        // if last_gpu_elems = 9 elements left and X=7 then we have 3+1 sample positions, last_gpu_elems = 10 3+2, last_gpu_elems = 11 3+2...
+        if (last_gpu_elems % DCX::X != 0) {
+            for (size_t sample = 0; sample < DCX::C; sample++)
+            {
+                if ((last_gpu_elems % DCX::X) > (size_t)DCX::samplePosition[sample]) {
+                    last_gpu_add_pd_elements++;
+                }
+            }
+        }
+        // makes kmers easier because the set_sizes are now always set_sizes[0]=...=set_sizes[N-2]=set_sizes[N-1]+1=pd_elements/DCX::C
+        last_gpu_extra_elements = DCX::C - last_gpu_add_pd_elements - 1 + DCX::C;
+        size_t last_gpu_pd_elements = (last_gpu_elems / DCX::X) * DCX::C + last_gpu_add_pd_elements + last_gpu_extra_elements;
+        mpd_per_gpu_max_bit = std::min(sa_index_t(log2((NUM_GPUS - 1) * last_gpu_pd_elements)) + 1, sa_index_t(sizeof(sa_index_t) * 8));
 
-        cub::DoubleBuffer<uint64_t> values(nullptr, nullptr);
+        auto cub_temp_mem = get_needed_cub_temp_memory(ms0_reserved_len, mpd_reserved_len);
+        cub::DoubleBuffer<kmer> keys(nullptr, nullptr);
+        cub::DoubleBuffer<kmer> values(nullptr, nullptr);
+        cub::DoubleBuffer<sa_index_t> keys_sa(nullptr, nullptr);
+        cub::DoubleBuffer<sa_index_t> values_sa(nullptr, nullptr);
 
         size_t temp_storage_size_S12 = 0;
+        size_t temp_storage_size_dcx = 0;
         cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_S12,
             keys, values, mpd_reserved_len, 0, sizeof(kmer) * 8);
-
+        cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_dcx,
+            keys_sa, values_sa, mpd_reserved_len, 0, mpd_per_gpu_max_bit);
+        temp_storage_size_S12 = std::max(temp_storage_size_dcx, temp_storage_size_S12);
         // Can do it this way since CUB temp memory is limited for large inputs.
         ms0_reserved_len = std::max(ms0_reserved_len, SDIV(cub_temp_mem.first, sizeof(MergeStageSuffix)));
         mpd_reserved_len = std::max(mpd_reserved_len, SDIV(cub_temp_mem.second, sizeof(MergeStageSuffix)));
         printf("mpd_reserved_len after cub temp: %lu\n", mpd_reserved_len);
 
-        mpd_per_gpu = (mper_gpu / DCX::X) * DCX::C;
 
         mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true, (mpd_per_gpu + 3 * DCX::X) * sizeof(kmerDCX), temp_storage_size_S12);
 
@@ -506,20 +525,8 @@ public:
         }
 
         mgpus.back().num_elements = last_gpu_elems;
-        size_t last_gpu_add_pd_elements = 0;
-        // if last_gpu_elems = 9 elements left and X=7 then we have 3+1 sample positions, last_gpu_elems = 10 3+2, last_gpu_elems = 11 3+2...
-        if (last_gpu_elems % DCX::X != 0) {
-            for (size_t sample = 0; sample < DCX::C; sample++)
-            {
-                if ((last_gpu_elems % DCX::X) > (size_t)DCX::samplePosition[sample]) {
-                    last_gpu_add_pd_elements++;
-                }
-            }
-        }
-        // makes kmers easier because the set_sizes are now always set_sizes[0]=...=set_sizes[N-2]=set_sizes[N-1]+1=pd_elements/DCX::C
-        last_gpu_extra_elements = DCX::C - last_gpu_add_pd_elements - 1 + DCX::C;
-        mgpus.back().pd_elements = (last_gpu_elems / DCX::X) * DCX::C + last_gpu_add_pd_elements + last_gpu_extra_elements;
-        mpd_per_gpu_max_bit = std::min(sa_index_t(log2((NUM_GPUS - 1) * mpd_per_gpu + mgpus.back().pd_elements)) + 1, sa_index_t(sizeof(sa_index_t) * 8));
+
+        mgpus.back().pd_elements = last_gpu_pd_elements;
 
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
@@ -730,7 +737,8 @@ private:
         {
             uint gpu_index = world_rank();
             SaGPU& gpu = mgpus[world_rank()];
-
+            cub::DoubleBuffer<sa_index_t> keys(nullptr, nullptr);
+            cub::DoubleBuffer<sa_index_t> values(nullptr, nullptr);
             size_t temp_storage_bytes = 0;
             cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
                 (sa_index_t*)gpu.prepare_S12_ptr.S12_result,
