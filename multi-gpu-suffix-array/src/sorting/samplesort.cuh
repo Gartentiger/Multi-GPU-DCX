@@ -197,6 +197,7 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
         t.start("sorting_upper_bound");
         thrust::device_vector<size_t> sorted_upper_bounds(size);
         thrust::device_vector<key> sorted_keys(size);
+        // most significant bit is exclusive -> +1
         int sortDown = std::min(int(sizeof(size_t) * 8), int(ceil(log2(NUM_GPUS)) + 1));
         size_t temp_storage_size = 0;
         cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size,

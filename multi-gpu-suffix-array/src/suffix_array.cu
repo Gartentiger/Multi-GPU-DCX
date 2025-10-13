@@ -1994,98 +1994,98 @@ int main(int argc, char** argv)
     CUERR;
     SuffixSorter sorter(context, realLen, input);
     CUERR;
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, 255);
-    std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
-    using T = MergeSuffixes;
+    // std::random_device rd;
+    // std::mt19937 g(rd());
+    // std::uniform_int_distribution<std::mt19937::result_type> randomDistChar(0, 255);
+    // std::uniform_int_distribution<std::mt19937::result_type> randomDistSize(0, UINT64_MAX);
+    // using T = MergeSuffixes;
 
-    for (size_t round = 0; round < 18; round++)
-    {
-        size_t randomDataSize = 512 << round;
-        // std::tuple<std::string, std::vector<T>> ;
-        auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
-        comm_world().barrier();
-        printf("[%lu] gen data\n", world_rank());
-        auto data_on_pe = comm_world().scatter(send_buf(data), root(0));
-        printf("[%lu] scatter\n", world_rank());
-        // for (size_t i = 0; i < data_on_pe.size(); i++)
-        // {
-        //     printf("[%lu] data_on_pe[%lu]: %u\n", world_rank(), i, data_on_pe[i].index);
-        // }
-        thrust::host_vector<T> h_suffixes(data_on_pe.begin(), data_on_pe.end());
-        // for (size_t i = 0; i < randomDataSize; i++)
-        // {
-        //     h_suffixes[i] = randomDistSize(g);
-        // }
+    // for (size_t round = 0; round < 18; round++)
+    // {
+    //     size_t randomDataSize = 512 << round;
+    //     // std::tuple<std::string, std::vector<T>> ;
+    //     auto [text, data] = generate_data_dcx(randomDataSize, 1234 + round);
+    //     comm_world().barrier();
+    //     printf("[%lu] gen data\n", world_rank());
+    //     auto data_on_pe = comm_world().scatter(send_buf(data), root(0));
+    //     printf("[%lu] scatter\n", world_rank());
+    //     // for (size_t i = 0; i < data_on_pe.size(); i++)
+    //     // {
+    //     //     printf("[%lu] data_on_pe[%lu]: %u\n", world_rank(), i, data_on_pe[i].index);
+    //     // }
+    //     thrust::host_vector<T> h_suffixes(data_on_pe.begin(), data_on_pe.end());
+    //     // for (size_t i = 0; i < randomDataSize; i++)
+    //     // {
+    //     //     h_suffixes[i] = randomDistSize(g);
+    //     // }
 
-        thrust::device_vector<T> suffixes = h_suffixes;
-
-
-        size_t out_size = 0;
-        const int a = (int)(16 * log(NUM_GPUS) / log(2.));
-        size_t bytes = sizeof(T) * randomDataSize;
-        char sf[30];
-        sprintf(sf, "sample_sort_%lu", bytes);
-        thrust::device_vector<T> keys_out;
-
-        t.synchronize_and_start(sf);
-        SampleSort<T, DCXComparatorDevice, NUM_GPUS>(suffixes, keys_out, a + 1, DCXComparatorDevice{}, context);
-        context.sync_all_streams();
-        comm_world().barrier();
-
-        t.stop_and_append();
-
-        thrust::host_vector<T> keys_out_host = keys_out;
-        std::vector<T> vec_key_out_host(keys_out_host.begin(), keys_out_host.end());
-
-        // if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
-        //     std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
-        // }
-        ASSERT(keys_out_host.size() > 1);
-        // std::vector<T> keys_out_h(2);
-        // keys_out_h[0] = vec_key_out_host[0];
-        // keys_out_h[1] = vec_key_out_host.back();
-        auto const out = comm_world().gatherv(send_buf(vec_key_out_host), root(0));
-        context.sync_all_streams();
-        comm_world().barrier();
+    //     thrust::device_vector<T> suffixes = h_suffixes;
 
 
-        if (world_rank() == 0)
-        {
-            std::vector<size_t> sa = naive_suffix_sort(randomDataSize, text);
-            bool const is_correct = std::equal(
-                sa.begin(), sa.end(), out.begin(),
-                out.end(), [](const auto& index, const auto& tuple) {
-                    return index == tuple.index;
-                });
-            // if (!std::is_sorted(out.begin(), out.end())) {
-            if (!is_correct) {
-                std::cerr << "GPU Samplesort does not sort input correctly globally" << std::endl;
-            }
-        }
+    //     size_t out_size = 0;
+    //     const int a = (int)(16 * log(NUM_GPUS) / log(2.));
+    //     size_t bytes = sizeof(T) * randomDataSize;
+    //     char sf[30];
+    //     sprintf(sf, "sample_sort_%lu", bytes);
+    //     thrust::device_vector<T> keys_out;
 
-        size_t gb = 1 << 30;
-        size_t num_GB = bytes / gb;
-        printf("[%lu] elements: %10u,  %5lu GB, time: %15.9f\n", world_rank(), randomDataSize, num_GB);
+    //     t.synchronize_and_start(sf);
+    //     SampleSort<T, DCXComparatorDevice, NUM_GPUS>(suffixes, keys_out, a + 1, DCXComparatorDevice{}, context);
+    //     context.sync_all_streams();
+    //     comm_world().barrier();
 
-        // cudaFree(suffixes);
-        // cudaFree(temp_storage);
+    //     t.stop_and_append();
 
-    }
-    // auto& t = kamping::measurements::timer();
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
-    std::ofstream outFile2(argv[1], std::ios::app);
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ outFile2, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
-    return;
+    //     thrust::host_vector<T> keys_out_host = keys_out;
+    //     std::vector<T> vec_key_out_host(keys_out_host.begin(), keys_out_host.end());
+
+    //     // if (!std::is_sorted(vec_key_out_host.begin(), vec_key_out_host.end())) {
+    //     //     std::cerr << "GPU Samplesort does not sort input correctly locally" << std::endl;
+    //     // }
+    //     ASSERT(keys_out_host.size() > 1);
+    //     // std::vector<T> keys_out_h(2);
+    //     // keys_out_h[0] = vec_key_out_host[0];
+    //     // keys_out_h[1] = vec_key_out_host.back();
+    //     auto const out = comm_world().gatherv(send_buf(vec_key_out_host), root(0));
+    //     context.sync_all_streams();
+    //     comm_world().barrier();
+
+
+    //     if (world_rank() == 0)
+    //     {
+    //         std::vector<size_t> sa = naive_suffix_sort(randomDataSize, text);
+    //         bool const is_correct = std::equal(
+    //             sa.begin(), sa.end(), out.begin(),
+    //             out.end(), [](const auto& index, const auto& tuple) {
+    //                 return index == tuple.index;
+    //             });
+    //         // if (!std::is_sorted(out.begin(), out.end())) {
+    //         if (!is_correct) {
+    //             std::cerr << "GPU Samplesort does not sort input correctly globally" << std::endl;
+    //         }
+    //     }
+
+    //     size_t gb = 1 << 30;
+    //     size_t num_GB = bytes / gb;
+    //     printf("[%lu] elements: %10u,  %5lu GB, time: %15.9f\n", world_rank(), randomDataSize, num_GB);
+
+    //     // cudaFree(suffixes);
+    //     // cudaFree(temp_storage);
+
+    // }
+    // // auto& t = kamping::measurements::timer();
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
+    // std::ofstream outFile2(argv[1], std::ios::app);
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ outFile2, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
+    // return;
     sorter.alloc();
     // auto stringPath = ((std::string)argv[3]);
     // int pos = stringPath.find_last_of("/\\");
