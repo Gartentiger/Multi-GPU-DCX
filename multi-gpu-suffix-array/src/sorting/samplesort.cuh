@@ -412,7 +412,7 @@ void MultiMerge(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
     MergeSuffixes* keys_buffer_ptr = thrust::raw_pointer_cast(keys_buffer_vec.data());
     for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
     {
-        merge_nodes_info[gpu_index] = { keys_ptr.size(), 0, gpu_index,keys_ptr, nullptr , keys_buffer_ptr,  nullptr,  nullptr, nullptr };
+        merge_nodes_info[gpu_index] = { keys_vec.size(), 0, gpu_index,keys_ptr, nullptr , keys_buffer_ptr,  nullptr,  nullptr, nullptr };
     }
 
     MergeManager merge_manager(mcontext, host_pinned_allocator);
