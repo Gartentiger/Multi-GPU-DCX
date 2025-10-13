@@ -262,9 +262,9 @@ public:
                 CUERR;
             }
 
-            share_ptr(malloc_base);
-            share_ptr(isa);
-            share_ptr(inputs);
+            share_ptr<unsigned char, NUM_GPUS>(malloc_base);
+            share_ptr<sa_index_t, NUM_GPUS>(isa);
+            share_ptr<unsigned char, NUM_GPUS>(inputs);
             printf("[%lu] shared ptr %d\n", world_rank());
         }
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
