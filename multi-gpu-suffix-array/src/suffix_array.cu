@@ -1059,6 +1059,24 @@ private:
             if (world_rank() == 0) {
                 bool com = std::equal(h_sa.begin(), h_sa.end(), all_sa.begin(), all_sa.end());
                 printf("CPU sort equal to Samplesort: %s\n", com ? "true" : "false");
+                std::vector<sa_index_t> compareSa(all_sa.size());
+                for (size_t i = 0; i < compareSa.size(); i++)
+                {
+                    compareSa[i] = i + 1;
+                }
+                size_t write_counter = 0;
+                for (size_t i = 0; i < compareSa.size(); i++)
+                {
+                    if (all_sa[i] != compareSa[i] && write_counter < 30) {
+
+                        printf("[%lu] %u != %u\n", i, all_sa[i], compareSa[i]);
+                        write_counter++;
+                    }
+                }
+
+                bool ascend = std::equal(compareSa.begin(), compareSa.end(), all_sa.begin(), all_sa.end());
+                bool containsDuplicates = (std::unique(all_sa.begin(), all_sa.end()) != all_sa.end());
+                printf("SA contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
             }
         }
 
