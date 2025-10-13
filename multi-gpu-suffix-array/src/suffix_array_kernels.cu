@@ -642,14 +642,13 @@ namespace kernels {
         }
     }
 
-    __global__ void prepare_SK_ind_kv(const sa_index_t* indices, const sa_index_t* Isa, const unsigned char* Input,
+    __global__ void prepare_SK_ind_kv(const sa_index_t* Isa, const unsigned char* Input,
         sa_index_t* next_Isa, const unsigned char* next_Input,
         sa_index_t offset, size_t num_chars,
         MergeSuffixes* out_keys, size_t N, D_DCX* dcx)
     {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
-        for (uint i_ = tidx; i_ < N; i_ += blockDim.x * gridDim.x) {
-            uint i = i_;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
             uint index = (i / DCX::C) * DCX::X + dcx->samplePosition[i % DCX::C];
             MergeSuffixes sk;
             sk.index = index + offset;
@@ -680,7 +679,7 @@ namespace kernels {
                 }
             }
 
-            out_keys[i_] = sk;
+            out_keys[i] = sk;
         }
     }
 
@@ -699,10 +698,10 @@ namespace kernels {
             Out[i] = group + DCX::C * offset;
         }
     }
-    __global__ void write_indices_sub2(sa_index_t* Out, size_t N, size_t last_gpu_extra_elements) {
+    __global__ void write_indices_sub2(sa_index_t* In, sa_index_t* Out, size_t N, size_t last_gpu_extra_elements) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
-            Out[i] -= last_gpu_extra_elements;
+            Out[i] = In[i] - last_gpu_extra_elements;
         }
     }
     __global__ void write_sa(MergeSuffixes* In, sa_index_t* Out, size_t N) {

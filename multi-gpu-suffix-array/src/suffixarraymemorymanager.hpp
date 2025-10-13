@@ -128,7 +128,15 @@ public:
     {
         return madditional_pd_space_size;
     }
-
+    size_t get_additional_dcx_space_size() const
+    {
+        return madditional_dcx_space_size;
+    }
+    const DCXArrays& get_dcx_arrays(uint node) const
+    {
+        ASSERT(node < NUM_GPUS);
+        return marrays_dcx[node];
+    }
     const PDArrays& get_pd_arrays(uint node) const
     {
         ASSERT(node < NUM_GPUS);
@@ -240,14 +248,22 @@ public:
             // //(mcontext.get_device_id(gpu));
             cudaMalloc(&malloc_base[gpu], malloc_size);
             CUERR;
+            cudaMalloc(&isa[gpu], min_pd_len * sizeof(sa_index_t));
+            CUERR;
+
+            cudaMalloc(&inputs[gpu], min_gpu_len);
+            CUERR;
 
             if (zero)
             {
                 cudaMemset(malloc_base[gpu], 0, malloc_size);
                 CUERR;
+                cudaMemset(isa[gpu], 0, min_pd_len * sizeof(sa_index_t));
+                CUERR;
+                cudaMemset(inputs[gpu], 0, min_gpu_len);
+                CUERR;
             }
-            cudaMalloc(&isa[gpu], min_pd_len * sizeof(sa_index_t));
-            cudaMalloc(&inputs[gpu], min_gpu_len);
+
             share_ptr(malloc_base);
             share_ptr(isa);
             share_ptr(inputs);
@@ -304,6 +320,19 @@ public:
 #endif
     }
 
+    void free_Input_Isa() {
+        for (uint gpu = 0; gpu < NUM_GPUS; ++gpu) {
+            if (gpu == world_rank())
+            {
+                cudaFree(isa[gpu]);
+                cudaFree(inputs[gpu]);
+            }
+            else if (mcontext.get_peer_status(world_rank(), gpu) >= 1) {
+                cudaIpcCloseMemHandle(isa[gpu]);
+                cudaIpcCloseMemHandle(inputs[gpu]);
+            }
+        }
+    }
 
     template<typename T>
     void share_ptr(T** share_ptr) {
@@ -360,14 +389,14 @@ private:
     unsigned char* mhost_temp_mem;
     sa_index_t* mh_result;
 
-    PDArrays make_pd_arrays(unsigned char* base) const
+    PDArrays make_pd_arrays(unsigned char* base, unsigned char* input_ptr, sa_index_t* isa_ptr) const
     {
         ASSERT(8 * mpd_array_aligned_len * sizeof(sa_index_t) < misa_offset);
 
         PDArrays arr;
 
-        arr.Isa = (sa_index_t*)(base + misa_offset);
-        arr.Input = (base + minput_offset);
+        arr.Isa = isa_ptr;
+        arr.Input = input_ptr;
         arr.Sa_index = (sa_index_t*)(base);
         arr.Old_ranks = (sa_index_t*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t));
         arr.Segment_heads = (sa_index_t*)(base + 2 * mpd_array_aligned_len * sizeof(sa_index_t));
@@ -389,8 +418,8 @@ private:
 
     DCXArrays make_dcx_arrays(unsigned char* base, unsigned char* input_ptr, sa_index_t* isa_ptr) const {
         DCXArrays arr;
-        arr.Input = input_ptr;
         arr.Isa = isa_ptr;
+        arr.Input = input_ptr;
 
         arr.Temp1 = (sa_index_t*)(base);
         arr.Temp2 = (sa_index_t*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t));
@@ -464,6 +493,6 @@ private:
     {
         return (offset / ALIGN_BYTES) * ALIGN_BYTES;
     }
-};
+    };
 
 #endif // SUFFIXARRAYMEMORYMANAGER_H
