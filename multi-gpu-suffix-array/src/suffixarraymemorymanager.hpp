@@ -387,6 +387,18 @@ private:
         return arr;
     }
 
+    DCXArrays make_dcx_arrays(unsigned char* base, unsigned char* input_ptr, sa_index_t* isa_ptr) const {
+        DCXArrays arr;
+        arr.Input = input_ptr;
+        arr.Isa = isa_ptr;
+
+        arr.Temp1 = (sa_index_t*)(base);
+        arr.Temp2 = (sa_index_t*)(base + 1 * mpd_array_aligned_len * sizeof(sa_index_t));
+        arr.Temp3 = (sa_index_t*)(base + 2 * mpd_array_aligned_len * sizeof(sa_index_t));
+        arr.Temp4 = (sa_index_t*)(base + 3 * mpd_array_aligned_len * sizeof(sa_index_t));
+        return arr;
+    }
+
     PrepareS12Arrays make_prepare_S12_arrays(unsigned char* base) const
     {
         PrepareS12Arrays arr;
