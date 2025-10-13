@@ -166,7 +166,16 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
     // printf("[%lu] picked splitters\n", world_rank());
     t.stop();
 
+    {
+        comm_world().barrier();
+        thrust::host_vector<key> h_samples = d_samples;
+        for (size_t i = 0; i < h_samples.size(); i++)
+        {
+            printf("[%lu] splitter[%lu]: %8u\n", world_rank(), i, reinterpret_cast<MergeSuffixes*>(thrust::raw_pointer_cast(h_samples.data()))[i].index);
+        }
+        comm_world().barrier();
 
+    }
 
     // comm_world().bcast(send_recv_buf(std::span<key>(d_samples, NUM_GPUS - 1)), send_recv_count(NUM_GPUS - 1), root(0));
 

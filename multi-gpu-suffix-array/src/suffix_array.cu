@@ -1031,6 +1031,26 @@ private:
         comm_world().barrier();
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec(merge_tuple_vec.size());
         SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext);
+        {
+            bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
+            printf("[%lu] is locally sorted: %s\n", locally_sorted ? "true" : "false");
+            thrust::host_vector<MergeSuffixes> locally_sorted_tuples = merge_tuple_out_vec;
+            std::vector<MergeSuffixes> locally_sorted_tuples_vec(locally_sorted_tuples.begin(), locally_sorted_tuples.end());
+
+            printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(merge_tuple_out_vec.data()), 10, world_rank());
+            mcontext.sync_all_streams();
+            comm_world().barrier();
+            printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(merge_tuple_out_vec.data()) + merge_tuple_out_vec.size() - 10, 10, world_rank());
+            mcontext.sync_all_streams();
+            comm_world().barrier();
+
+            auto globally_sorted_tuples = comm_world().gatherv(send_buf(locally_sorted_tuples_vec), root(0));
+            if (world_rank() == 0) {
+                bool globally_sorted = std::is_sorted(globally_sorted_tuples.begin(), globally_sorted_tuples.end(), DCXComparatorHost{});
+                printf("[%lu] is globally sorted: %s\n", globally_sorted ? "true" : "false");
+            }
+
+        }
         // MultiMerge<MergeSuffixes, DCXComparatorDevice, DCXComparatorHost, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, DCXComparatorDevice{}, DCXComparatorHost{}, mcontext);
         // merge_tuple_out_vec.swap(merge_tuple_vec);
 
