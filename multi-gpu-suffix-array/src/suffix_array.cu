@@ -1048,6 +1048,24 @@ private:
             if (world_rank() == 0) {
                 bool globally_sorted = std::is_sorted(globally_sorted_tuples.begin(), globally_sorted_tuples.end(), DCXComparatorHost{});
                 printf("[%lu] is globally sorted: %s\n", world_rank(), globally_sorted ? "true" : "false");
+
+                bool sorted_equal_host = std::equal(globally_sorted_tuples.begin(), globally_sorted_tuples.end(), all_vec.begin(), all_vec.end());
+
+                printf("[%lu] cpu sorted tuples equal: %s\n", world_rank(), sorted_equal_host ? "true" : "false");
+
+                char fileName[30];
+                const char* text = "outputSortedTuples";
+                sprintf(fileName, "%s", text);
+                std::ofstream out(fileName, std::ios::binary);
+                if (!out) {
+                    std::cerr << "Could not open file\n";
+                    //return 1;
+                }
+                printf("tuples 12 length: %lu\n", globally_sorted_tuples.size());
+
+                out.write(reinterpret_cast<char*>(globally_sorted_tuples.data()), sizeof(MergeSuffixes) * globally_sorted_tuples.size());
+                out.close();
+
             }
 
         }
