@@ -1062,7 +1062,7 @@ private:
                 std::vector<sa_index_t> compareSa(all_sa.size());
                 for (size_t i = 0; i < compareSa.size(); i++)
                 {
-                    compareSa[i] = i + 1;
+                    compareSa[i] = i;
                 }
                 size_t write_counter = 0;
                 for (size_t i = 0; i < compareSa.size(); i++)
