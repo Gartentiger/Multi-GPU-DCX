@@ -759,10 +759,26 @@ private:
         mcontext.sync_all_streams();
         comm_world().barrier();
         {
-            // std::vector<sa_index_t> isa_local(mgpus[world_rank()].pd_elements);
-            // cudaMemcpy(isa_local.data(), (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, isa_local.size() * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
-            // std::vector<sa_index_t> isaglob = comm_world().gatherv(send_buf(isa_local), root(0)); //(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
-            // printf("[%lu] all suffixes received\n", world_rank());
+
+            std::vector<sa_index_t> isa_local(mgpus[world_rank()].pd_elements);
+            cudaMemcpy(isa_local.data(), (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, isa_local.size() * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+            std::vector<sa_index_t> isaglob = comm_world().gatherv(send_buf(isa_local), root(0)); //(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
+            printf("[%lu] all suffixes received\n", world_rank());
+            if (world_rank() == 0) {
+                char fileName[16];
+                const char* text = "outputIsa";
+                sprintf(fileName, "%s", text);
+                std::ofstream out(fileName, std::ios::binary);
+                if (!out) {
+                    std::cerr << "Could not open file\n";
+                    //return 1;
+                }
+                printf("isa 12 length: %lu\n", isaglob.size());
+
+                out.write(reinterpret_cast<char*>(isaglob.data()), sizeof(sa_index_t) * isaglob.size());
+                out.close();
+            }
+
             // std::vector<char> input_all = comm_world().gatherv(send_buf(std::span<char>(minput, mper_gpu)), root(0));
             // printf("[%lu] all input received\n", world_rank());
 
