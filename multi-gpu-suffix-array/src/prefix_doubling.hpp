@@ -817,6 +817,7 @@ private:
         comm_world().barrier();
 
 
+        printf("[%lu] after check initial ranks\n", world_rank());
         // {
         //     std::vector<sa_index_t> check(gpu.working_len);
         //     cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
@@ -928,11 +929,11 @@ private:
                     // void* temp;
                     // cudaMalloc(&temp, temp_storage_bytes);
 
-                    ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + mmemory_manager.get_temp_mem_kmer());
+                    ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t));
 
                     err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, in_buffer, out_buffer,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
-                    cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Sa_rank + gpu.working_len - 1,
+                    cudaMemcpyAsync(mhost_temp_mem + gpu_index, out_buffer + gpu.working_len - 1,
                         sizeof(sa_index_t), cudaMemcpyDeviceToHost,
                         mcontext.get_gpu_default_stream(gpu_index));
                     CUERR;
@@ -948,6 +949,7 @@ private:
         }
         mcontext.sync_default_streams();
 
+        printf("[%lu] after scan\n", world_rank());
 
         std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
         std::span<uint32_t> rb(mhost_temp_mem, world_size());
@@ -988,7 +990,7 @@ private:
             //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-        }
+}
         mcontext.sync_default_streams();
 #endif
         // printf("[%lu] before send compact\n", world_rank());
@@ -2077,7 +2079,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
