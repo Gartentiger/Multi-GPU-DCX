@@ -146,11 +146,11 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
         // mgpu::mergesort(d_samples, sample_size * NUM_GPUS, cmp, mcontext.get_mgpu_default_context_for_device(world_rank()));
         // mcontext.sync_all_streams();
         size_t temp_storage_size = 0;
-        cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, d_samples, sample_size * NUM_GPUS, cmp);
+        cub::DeviceMergeSort::StableSortKeys(nullptr, temp_storage_size, d_samples, sample_size * NUM_GPUS, cmp);
         void* temp;
         cudaMalloc(&temp, temp_storage_size);
         CUERR;
-        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, d_samples, sample_size * NUM_GPUS, cmp, mcontext.get_gpu_default_stream(world_rank()));
+        cub::DeviceMergeSort::StableSortKeys(temp, temp_storage_size, d_samples, sample_size * NUM_GPUS, cmp, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
         t.stop();
@@ -198,7 +198,7 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
         thrust::device_vector<size_t> sorted_upper_bounds(size);
         thrust::device_vector<key> sorted_keys(size);
         // most significant bit is exclusive -> +1
-        int sortDown = std::min(int(sizeof(size_t) * 8), int(ceil(log2(NUM_GPUS)) + 1));
+        int sortDown = std::min(int(sizeof(size_t) * 8), int(ceil(log2(NUM_GPUS)) + 3));
         size_t temp_storage_size = 0;
         cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size,
             thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sorted_upper_bounds.data()),
@@ -325,12 +325,12 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
 
         t.start("final_sort");
         size_t temp_storage_size = 0;
-        cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_out_vec.data()), out_size, cmp);
+        cub::DeviceMergeSort::StableSortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_out_vec.data()), out_size, cmp);
         // keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
         void* temp;
         cudaMalloc(&temp, temp_storage_size);
         CUERR;
-        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_out_vec.data()), out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
+        cub::DeviceMergeSort::StableSortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_out_vec.data()), out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
 
         mcontext.sync_all_streams();
