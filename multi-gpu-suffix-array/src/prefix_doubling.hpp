@@ -807,14 +807,14 @@ private:
         mcontext.get_device_temp_allocator(gpu_index).reset();
         printf("[%lu] after write ranks diff\n", world_rank());
 
-        // std::vector<kmer> kmerCheck(gpu.working_len);
-        // cudaMemcpy(kmerCheck.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
-        // auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
-        // comm_world().barrier();
+        std::vector<kmer> kmerCheck(gpu.working_len);
+        cudaMemcpy(kmerCheck.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
+        auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
+        comm_world().barrier();
 
-        // printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(20UL, gpu.working_len), world_rank());
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
+        printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(20UL, gpu.working_len), world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
 
 
         printf("[%lu] after check initial ranks\n", world_rank());
@@ -924,12 +924,12 @@ private:
                         out_buffer, max_op, gpu.working_len,
                         mcontext.get_gpu_default_stream(gpu_index));
                     CUERR_CHECK(err);
-
+                    printf("[%lu] after prep\n", world_rank());
                     // Run inclusive prefix max-scan
                     // void* temp;
                     // cudaMalloc(&temp, temp_storage_bytes);
-
-                    ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t));
+                    ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
+                    // ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t));
 
                     err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, in_buffer, out_buffer,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
