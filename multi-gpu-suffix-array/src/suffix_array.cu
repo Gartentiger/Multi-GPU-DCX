@@ -494,7 +494,7 @@ public:
 
         auto cub_temp_mem = get_needed_cub_temp_memory(ms0_reserved_len, mpd_reserved_len);
         cub::DoubleBuffer<kmer> keys(nullptr, nullptr);
-        cub::DoubleBuffer<kmer> values(nullptr, nullptr);
+        cub::DoubleBuffer<sa_index_t> values(nullptr, nullptr);
         cub::DoubleBuffer<sa_index_t> keys_sa(nullptr, nullptr);
         cub::DoubleBuffer<sa_index_t> values_sa(nullptr, nullptr);
 

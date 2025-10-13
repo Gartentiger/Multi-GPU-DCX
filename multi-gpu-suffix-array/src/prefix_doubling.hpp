@@ -699,7 +699,7 @@ private:
                     DCXKmerDecomposer{}, 0, sizeof(kmerDCX) * 8,
                     mcontext.get_gpu_default_stream(gpu.index));
                 CUERR_CHECK(err);
-
+                printf("[%lu] temp_storage_bytes radix_sort real: %lu\n", world_rank(), temp_storage_bytes);
                 ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
                 //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
                 err = cub::DeviceRadixSort::SortPairs(gpu.Kmer_temp1, temp_storage_bytes,
