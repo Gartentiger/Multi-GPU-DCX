@@ -20,6 +20,8 @@
 #include "kamping/mpi_ops.hpp"
 #include "kamping/collectives/reduce.hpp"
 #include "kamping/collectives/gather.hpp"
+#include "kamping/collectives/bcast.hpp"
+
 // #define DEBUG_SET_ZERO_TO_SEE_BETTER
 // #define DUMP_EVERYTHING
 __global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t rank)
@@ -716,13 +718,11 @@ private:
             in_buffer[world_rank()] = keys.Current() == gpu.Kmer_buffer ? true : false;
         }
         // only for in node merges
-        auto all_buffer = comm_world().allgather(send_buf(std::span<bool>(&in_buffer[world_rank()], 1)), send_count(1));
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
-
-            in_buffer[gpu_index] = all_buffer[gpu_index];
+            comm_world().bcast(send_recv_buf(std::span<bool>(&in_buffer[gpu_index], 1)), send_recv_count(1), root((size_t)gpu_index));
             merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
                 in_buffer[gpu_index] ? gpu.Kmer_buffer : gpu.Kmer,
                 in_buffer[gpu_index] ? gpu.Sa_index : gpu.Isa,
