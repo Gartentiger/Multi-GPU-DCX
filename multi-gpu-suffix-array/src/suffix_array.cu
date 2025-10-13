@@ -334,6 +334,7 @@ class SuffixSorter
         PrepareS12Arrays prepare_S12_ptr;
         PrepareS0Arrays prepare_S0_ptr;
         MergeS12S0Arrays merge_ptr;
+        DCXArrays dcx_ptr;
     };
 
 
@@ -578,6 +579,8 @@ private:
         mgpus[i].prepare_S12_ptr = mmemory_manager.get_prepare_S12_arrays(i);
         mgpus[i].prepare_S0_ptr = mmemory_manager.get_prepare_S0_arrays(i);
         mgpus[i].merge_ptr = mmemory_manager.get_merge_S12_S0_arrays(i);
+        mgpus[i].dcx_ptr = mmemory_manager.get_dcx_arrays(i);
+
     }
 
     std::pair<size_t, size_t> get_needed_cub_temp_memory(size_t S0_count, size_t S12_count) const
@@ -1423,9 +1426,9 @@ private:
             for (int i = 0; i < limit; ++i)
             {
                 print_final_merge_suffix(i, arr.S12_result[i]);
-            }
         }
     }
+}
 
     void dump_prepare_s0(const char* caption = nullptr)
     {
