@@ -988,8 +988,8 @@ private:
                 if (mgpus[gpu_index - 1].working_len > 0) {
                     std::span<sa_index_t> sb(gpu.Sa_rank, 1);
                     comm_world().isend(send_buf(sb), send_count(1), tag(gpu_index), destination((size_t)gpu_index - 1));
-        }
-    }
+                }
+            }
 
             // for Last_rank_prev
             if (gpu_index < NUM_GPUS - 1) {
@@ -1061,7 +1061,7 @@ private:
                 CUERR;
             }
 
-}
+        }
 
         mcontext.sync_default_streams();
         //dont need Last_rank_prev, First_rank_next anymore
@@ -1103,7 +1103,7 @@ private:
                     gpu.working_len = 0;
                     gpu.num_segments = 0;
                 }
-        }
+            }
             //printf("[%lu] gpu[%u].working length: %lu\n", world_rank(), gpu_index, gpu.working_len);
         }
 

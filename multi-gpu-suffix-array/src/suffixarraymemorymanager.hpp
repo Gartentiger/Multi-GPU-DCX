@@ -214,7 +214,7 @@ public:
         size_t initial_sort_kmer_produce_extra = 1 * mpd_array_aligned_len * sizeof(sa_index_t) + 2 * kmer_aligned_len + std::max(kmer_temp_storage, 3 * mpd_array_aligned_len * sizeof(sa_index_t));
 
         // 4 buffer for isa sending recv, extra space for sorting isa in place
-        size_t prepareS12_total_bytes = 3 * mpd_array_aligned_len * sizeof(sa_index_t) + std::max(kmertempstorage, mpd_array_aligned_len * sizeof(sa_index_t));
+        size_t prepareS12_total_bytes = 3 * mpd_array_aligned_len * sizeof(sa_index_t) + std::max(kmer_temp_storage, mpd_array_aligned_len * sizeof(sa_index_t));
 
 
         size_t prepareS0_total_bytes = mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len +
@@ -236,6 +236,7 @@ public:
 
         madditional_pd_space_size = (malloc_size - 8 * mpd_array_aligned_len * sizeof(sa_index_t));
         kmer_additional_space = malloc_size - 2 * kmer_aligned_len + 1 * mpd_array_aligned_len * sizeof(sa_index_t);
+        printf("[%lu] kmer_temp_storage: %lu, add_space: %lu\n", world_rank(), kmer_temp_storage, kmer_additional_space);
         dcx_additional_space = malloc_size - 3 * mpd_array_aligned_len * sizeof(sa_index_t);
 
 

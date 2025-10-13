@@ -505,6 +505,7 @@ public:
             keys, values, mpd_reserved_len, DCXKmerDecomposer{}, 0, sizeof(kmer) * 8);
         cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_dcx,
             keys_sa, values_sa, mpd_reserved_len, 0, mpd_per_gpu_max_bit);
+        printf("[%lu] temp device_radix kmer: %lu, sa_radix temp: %lu\n", world_rank(), temp_storage_size_S12, temp_storage_size_dcx);
         temp_storage_size_S12 = std::max(temp_storage_size_dcx, temp_storage_size_S12);
         // Can do it this way since CUB temp memory is limited for large inputs.
         ms0_reserved_len = std::max(ms0_reserved_len, SDIV(cub_temp_mem.first, sizeof(MergeStageSuffix)));
