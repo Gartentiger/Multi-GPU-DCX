@@ -485,7 +485,7 @@ struct KmerComparator
     }
 };
 
-struct DC7Comparator
+struct DCXComparatorDevice
 {
     __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
     {
@@ -505,7 +505,7 @@ struct DC7Comparator
         return a.ranks[r1] < b.ranks[r2];
     }
 };
-struct DC7ComparatorHost
+struct DCXComparatorHost
 {
     __host__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
     {
