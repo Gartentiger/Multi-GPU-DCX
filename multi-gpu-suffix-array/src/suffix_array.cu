@@ -985,6 +985,22 @@ private:
         std::vector<sa_index_t> h_sa(all_vec.size());
         printf("[%lu] send all vec\n", world_rank());
         if (world_rank() == 0) {
+
+            {
+                char fileName[16];
+                const char* text = "outputTuples";
+                sprintf(fileName, "%s", text);
+                std::ofstream out(fileName, std::ios::binary);
+                if (!out) {
+                    std::cerr << "Could not open file\n";
+                    //return 1;
+                }
+                printf("tuples 12 length: %lu\n", all_vec.size());
+
+                out.write(reinterpret_cast<char*>(all_vec.data()), sizeof(MergeSuffixes) * all_vec.size());
+                out.close();
+            }
+
             std::sort(all_vec.begin(), all_vec.end(), DCXComparatorHost{});
             printf("[%lu] sorted\n", world_rank());
 
@@ -992,23 +1008,25 @@ private:
             {
                 h_sa[i] = all_vec[i].index;
             }
-            std::vector<size_t> realsa = naive_suffix_sort(allInput.size(), allInput.data());
-            if (std::equal(realsa.begin(), realsa.end(), h_sa.begin(), h_sa.end())) {
-                printf("real sorted\n");
+            // std::vector<size_t> realsa = naive_suffix_sort(allInput.size(), allInput.data());
+            // if (std::equal(realsa.begin(), realsa.end(), h_sa.begin(), h_sa.end())) {
+            //     printf("real sorted\n");
+            // }
+            {
+                char fileName[16];
+                const char* text = "outputDC";
+                sprintf(fileName, "%s", text);
+                std::ofstream out(fileName, std::ios::binary);
+                if (!out) {
+                    std::cerr << "Could not open file\n";
+                    //return 1;
+                }
+                printf("isa 12 length: %lu\n", h_sa.size());
+
+                out.write(reinterpret_cast<char*>(h_sa.data()), sizeof(sa_index_t) * h_sa.size());
+                out.close();
             }
 
-            char fileName[16];
-            const char* text = "outputDC";
-            sprintf(fileName, "%s", text);
-            std::ofstream out(fileName, std::ios::binary);
-            if (!out) {
-                std::cerr << "Could not open file\n";
-                //return 1;
-            }
-            printf("isa 12 length: %lu\n", h_sa.size());
-
-            out.write(reinterpret_cast<char*>(h_sa.data()), sizeof(sa_index_t) * h_sa.size());
-            out.close();
         }
         comm_world().barrier();
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec;
@@ -1396,7 +1414,7 @@ private:
                 if (i == 10 && gpu.pd_elements > 20)
                     i = gpu.pd_elements - 10;
                 print_final_merge_suffix(i, arr.S12_result[i]);
-            }
+    }
             printf("S0_result:\n");
             for (int i = 0; i < gpu.num_elements - gpu.pd_elements; ++i)
             {
@@ -1410,7 +1428,7 @@ private:
             //                        i = gpu.num_elements-10;
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
-        }
+}
     }
 #endif
 
@@ -2134,4 +2152,4 @@ int main(int argc, char** argv)
     // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
     // std::cout << std::endl;
     return 0;
-}
+    }
