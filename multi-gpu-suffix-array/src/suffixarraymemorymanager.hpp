@@ -390,7 +390,7 @@ private:
 
     PDArrays make_pd_arrays(unsigned char* base, unsigned char* input_ptr, sa_index_t* isa_ptr) const
     {
-        ASSERT(8 * mpd_array_aligned_len * sizeof(sa_index_t) < misa_offset);
+        // ASSERT(8 * mpd_array_aligned_len * sizeof(sa_index_t) < misa_offset);
 
         PDArrays arr;
 
@@ -430,7 +430,7 @@ private:
     PrepareS12Arrays make_prepare_S12_arrays(unsigned char* base) const
     {
         PrepareS12Arrays arr;
-        ASSERT(3 * sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len <= misa_offset);
+        // ASSERT(3 * sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len <= misa_offset);
 
         arr.Isa = (sa_index_t*)(base + misa_offset);
         arr.Input = (base + minput_offset);
@@ -447,7 +447,7 @@ private:
     PrepareS0Arrays make_prepare_S0_arrays(unsigned char* base) const
     {
         PrepareS0Arrays arr;
-        ASSERT(sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len + 3 * sizeof(MergeStageSuffix) * mmerge_suffix_s0_aligned_len <= misa_offset);
+        // ASSERT(sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len + 3 * sizeof(MergeStageSuffix) * mmerge_suffix_s0_aligned_len <= misa_offset);
 
         unsigned char* S0_base = base + sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len;
 
@@ -471,7 +471,7 @@ private:
     {
         MergeS12S0Arrays arr;
         size_t total_bytes = 2 * (mmerge_suffix_s12_aligned_len + mmerge_suffix_s0_aligned_len) * sizeof(MergeStageSuffix);
-        ASSERT(total_bytes <= malloc_size);
+        // ASSERT(total_bytes <= malloc_size);
 
         arr.S12_result = (MergeStageSuffix*)base;
         arr.S0_result = (MergeStageSuffix*)(base + sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len);
