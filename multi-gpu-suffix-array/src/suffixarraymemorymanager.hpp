@@ -35,8 +35,6 @@ struct PDArrays
 struct DCXArrays {
     sa_index_t* Isa;
     const unsigned char* Input;
-    thrust::device_vector<MergeSuffixes> Suffixes;
-    thrust::device_vector<MergeSuffixes> Suffixes_Sorted;
     sa_index_t* Temp1;
     sa_index_t* Temp2;
     sa_index_t* Temp3;
@@ -130,7 +128,7 @@ public:
     }
     size_t get_additional_dcx_space_size() const
     {
-        return madditional_dcx_space_size;
+        return dcx_additional_space;
     }
     const DCXArrays& get_dcx_arrays(uint node) const
     {
@@ -493,6 +491,6 @@ private:
     {
         return (offset / ALIGN_BYTES) * ALIGN_BYTES;
     }
-    };
+};
 
 #endif // SUFFIXARRAYMEMORYMANAGER_H
