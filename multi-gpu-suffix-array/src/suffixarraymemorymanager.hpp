@@ -262,9 +262,9 @@ public:
                 CUERR;
             }
 
-            share_ptr<unsigned char, NUM_GPUS>(malloc_base);
-            share_ptr<sa_index_t, NUM_GPUS>(isa);
-            share_ptr<unsigned char, NUM_GPUS>(inputs);
+            share_ptr(malloc_base);
+            share_ptr(isa);
+            share_ptr(inputs);
             printf("[%lu] shared ptr %d\n", world_rank());
         }
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
@@ -332,18 +332,18 @@ public:
         }
     }
 
-    template<typename T>
-    void share_ptr(std::array<T*, NUM_GPUS>& share_ptr) {
+    template<typename T, uint num_gpus>
+    void share_ptr(std::array<T*, num_gpus>& share_ptr) {
         cudaIpcMemHandle_t handle;
         cudaIpcGetMemHandle(&handle, share_ptr[world_rank()]);
-        for (size_t dst = 0; dst < NUM_GPUS; dst++) {
+        for (size_t dst = 0; dst < num_gpus; dst++) {
             if (mcontext.get_peer_status(world_rank(), dst) != 1) {
                 continue;
             }
             comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handle, 1)), send_count(1), tag(1), destination(dst));
 
         }
-        for (size_t src = 0; src < NUM_GPUS; src++) {
+        for (size_t src = 0; src < num_gpus; src++) {
             if (mcontext.get_peer_status(world_rank(), src) != 1) {
                 continue;
             }
