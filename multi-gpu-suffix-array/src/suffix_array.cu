@@ -759,12 +759,12 @@ private:
         mcontext.sync_all_streams();
         comm_world().barrier();
         {
-            std::vector<sa_index_t> isa_local(mgpus[world_rank()].pd_elements);
-            cudaMemcpy(isa_local.data(), (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, isa_local.size() * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
-            std::vector<sa_index_t> isaglob = comm_world().gatherv(send_buf(isa_local), root(0)); //(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
-            printf("[%lu] all suffixes received\n", world_rank());
-            std::vector<char> input_all = comm_world().gatherv(send_buf(std::span<char>(minput, mper_gpu)), root(0));
-            printf("[%lu] all input received\n", world_rank());
+            // std::vector<sa_index_t> isa_local(mgpus[world_rank()].pd_elements);
+            // cudaMemcpy(isa_local.data(), (sa_index_t*)mgpus[world_rank()].prepare_S12_ptr.S12_buffer2, isa_local.size() * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+            // std::vector<sa_index_t> isaglob = comm_world().gatherv(send_buf(isa_local), root(0)); //(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
+            // printf("[%lu] all suffixes received\n", world_rank());
+            // std::vector<char> input_all = comm_world().gatherv(send_buf(std::span<char>(minput, mper_gpu)), root(0));
+            // printf("[%lu] all input received\n", world_rank());
 
             // if (world_rank() == 0) {
             //     input_all.resize(minput_len);
