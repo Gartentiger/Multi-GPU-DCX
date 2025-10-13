@@ -1076,21 +1076,22 @@ private:
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
         printf("[%lu] sample sorted\n", world_rank());
+
         merge_tuple_vec.clear();
         thrust::device_vector<MergeSuffixes>().swap(merge_tuple_vec);
+
         size_t out_num_elements = merge_tuple_out_vec.size();
 
         printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
 
+        thrust::device_vector<sa_index_t> d_sa(out_num_elements);
         MergeSuffixes* merge_tuple_out = thrust::raw_pointer_cast(merge_tuple_out_vec.data());
-        kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements);
-        mcontext.sync_all_streams();
-        printf("[%lu] write sa\n", world_rank());
         std::vector<sa_index_t> sa(out_num_elements);
-        cudaMemcpyAsync(sa.data(), reinterpret_cast<sa_index_t*>(merge_tuple_out), out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
-
+        kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(merge_tuple_out, thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
+        cudaMemcpyAsync(sa.data(), thrust::raw_pointer_cast(d_sa.data()), out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
         comm_world().barrier();
+        printf("[%lu] write sa\n", world_rank());
 
         {
             auto all_sa = comm_world().gatherv(send_buf(sa), root(0));
