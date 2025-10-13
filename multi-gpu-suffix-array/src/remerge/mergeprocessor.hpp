@@ -277,8 +277,8 @@ namespace crossGPUReMerge
         {
         }
 
-        template <class comp_func_t>
-        void do_searches(comp_func_t comp)
+        template <class comp_func_t, typename CompareHost>
+        void do_searches(comp_func_t comp, CompareHost cmp)
         {
             auto& t = kamping::measurements::timer();
             // t.synchronize_and_start("search");
@@ -376,7 +376,7 @@ namespace crossGPUReMerge
                     Communicator c = comm_world().create_subcommunicators(ranks);
 
                     // could be multi threaded
-                    std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, comp, c);
+                    std::tuple<size_t, size_t, key_t> ksmallest = multi_way_k_selectHost(ad, (int64_t)ms->ranges.size(), (int64_t)ms->split_index, cmp, c);
                     *(reinterpret_cast<uint*>(ms->h_result_ptr + result_buffer_length - 1)) = (uint)std::get<0>(ksmallest);
 
                     sgpu.M = (int64_t)ms->ranges.size();
