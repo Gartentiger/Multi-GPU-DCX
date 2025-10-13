@@ -270,7 +270,7 @@ public:
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
             marrays_dcx[gpu] = make_dcx_arrays(malloc_base[gpu], inputs[gpu], isa[gpu]);
-            marrays_pd[gpu] = make_pd_arrays(malloc_base[gpu]);
+            marrays_pd[gpu] = make_pd_arrays(malloc_base[gpu], inputs[gpu], isa[gpu]);
             marrays_prepare_S12[gpu] = make_prepare_S12_arrays(malloc_base[gpu]);
             marrays_prepare_S0[gpu] = make_prepare_S0_arrays(malloc_base[gpu]);
             marrays_merge_S12_S0[gpu] = make_merge_S12_S0_arrays(malloc_base[gpu]);
