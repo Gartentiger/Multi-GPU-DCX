@@ -206,7 +206,7 @@ public:
         mmerge_suffix_s12_aligned_len = align_len(two_halves_s12_len, sizeof(MergeStageSuffix));
         mmerge_suffix_s0_aligned_len = align_len(two_halves_s0_len, sizeof(MergeStageSuffix));
 
-        size_t pd_total_bytes = NUM_PD_ARRAYS * mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len;
+        size_t pd_total_bytes = NUM_PD_ARRAYS * mpd_array_aligned_len * sizeof(sa_index_t);
 
         // only for dcx with x>7 necessariy because sa_rank + temp1, old_ranks + segment_heads are both one array of size
         // mpd_array_aligned_len * sizeof(uint64_t). If sizeof(kmer)>sizeof(uint64_t) <=> x>7  we need more storage
@@ -235,7 +235,7 @@ public:
         misa_offset = align_down(minput_offset - mpd_array_aligned_len * sizeof(sa_index_t));
 
         madditional_pd_space_size = (malloc_size - 8 * mpd_array_aligned_len * sizeof(sa_index_t));
-        kmer_additional_space = malloc_size - 2 * kmer_aligned_len;
+        kmer_additional_space = malloc_size - 2 * kmer_aligned_len + 1 * mpd_array_aligned_len * sizeof(sa_index_t);
         dcx_additional_space = malloc_size - 3 * mpd_array_aligned_len * sizeof(sa_index_t);
 
 

@@ -500,6 +500,7 @@ public:
 
         size_t temp_storage_size_S12 = 0;
         size_t temp_storage_size_dcx = 0;
+
         cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_S12,
             keys, values, mpd_reserved_len, DCXKmerDecomposer{}, 0, sizeof(kmer) * 8);
         cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size_dcx,
