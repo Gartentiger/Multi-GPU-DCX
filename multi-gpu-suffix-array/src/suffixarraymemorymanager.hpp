@@ -380,6 +380,7 @@ private:
     std::array<PrepareS12Arrays, NUM_GPUS + 1> marrays_prepare_S12;
     std::array<PrepareS0Arrays, NUM_GPUS + 1> marrays_prepare_S0;
     std::array<MergeS12S0Arrays, NUM_GPUS + 1> marrays_merge_S12_S0;
+    std::array<DCXArrays, NUM_GPUS + 1> marrays_dcx;
 
 #ifdef ENABLE_DUMPING
     unsigned char* mhost_alloc_base;
