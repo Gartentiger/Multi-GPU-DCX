@@ -110,7 +110,8 @@ public:
                 exit(1);
             }
             else {
-                peer_status[world_rank()][dst_gpu] = PEER_STATUS_FAST;
+                // todo
+                peer_status[world_rank()][dst_gpu] = PEER_STATUS_SLOW;
                 printf("[%lu] peer access to [%u] activated: %u\n", world_rank(), dst_gpu, peer_status[world_rank()][dst_gpu]);
             }
         }
@@ -181,7 +182,7 @@ public:
                 }
             }
         }
-        in_node = false;
+        in_node = true;
         for (auto b : in_nodes) {
             in_node &= b;
         }
