@@ -219,6 +219,9 @@ public:
 
         malloc_size = std::max(std::max(pd_total_bytes, initial_sort_kmer_produce_extra), prepareS12_total_bytes);
 
+        printf("Allocating %zu K per node (%zu K for prefix doubling, %zu K for prepare_S_12, %zu K for prepare_S_0, "
+            "%zu K for final merge).\n", malloc_size / 1024, pd_total_bytes / 1024, prepareS12_total_bytes / 1024,
+            prepareS0_total_bytes / 1024, merge_total_bytes / 1024);
 
         // Place this at the end.
         minput_offset = align_down(malloc_size - minput_aligned_len);
@@ -229,9 +232,6 @@ public:
         kmer_additional_space = malloc_size - 2 * kmer_aligned_len;
         dcx_additional_space = malloc_size - 3 * mpd_array_aligned_len * sizeof(sa_index_t);
 
-        printf("Allocating %zu K per node (%zu K for prefix doubling, %zu K for prepare_S_12, %zu K for prepare_S_0, "
-            "%zu K for final merge).\n", malloc_size / 1024, pd_total_bytes / 1024, prepareS12_total_bytes / 1024,
-            prepareS0_total_bytes / 1024, merge_total_bytes / 1024);
 
         //for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
@@ -246,30 +246,16 @@ public:
                 cudaMemset(malloc_base[gpu], 0, malloc_size);
                 CUERR;
             }
-
-            cudaIpcMemHandle_t handle;
-            cudaIpcGetMemHandle(&handle, malloc_base[gpu]);
-            for (size_t dst = 0; dst < NUM_GPUS; dst++) {
-                if (mcontext.get_peer_status(world_rank(), dst) != 1) {
-                    continue;
-                }
-                comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handle, 1)), send_count(1), tag(world_rank()), destination(dst));
-            }
-            for (size_t src = 0; src < NUM_GPUS; src++) {
-                if (mcontext.get_peer_status(world_rank(), src) != 1) {
-                    continue;
-                }
-                cudaIpcMemHandle_t other_handle;
-                comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handle, 1)), recv_count(1), tag(src));
-                void* ptrHandle;
-                cudaIpcOpenMemHandle(&ptrHandle, other_handle, cudaIpcMemLazyEnablePeerAccess);
-                CUERR;
-                printf("[%lu] opened mem handle from %d\n", world_rank(), src);
-                malloc_base[src] = reinterpret_cast<unsigned char*>(ptrHandle);
-            }
+            cudaMalloc(&isa[gpu], min_pd_len * sizeof(sa_index_t));
+            cudaMalloc(&inputs[gpu], min_gpu_len);
+            share_ptr(malloc_base);
+            share_ptr(isa);
+            share_ptr(inputs);
+            printf("[%lu] shared ptr %d\n", world_rank());
         }
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
+            marrays_dcx[gpu] = make_dcx_arrays(malloc_base[gpu], inputs[gpu], isa[gpu]);
             marrays_pd[gpu] = make_pd_arrays(malloc_base[gpu]);
             marrays_prepare_S12[gpu] = make_prepare_S12_arrays(malloc_base[gpu]);
             marrays_prepare_S0[gpu] = make_prepare_S0_arrays(malloc_base[gpu]);
@@ -316,6 +302,32 @@ public:
 #ifdef ENABLE_DUMPING
         cudaFreeHost(mhost_alloc_base);
 #endif
+    }
+
+
+    template<typename T>
+    void share_ptr(T** share_ptr) {
+        cudaIpcMemHandle_t handle;
+        cudaIpcGetMemHandle(&handle, share_ptr[world_rank()]);
+        for (size_t dst = 0; dst < NUM_GPUS; dst++) {
+            if (mcontext.get_peer_status(world_rank(), dst) != 1) {
+                continue;
+            }
+            comm_world().isend(send_buf(std::span<cudaIpcMemHandle_t>(&handle, 1)), send_count(1), tag(1), destination(dst));
+
+        }
+        for (size_t src = 0; src < NUM_GPUS; src++) {
+            if (mcontext.get_peer_status(world_rank(), src) != 1) {
+                continue;
+            }
+            cudaIpcMemHandle_t other_handle;
+            comm_world().recv(recv_buf(std::span<cudaIpcMemHandle_t>(&other_handle, 1)), recv_count(1), tag(1), source(src));
+            void* ptrHandle;
+            cudaIpcOpenMemHandle(&ptrHandle, other_handle, cudaIpcMemLazyEnablePeerAccess);
+            CUERR;
+            share_ptr[src] = reinterpret_cast<T*>(ptrHandle);
+        }
+        comm_world().barrier();
     }
 
 #ifdef ENABLE_DUMPING
