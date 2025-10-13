@@ -1030,51 +1030,10 @@ private:
         }
         comm_world().barrier();
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec(merge_tuple_vec.size());
-        // SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext);
-        using merge_types = crossGPUReMerge::mergeTypes<MergeSuffixes, MergeSuffixes>;
-        using MergeManager = crossGPUReMerge::ReMergeManager<NUM_GPUS, merge_types, ReMergeTopology>;
-        using MergeNodeInfo = crossGPUReMerge::MergeNodeInfo<merge_types>;
-        size_t temp_storage_size = 0;
-        void* temp;
-        temp_storage_size = sizeof(uint64_t) * merge_tuple_vec.size() * 2;
-        cudaMalloc(&temp, temp_storage_size);
-        mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
-
-        uint64_t* h_temp_mem = (uint64_t*)malloc(temp_storage_size);
-        memset(h_temp_mem, 0, temp_storage_size);
-        QDAllocator host_pinned_allocator(h_temp_mem, temp_storage_size);
-        std::array<MergeNodeInfo, NUM_GPUS> merge_nodes_info;
-        auto& t = kamping::measurements::timer();
-        char sf[30];
-        size_t bytes = sizeof(MergeSuffixes) * merge_tuple_vec.size();
-        sprintf(sf, "sample_sort_%lu", bytes);
-        t.synchronize_and_start(sf);
-        t.start("init_sort");
-        thrust::sort(merge_tuple_vec.begin(), merge_tuple_vec.end(), DCXComparatorDevice{});
-        t.stop();
-
-        MergeSuffixes* merge_tuple_ptr = thrust::raw_pointer_cast(merge_tuple_vec.data());
-        MergeSuffixes* merge_tuple_out_ptr = thrust::raw_pointer_cast(merge_tuple_out_vec.data());
-        for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-        {
-            merge_nodes_info[gpu_index] = { merge_tuple_vec.size(), 0, gpu_index,merge_tuple_ptr, nullptr , merge_tuple_out_ptr,  nullptr,  nullptr, nullptr };
-        }
-
-        MergeManager merge_manager(mcontext, host_pinned_allocator);
-        merge_manager.set_node_info(merge_nodes_info);
-
-        std::vector<crossGPUReMerge::MergeRange> ranges;
-        ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)(merge_tuple_vec.size()) });
-        mcontext.sync_all_streams();
-
-
-        t.start("merge");
-        merge_manager.merge(ranges, DCXComparatorDevice{}, DCXComparatorHost{});
-        mcontext.sync_all_streams();
-        t.stop();
-        comm_world().barrier();
-        t.stop_and_append();
+        SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext);
+        // MultiMerge<MergeSuffixes, DCXComparatorDevice, DCXComparatorHost, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, DCXComparatorDevice{}, DCXComparatorHost{}, mcontext);
         merge_tuple_out_vec.swap(merge_tuple_vec);
+
         mcontext.sync_all_streams();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
