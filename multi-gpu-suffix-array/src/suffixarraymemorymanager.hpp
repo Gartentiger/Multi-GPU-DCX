@@ -217,20 +217,22 @@ public:
 
         size_t merge_total_bytes = 2 * (mmerge_suffix_s12_aligned_len + mmerge_suffix_s0_aligned_len) * sizeof(MergeStageSuffix);
 
-        malloc_size = std::max(std::max(std::max(std::max(prepareS0_total_bytes, prepareS12_total_bytes), pd_total_bytes), merge_total_bytes), initial_sort_kmer_produce_extra);
+        malloc_size = std::max(std::max(pd_total_bytes, initial_sort_kmer_produce_extra), prepareS12_total_bytes);
 
-
-        printf("Allocating %zu K per node (%zu K for prefix doubling, %zu K for prepare_S_12, %zu K for prepare_S_0, "
-            "%zu K for final merge).\n", malloc_size / 1024, pd_total_bytes / 1024, prepareS12_total_bytes / 1024,
-            prepareS0_total_bytes / 1024, merge_total_bytes / 1024);
 
         // Place this at the end.
         minput_offset = align_down(malloc_size - minput_aligned_len);
         // Place this one before the end.
         misa_offset = align_down(minput_offset - mpd_array_aligned_len * sizeof(sa_index_t));
 
-        madditional_pd_space_size = (misa_offset - 8 * mpd_array_aligned_len * sizeof(sa_index_t));
-        kmer_additional_space = misa_offset - 1 * mpd_array_aligned_len * sizeof(sa_index_t) - 2 * kmer_aligned_len;
+        madditional_pd_space_size = (malloc_size - 8 * mpd_array_aligned_len * sizeof(sa_index_t));
+        kmer_additional_space = malloc_size - 2 * kmer_aligned_len;
+        dcx_additional_space = malloc_size - 3 * mpd_array_aligned_len * sizeof(sa_index_t);
+
+        printf("Allocating %zu K per node (%zu K for prefix doubling, %zu K for prepare_S_12, %zu K for prepare_S_0, "
+            "%zu K for final merge).\n", malloc_size / 1024, pd_total_bytes / 1024, prepareS12_total_bytes / 1024,
+            prepareS0_total_bytes / 1024, merge_total_bytes / 1024);
+
         //for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
             uint gpu = world_rank();
@@ -328,7 +330,7 @@ private:
     MultiGPUContext<NUM_GPUS>& mcontext;
 
     size_t mpd_array_aligned_len, minput_aligned_len, mmerge_suffix_s12_aligned_len, mmerge_suffix_s0_aligned_len,
-        mhalf_merge_suffix_s12_aligned_len, mhalf_merge_suffix_s0_aligned_len, kmer_aligned_len, kmer_temp_storage, kmer_additional_space;
+        mhalf_merge_suffix_s12_aligned_len, mhalf_merge_suffix_s0_aligned_len, kmer_aligned_len, kmer_temp_storage, kmer_additional_space, dcx_additional_space;
     size_t madditional_pd_space_size;
     size_t malloc_size, minput_offset, misa_offset;
     std::array<unsigned char*, NUM_GPUS> malloc_base;
