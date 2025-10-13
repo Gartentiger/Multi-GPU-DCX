@@ -1032,7 +1032,7 @@ private:
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec(merge_tuple_vec.size());
         SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext);
         // MultiMerge<MergeSuffixes, DCXComparatorDevice, DCXComparatorHost, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, DCXComparatorDevice{}, DCXComparatorHost{}, mcontext);
-        merge_tuple_out_vec.swap(merge_tuple_vec);
+        // merge_tuple_out_vec.swap(merge_tuple_vec);
 
         mcontext.sync_all_streams();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
