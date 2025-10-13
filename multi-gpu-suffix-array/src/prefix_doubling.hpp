@@ -584,7 +584,7 @@ private:
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
 
-        mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>());
+        mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>(), mgpu::less_t<sa_index_t>());
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
     }
 
@@ -655,7 +655,7 @@ private:
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
         // t.synchronize_and_start("merge");
-        merge_manager.merge(ranges, mgpu::less_t<uint64_t>());
+        merge_manager.merge(ranges, mgpu::less_t<uint64_t>(), mgpu::less_t<sa_index_t>());
         mcontext.sync_default_streams();
         comm_world().barrier();
 
@@ -733,7 +733,7 @@ private:
         std::vector<crossGPUReMerge::MergeRange> ranges;
         ranges.push_back({ 0, 0, (sa_index_t)NUM_GPUS - 1, (sa_index_t)mgpus.back().working_len });
         // t.synchronize_and_start("merge");
-        merge_manager.merge(ranges, KmerComparator{});
+        merge_manager.merge(ranges, KmerComparator{}, KmerComparator{});
         mcontext.sync_default_streams();
         comm_world().barrier();
         printf("after init merging\n");
@@ -1810,7 +1810,7 @@ private:
         // }
         //            dump("Before merge");
         TIMER_START_LOOP_STAGE(LoopStages::Merge);
-        mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>());
+        mremerge_manager.merge(ranges, mgpu::less_t<sa_index_t>(), mgpu::less_t<sa_index_t>());
         // mcontext.sync_all_streams();
         comm_world().barrier(); // because of copie_async
         //            dump("After merge");

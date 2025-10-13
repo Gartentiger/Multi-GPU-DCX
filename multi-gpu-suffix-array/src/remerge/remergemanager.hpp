@@ -37,8 +37,8 @@ namespace crossGPUReMerge
         }
 
         // We expect the ranges to be non-overlapping, i.e. a GPU can be involved in two merges maximum.
-        template <class comp_fun_t>
-        void merge(const std::vector<MergeRange>& ranges, comp_fun_t comp, bool cmp_host = false,
+        template <class comp_fun_t, typename comp_fun_t_host>
+        void merge(const std::vector<MergeRange>& ranges, comp_fun_t comp, comp_fun_t_host comp_host,
             std::function<void()> debug_func = nullptr)
         {
 
@@ -59,12 +59,9 @@ namespace crossGPUReMerge
                 t.start("sampling_splitting:" + std::to_string(i));
                 //printf("do search %lu\n", world_rank());
                 // nvtxRangePush("do_searches");
-                if (cmp_host) {
-                    mmerge_processor.do_searches(comp, DCXComparatorHost{});
-                }
-                else {
-                    mmerge_processor.do_searches(comp, comp);
-                }
+
+                mmerge_processor.do_searches(comp, comp_host);
+
                 // nvtxRangePop();
                 t.stop();
                 // printf("[%lu] do_searches done\n", world_rank());

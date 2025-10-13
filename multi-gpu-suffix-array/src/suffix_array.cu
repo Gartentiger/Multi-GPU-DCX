@@ -1069,7 +1069,7 @@ private:
 
 
         t.start("merge");
-        merge_manager.merge(ranges, DCXComparatorDevice{});
+        merge_manager.merge(ranges, DCXComparatorDevice{}, DCXComparatorHost{});
         mcontext.sync_all_streams();
         t.stop();
         comm_world().barrier();
@@ -1231,7 +1231,7 @@ private:
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Write_Out_And_Sort);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S0_Merge);
-        merge_manager.merge(ranges, S0Comparator());
+        merge_manager.merge(ranges, S0Comparator(), S0Comparator());
 
         mcontext.sync_all_streams_mpi_safe();
         comm_world().barrier();
@@ -1958,7 +1958,7 @@ void sample_sort_merge_measure(MultiGPUContext<NUM_GPUS>& mcontext) {
         mcontext.get_mgpu_default_context_for_device(world_rank()).reset_temp_memory();
         t.stop();
         t.start("merge");
-        merge_manager.merge(ranges, std::less<uint64_t>());
+        merge_manager.merge(ranges, std::less<uint64_t>(), std::less<uint64_t>());
         mcontext.sync_all_streams();
         t.stop();
         comm_world().barrier();
