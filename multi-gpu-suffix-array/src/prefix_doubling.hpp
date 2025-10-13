@@ -913,7 +913,7 @@ private:
                     if (initial) {
                         kmer* current_buffer = in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer;
                         in_buffer = reinterpret_cast<sa_index_t*>(current_buffer);
-                        out_buffer = in_buffer[gpu_index] ? reinterpret_cast<sa_index_t*>(gpu.Kmer) : gpu.Sa_rank;
+                        out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
                         temp_buffer = gpu.Kmer_temp1;
                     }
                     MaxFunctor max_op;
