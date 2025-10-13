@@ -87,7 +87,7 @@ class SuffixArrayMemoryManager
 {
 public:
     static const size_t ALIGN_BYTES = 256;
-    static const size_t NUM_PD_ARRAYS = 9;
+    static const size_t NUM_PD_ARRAYS = 8;
     static const size_t HOST_TEMP_MEM_SIZE = 1024 * NUM_GPUS;
 
     static const size_t HALF_MERGE_STAGE_SUFFIX_SIZE = sizeof(MergeStageSuffix) / 2;
@@ -204,11 +204,12 @@ public:
 
         // only for dcx with x>7 necessariy because sa_rank + temp1, old_ranks + segment_heads are both one array of size
         // mpd_array_aligned_len * sizeof(uint64_t). If sizeof(kmer)>sizeof(uint64_t) <=> x>7  we need more storage
-        // 2 * isa + input + 2 * kmer + 3 * temp + temp arrays for initial sort
-        size_t initial_sort_kmer_produce_extra = 2 * mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len + 2 * kmer_aligned_len + std::max(kmer_temp_storage, 3 * mpd_array_aligned_len * sizeof(sa_index_t));
+        // 1 * isa + input + 2 * kmer + 3 * temp + temp arrays for initial sort, 1 isa is in an extra malloc
+        size_t initial_sort_kmer_produce_extra = 1 * mpd_array_aligned_len * sizeof(sa_index_t) + 2 * kmer_aligned_len + std::max(kmer_temp_storage, 3 * mpd_array_aligned_len * sizeof(sa_index_t));
 
-        size_t prepareS12_total_bytes = mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len +
-            3 * sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len;
+        // 4 buffer for isa sending recv, extra space for sorting isa in place
+        size_t prepareS12_total_bytes = 3 * mpd_array_aligned_len * sizeof(sa_index_t) + std::max(kmertempstorage, mpd_array_aligned_len * sizeof(sa_index_t));
+
 
         size_t prepareS0_total_bytes = mpd_array_aligned_len * sizeof(sa_index_t) + minput_aligned_len +
             sizeof(MergeStageSuffix) * mmerge_suffix_s12_aligned_len +
