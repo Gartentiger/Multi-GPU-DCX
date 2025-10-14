@@ -812,9 +812,9 @@ private:
         // auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
         // comm_world().barrier();
 
-        // printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(20UL, gpu.working_len), world_rank());
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
+        printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(30UL, gpu.working_len), world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
 
 
         printf("[%lu] after check initial ranks\n", world_rank());
@@ -854,7 +854,7 @@ private:
         mcontext.sync_all_streams();
         comm_world().barrier();
         printf("[%lu] after do max\n", world_rank());
-        printArrayss << <1, 1 >> > (current_buffer, gpu.Sa_rank, std::min(20UL, gpu.working_len), world_rank());
+        printArrayss << <1, 1 >> > (current_buffer, gpu.Sa_rank, std::min(30UL, gpu.working_len), world_rank());
         mcontext.sync_default_streams();
         comm_world().barrier();
 
@@ -982,9 +982,9 @@ private:
         }
 
         mcontext.sync_default_streams();
-        // printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, std::min(20UL, mgpus[world_rank()].working_len), world_rank());
-        // mcontext.sync_default_streams();
-        // comm_world().barrier();
+        printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, std::min(30UL, mgpus[world_rank()].working_len), world_rank());
+        mcontext.sync_default_streams();
+        comm_world().barrier();
     }
 
     bool compact()
