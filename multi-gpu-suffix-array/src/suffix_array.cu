@@ -444,7 +444,10 @@ public:
     {
         return mmemory_manager.get_h_result();
     }
-
+    auto get_sa_length()
+    {
+        return mmemory_manager.get_sa_length();
+    }
     SuffixArrayPerformanceMeasurements& get_perf_measurements()
     {
         return mperf_measure;
@@ -1106,6 +1109,7 @@ private:
         thrust::device_vector<sa_index_t> d_sa(out_num_elements);
         kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(thrust::raw_pointer_cast(merge_tuple_vec.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
         mcontext.sync_all_streams();
+        mmemory_manager.set_sa_length(out_num_elements);
         mmemory_manager.get_result_vec().swap(d_sa);
 
 
@@ -2152,7 +2156,7 @@ int main(int argc, char** argv)
     // nvtxRangePop();
     // t.stop();
     // if (world_rank() == 0)
-    write_array_mpi(argv[1], sorter.get_result(), realLen);
+    write_array_mpi(argv[1], sorter.get_result(), sorter.get_sa_length());
     comm_world().barrier();
     sorter.done();
 

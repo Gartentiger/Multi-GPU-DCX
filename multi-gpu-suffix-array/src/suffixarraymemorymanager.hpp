@@ -127,7 +127,12 @@ public:
     {
         return thrust::raw_pointer_cast(result.data());
     }
-
+    auto get_sa_length(){
+        return sa_length;
+    }
+    void set_sa_length(size_t _sa_length){
+        sa_length = _sa_length;
+    }
     auto& get_result_vec()
     {
         return result;
@@ -411,6 +416,7 @@ private:
 #endif
     unsigned char* mhost_temp_mem;
     sa_index_t* mh_result;
+    size_t sa_length;
     thrust::device_vector<sa_index_t> result;
     PDArrays make_pd_arrays(unsigned char* base, unsigned char* input_ptr, sa_index_t* isa_ptr) const
     {
