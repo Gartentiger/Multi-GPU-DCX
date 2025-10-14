@@ -780,6 +780,16 @@ private:
         kmer* current_buffer = in_buffer[gpu_index] ? gpu.Kmer_buffer : gpu.Kmer;
         kmer* other_buffer = in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer;
 
+        kmer* f;
+        cudaMalloc(&f, sizeof(kmer) * gpu.working_len);
+        sa_index_t* ff;
+        cudaMalloc(&ff, sizeof(sa_index_t) * gpu.working_len);
+        cudaMemset(f, 0, sizeof(kmer) * gpu.working_len);
+        cudaMemset(ff, 0, sizeof(sa_index_t) * gpu.working_len);
+
+        cudaMemcpy(f, current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToDevice);
+        // cudaMemcpy(ff, current_buffer, sizeof(kmer)* gpu.working_len, cudaMemcpyDeviceToDevice);
+
         //(mcontext.get_device_id(gpu_index));
         //printf("initial\n");
         const kmer* last_element_prev = nullptr;
@@ -802,7 +812,7 @@ private:
             last_element_prev = temp;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
         }
         //printf("last element\n");
-        kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(current_buffer, last_element_prev, gpu.offset + 1, 0, reinterpret_cast<sa_index_t*>(other_buffer), gpu.working_len);
+        kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(f, last_element_prev, gpu.offset + 1, 0, reinterpret_cast<sa_index_t*>(ff), gpu.working_len);
         CUERR;
         // cudaFreeAsync(last_elem, mcontext.get_gpu_default_stream(gpu_index));
         //}
@@ -822,50 +832,50 @@ private:
 
 
         printf("[%lu] after check initial ranks\n", world_rank());
-        // {
-        //     std::vector<sa_index_t> check(gpu.working_len);
-        //     cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-        //     std::vector<kmer> local_kmer(gpu.working_len);
-        //     cudaMemcpy(local_kmer.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
+        {
+            std::vector<sa_index_t> check(gpu.working_len);
+            cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+            std::vector<kmer> local_kmer(gpu.working_len);
+            cudaMemcpy(local_kmer.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
 
-        //     bool first = true;
-        //     for (size_t i = 1; i < check.size(); i++)
-        //     {
-        //         if (local_kmer[i] == local_kmer[i - 1]) {
-        //             if (first) {
-        //                 if (check[i] != 0) {
-        //                     printf("first time %lu and %lu are equal but i has not rank 0: %u\n", i - 1, i, check[i]);
-        //                     break;
+            bool first = true;
+            for (size_t i = 1; i < check.size(); i++)
+            {
+                if (local_kmer[i] == local_kmer[i - 1]) {
+                    if (first) {
+                        if (check[i] != 0) {
+                            printf("first time %lu and %lu are equal but i has not rank 0: %u\n", i - 1, i, check[i]);
+                            break;
 
-        //                 }
-        //                 else {
-        //                     if (check[i - 1] != i) {
-        //                         printf("first time %lu and %lu are equal but i-1 has not rank i: %u\n", i - 1, i, check[i - 1]);
-        //                         break;
-        //                     }
-        //                 }
-        //             }
-        //             else {
-        //                 if (check[i] != 0 || check[i - 1] != 0) {
-        //                     printf("%lu and %lu should be zero %u, %u\n", i - 1, i, check[i - 1], check[i]);
-        //                     break;
-        //                 }
-        //             }
-        //         }
-        //         else {
-        //             first = true;
+                        }
+                        else {
+                            if (check[i - 1] != i) {
+                                printf("first time %lu and %lu are equal but i-1 has not rank i: %u\n", i - 1, i, check[i - 1]);
+                                break;
+                            }
+                        }
+                    }
+                    else {
+                        if (check[i] != 0 || check[i - 1] != 0) {
+                            printf("%lu and %lu should be zero %u, %u\n", i - 1, i, check[i - 1], check[i]);
+                            break;
+                        }
+                    }
+                }
+                else {
+                    first = true;
 
-        //             if (i + 1 != check[i]) {
-        //                 printf("check[%lu] != i+1: %u\n", i, check[i]);
-        //                 break;
-        //             }
-        //         }
-        //     }
+                    if (i + 1 != check[i]) {
+                        printf("check[%lu] != i+1: %u\n", i, check[i]);
+                        break;
+                    }
+                }
+            }
 
-        //     comm_world().barrier();
-        // }
+            comm_world().barrier();
+        }
 
-        do_max_scan_on_ranks(true);
+        do_max_scan_on_ranks(true, ff, f);
 
 
         mcontext.sync_all_streams();
@@ -921,7 +931,7 @@ private:
     }
 
     // From Temp1 to Ranks
-    void do_max_scan_on_ranks(bool initial = false)
+    void do_max_scan_on_ranks(bool initial = false, sa_index_t* ff = nullptr, kmer* f = nullptr)
     {
         sa_index_t* out_buffer = mgpus[world_rank()].Sa_rank;
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -940,9 +950,9 @@ private:
                     sa_index_t* temp_buffer = gpu.Temp3;
 
                     if (initial) {
-                        input_buffer = reinterpret_cast<sa_index_t*>(in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer);
-                        out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
-                        temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
+                        input_buffer = ff;//reinterpret_cast<sa_index_t*>(in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer);
+                        //out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
+                        //temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
                     }
 
                     MaxFunctor max_op;
