@@ -780,7 +780,7 @@ private:
         }
         mcontext.sync_all_streams();
 
-        mmemory_manager.free();
+        mmemory_manager.free_();
         comm_world().barrier();
         {
 

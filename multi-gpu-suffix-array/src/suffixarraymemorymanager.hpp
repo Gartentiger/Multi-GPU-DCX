@@ -311,7 +311,7 @@ public:
 #endif
     }
 
-    void free()
+    void free_()
     {
         for (uint gpu = 0; gpu < NUM_GPUS; ++gpu)
         {
