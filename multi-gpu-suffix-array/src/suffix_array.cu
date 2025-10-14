@@ -1114,7 +1114,6 @@ private:
         mmemory_manager.set_sa_length(out_num_elements);
         mmemory_manager.get_result_vec().swap(d_sa);
 
-
         {
 
             // std::vector<sa_index_t> all_sa(all_num_elements);

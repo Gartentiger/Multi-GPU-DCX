@@ -174,7 +174,10 @@ namespace perf_rec {
 
             if (stage_recorders.empty())
                 return;
-
+            for (int rep = 0; rep <= current_iteration; ++rep) {
+                const StagePerformanceRecorder& r = stage_recorders[rep];
+                write(outputFile, r);
+            }
             if (current_iteration > 0) {
                 write(outputFile, aggregated);
             }
