@@ -785,8 +785,8 @@ private:
         const kmer* last_element_prev = nullptr;
 
         kmer* last_elem;
-        cudaMalloc(&last_elem, sizeof(kmer));
-        // mcontext.get_device_temp_allocator(gpu_index).reset();
+        // cudaMalloc(&last_elem, sizeof(kmer));
+        mcontext.get_device_temp_allocator(gpu_index).reset();
 
         if (world_rank() < NUM_GPUS - 1) {
             std::span<kmer> sb(current_buffer + gpu.working_len - 1, 1);
@@ -794,21 +794,21 @@ private:
         }
         if (gpu_index > 0)
         {
-            // kmer* temp = mcontext.get_device_temp_allocator(gpu_index).get<kmer>(1);
-            std::span<kmer> rb(last_elem, 1);
+            kmer* temp = mcontext.get_device_temp_allocator(gpu_index).get<kmer>(1);
+            std::span<kmer> rb(temp, 1);
             comm_world().recv(recv_buf(rb), recv_count(1));
 
             //  last element of previous gpu
-            last_element_prev = last_elem;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
+            last_element_prev = temp;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
         }
         //printf("last element\n");
         kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(current_buffer, last_element_prev, gpu.offset + 1, 0, reinterpret_cast<sa_index_t*>(other_buffer), gpu.working_len);
         CUERR;
-        cudaFreeAsync(last_elem, mcontext.get_gpu_default_stream(gpu_index));
+        // cudaFreeAsync(last_elem, mcontext.get_gpu_default_stream(gpu_index));
         //}
         //printf("write ranks diff multi\n");
         mcontext.sync_default_streams();
-        // mcontext.get_device_temp_allocator(gpu_index).reset();
+        mcontext.get_device_temp_allocator(gpu_index).reset();
         printf("[%lu] after write ranks diff\n", world_rank());
 
         std::vector<kmer> kmerCheck(gpu.working_len);
@@ -955,16 +955,16 @@ private:
                     CUERR_CHECK(err);
                     printf("[%lu] after prep\n", world_rank());
                     // Run inclusive prefix max-scan
-                    // void* temp;
-                    // cudaMalloc(&temp, temp_storage_bytes);
-                    if (in_buffer[gpu_index]) {
-                        ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + madditional_temp_storage_size);
-                    }
-                    else {
-                        ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
-                    }
+                    void* temp;
+                    cudaMalloc(&temp, temp_storage_bytes);
+                    // if (in_buffer[gpu_index]) {
+                    //     ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + madditional_temp_storage_size);
+                    // }
+                    // else {
+                    //     ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
+                    // }
 
-                    err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, input_buffer, out_buffer,
+                    err = cub::DeviceScan::InclusiveScan(temp, temp_storage_bytes, input_buffer, out_buffer,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
                     cudaMemcpyAsync(mhost_temp_mem + gpu_index, out_buffer + gpu.working_len - 1,
                         sizeof(sa_index_t), cudaMemcpyDeviceToHost,
@@ -985,12 +985,13 @@ private:
         printf("[%lu] after scan\n", world_rank());
 
         std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
-        std::span<uint32_t> rb(mhost_temp_mem, world_size());
+        std::span<uint32_t> rb(mhost_temp_mem, NUM_GPUS);
         comm_world().allgather(send_buf(sb), recv_buf(rb));
 
 
         for (uint i = 1; i < NUM_GPUS; ++i)
         {
+            printf("[%lu] mhost_temp_mem: %u \n", world_rank(), mhost_temp_mem[i - 1]);
             mhost_temp_mem[i] = std::max(mhost_temp_mem[i], mhost_temp_mem[i - 1]);
         }
 
