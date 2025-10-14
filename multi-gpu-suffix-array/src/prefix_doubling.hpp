@@ -780,24 +780,11 @@ private:
         kmer* current_buffer = in_buffer[gpu_index] ? gpu.Kmer_buffer : gpu.Kmer;
         kmer* other_buffer = in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer;
 
-        kmer* f;
-        cudaMalloc(&f, sizeof(kmer) * gpu.working_len);
-        sa_index_t* ff;
-        cudaMalloc(&ff, sizeof(sa_index_t) * gpu.working_len);
-        cudaMemset(f, 0, sizeof(kmer) * gpu.working_len);
-        cudaMemset(ff, 0, sizeof(sa_index_t) * gpu.working_len);
-
-        cudaMemcpy(f, current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToDevice);
-        // cudaMemcpy(ff, current_buffer, sizeof(kmer)* gpu.working_len, cudaMemcpyDeviceToDevice);
-
         //(mcontext.get_device_id(gpu_index));
         //printf("initial\n");
         const kmer* last_element_prev = nullptr;
 
-        kmer* last_elem;
-        // cudaMalloc(&last_elem, sizeof(kmer));
         mcontext.get_device_temp_allocator(gpu_index).reset();
-
         if (world_rank() < NUM_GPUS - 1) {
             std::span<kmer> sb(current_buffer + gpu.working_len - 1, 1);
             comm_world().send(send_buf(sb), send_count(1), destination(world_rank() + 1));
@@ -812,19 +799,18 @@ private:
             last_element_prev = temp;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
         }
         //printf("last element\n");
-        kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(f, last_element_prev, gpu.offset + 1, 0, reinterpret_cast<sa_index_t*>(ff), gpu.working_len);
+        kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(current_buffer, last_element_prev, gpu.offset + 1, 0, reinterpret_cast<sa_index_t*>(other_buffer), gpu.working_len);
         CUERR;
-        // cudaFreeAsync(last_elem, mcontext.get_gpu_default_stream(gpu_index));
         //}
         //printf("write ranks diff multi\n");
         mcontext.sync_default_streams();
         mcontext.get_device_temp_allocator(gpu_index).reset();
         printf("[%lu] after write ranks diff\n", world_rank());
 
-        std::vector<kmer> kmerCheck(gpu.working_len);
-        cudaMemcpy(kmerCheck.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
-        auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
-        comm_world().barrier();
+        // std::vector<kmer> kmerCheck(gpu.working_len);
+        // cudaMemcpy(kmerCheck.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
+        // auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
+        // comm_world().barrier();
 
         printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(30UL, gpu.working_len), world_rank());
         mcontext.sync_all_streams();
@@ -832,50 +818,37 @@ private:
 
 
         printf("[%lu] after check initial ranks\n", world_rank());
-        {
-            std::vector<sa_index_t> check(gpu.working_len);
-            cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-            std::vector<kmer> local_kmer(gpu.working_len);
-            cudaMemcpy(local_kmer.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
+        // {
+        //     std::vector<sa_index_t> check(gpu.working_len);
+        //     cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+        //     std::vector<kmer> local_kmer(gpu.working_len);
+        //     cudaMemcpy(local_kmer.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
 
-            bool first = true;
-            for (size_t i = 1; i < check.size(); i++)
-            {
-                if (local_kmer[i] == local_kmer[i - 1]) {
-                    if (first) {
-                        if (check[i] != 0) {
-                            printf("first time %lu and %lu are equal but i has not rank 0: %u\n", i - 1, i, check[i]);
-                            break;
+        //     size_t current_rank = check[0];
+        //     size_t rank_buffer = 0;
+        //     for (size_t i = 1; i < check.size(); i++)
+        //     {
+        //         if (check[i] == check[i - 1]) {
+        //             if (local_kmer[i] != local_kmer[i - 1]) {
+        //                 printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
+        //             }
+        //             ASSERT(local_kmer[i] == local_kmer[i - 1]);
+        //             rank_buffer++;
+        //         }
+        //         else {
+        //             if (current_rank + rank_buffer + 1 != check[i]) {
+        //                 printf("[%lu] current rank: %lu + rank_buffer: %lu + 1 != next rank %u", i, current_rank, rank_buffer, check[i]);
+        //             }
+        //             ASSERT(current_rank + rank_buffer + 1 == check[i]);
+        //             rank_buffer = 0;
+        //             current_rank = check[i];
+        //         }
+        //     }
 
-                        }
-                        else {
-                            if (check[i - 1] != i) {
-                                printf("first time %lu and %lu are equal but i-1 has not rank i: %u\n", i - 1, i, check[i - 1]);
-                                break;
-                            }
-                        }
-                    }
-                    else {
-                        if (check[i] != 0 || check[i - 1] != 0) {
-                            printf("%lu and %lu should be zero %u, %u\n", i - 1, i, check[i - 1], check[i]);
-                            break;
-                        }
-                    }
-                }
-                else {
-                    first = true;
+        //     comm_world().barrier();
+        // }
 
-                    if (i + 1 != check[i]) {
-                        printf("check[%lu] != i+1: %u\n", i, check[i]);
-                        break;
-                    }
-                }
-            }
-
-            comm_world().barrier();
-        }
-
-        do_max_scan_on_ranks(true, ff, f);
+        do_max_scan_on_ranks(true);
 
 
         mcontext.sync_all_streams();
@@ -885,11 +858,11 @@ private:
         mcontext.sync_default_streams();
         comm_world().barrier();
 
-        std::vector<sa_index_t> sa(mgpus[world_rank()].working_len);
-        cudaMemcpy(sa.data(), mgpus[world_rank()].Sa_rank, sizeof(sa_index_t) * mgpus[world_rank()].working_len, cudaMemcpyDeviceToHost);
+        // std::vector<sa_index_t> sa(mgpus[world_rank()].working_len);
+        // cudaMemcpy(sa.data(), mgpus[world_rank()].Sa_rank, sizeof(sa_index_t) * mgpus[world_rank()].working_len, cudaMemcpyDeviceToHost);
 
-        auto check = comm_world().gatherv(send_buf(sa), root(0));
-        comm_world().barrier();
+        // auto check = comm_world().gatherv(send_buf(sa), root(0));
+        // comm_world().barrier();
 
         // if (world_rank() == 0) {
         //     size_t current_rank = check[0];
@@ -899,16 +872,6 @@ private:
         //         if (check[i] == check[i - 1]) {
         //             if (kmerCheck[i] != kmerCheck[i - 1]) {
         //                 printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
-        //                 for (size_t x = 0; x < DCX::X; x++)
-        //                 {
-        //                     printf("%c, ", kmerCheck[i].kmer[x]);
-        //                 }
-        //                 printf(" = ");
-        //                 for (size_t x = 0; x < DCX::X; x++)
-        //                 {
-        //                     printf("%c, ", kmerCheck[i - 1].kmer[x]);
-        //                 }
-
         //             }
         //             ASSERT(kmerCheck[i] == kmerCheck[i - 1]);
         //             rank_buffer++;
@@ -931,7 +894,7 @@ private:
     }
 
     // From Temp1 to Ranks
-    void do_max_scan_on_ranks(bool initial = false, sa_index_t* ff = nullptr, kmer* f = nullptr)
+    void do_max_scan_on_ranks(bool initial = false)
     {
         sa_index_t* out_buffer = mgpus[world_rank()].Sa_rank;
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -950,9 +913,9 @@ private:
                     sa_index_t* temp_buffer = gpu.Temp3;
 
                     if (initial) {
-                        input_buffer = ff;//reinterpret_cast<sa_index_t*>(in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer);
-                        //out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
-                        //temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
+                        input_buffer = reinterpret_cast<sa_index_t*>(in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer);
+                        out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
+                        temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
                     }
 
                     MaxFunctor max_op;
@@ -965,16 +928,16 @@ private:
                     CUERR_CHECK(err);
                     printf("[%lu] after prep\n", world_rank());
                     // Run inclusive prefix max-scan
-                    void* temp;
-                    cudaMalloc(&temp, temp_storage_bytes);
-                    // if (in_buffer[gpu_index]) {
-                    //     ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + madditional_temp_storage_size);
-                    // }
-                    // else {
-                    //     ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
-                    // }
+                    // void* temp;
+                    // cudaMalloc(&temp, temp_storage_bytes);
+                    if (in_buffer[gpu_index]) {
+                        ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + madditional_temp_storage_size);
+                    }
+                    else {
+                        ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
+                    }
 
-                    err = cub::DeviceScan::InclusiveScan(temp, temp_storage_bytes, input_buffer, out_buffer,
+                    err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, input_buffer, out_buffer,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
                     cudaMemcpyAsync(mhost_temp_mem + gpu_index, out_buffer + gpu.working_len - 1,
                         sizeof(sa_index_t), cudaMemcpyDeviceToHost,
@@ -995,13 +958,12 @@ private:
         printf("[%lu] after scan\n", world_rank());
 
         std::span<uint32_t> sb(mhost_temp_mem + world_rank(), 1);
-        std::span<uint32_t> rb(mhost_temp_mem, NUM_GPUS);
+        std::span<uint32_t> rb(mhost_temp_mem, world_size());
         comm_world().allgather(send_buf(sb), recv_buf(rb));
 
 
         for (uint i = 1; i < NUM_GPUS; ++i)
         {
-            printf("[%lu] mhost_temp_mem: %u \n", world_rank(), mhost_temp_mem[i - 1]);
             mhost_temp_mem[i] = std::max(mhost_temp_mem[i], mhost_temp_mem[i - 1]);
         }
 
@@ -1077,7 +1039,7 @@ private:
                     std::span<sa_index_t> rb(temp, 1);
                     comm_world().recv(recv_buf(rb), tag(gpu_index + 1), recv_count(1));
                     First_rank_next = temp;
-                }
+        }
                 else {
                     First_rank_next = nullptr;
                 }
@@ -1123,9 +1085,9 @@ private:
                 cudaMemcpyAsync(mhost_temp_mem + gpu_index, gpu.Temp3, sizeof(sa_index_t), cudaMemcpyDeviceToHost,
                     mcontext.get_gpu_default_stream(gpu_index));
                 CUERR;
-            }
+    }
 
-        }
+}
 
         mcontext.sync_default_streams();
         //dont need Last_rank_prev, First_rank_next anymore
@@ -1219,7 +1181,7 @@ private:
                             mcontext.get_gpu_default_stream(gpu_index));
                         CUERR;
                     }
-                }
+        }
             }
         }
 
