@@ -34,7 +34,7 @@ struct PDArrays
 };
 struct DCXArrays {
     sa_index_t* Isa;
-    const unsigned char* Input;
+    unsigned char* Input;
     sa_index_t* Temp1;
     sa_index_t* Temp2;
     sa_index_t* Temp3;
@@ -247,10 +247,10 @@ public:
             // //(mcontext.get_device_id(gpu));
             cudaMalloc(&malloc_base[gpu], malloc_size);
             CUERR;
-            cudaMalloc(&isa[gpu], mpd_array_aligned_len * sizeof(sa_index_t));
+            cudaMalloc(&isa[gpu], (mpd_array_aligned_len + DCX::X) * sizeof(sa_index_t));
             CUERR;
 
-            cudaMalloc(&inputs[gpu], minput_aligned_len);
+            cudaMalloc(&inputs[gpu], (minput_aligned_len + DCX::X));
             CUERR;
 
             if (zero)

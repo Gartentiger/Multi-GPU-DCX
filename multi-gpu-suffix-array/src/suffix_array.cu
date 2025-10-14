@@ -939,10 +939,11 @@ private:
             }
             if (gpu_index + 1 < NUM_GPUS)
             {
-                next_Isa = mcontext.get_device_temp_allocator(gpu_index).get<sa_index_t>(DCX::X);
+
+                next_Isa = gpu.dcx_ptr.Isa + gpu.pd_elements;
                 NCCLCHECK(ncclRecv(next_Isa, DCX::X, ncclUint32, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index)));
 
-                next_Input = mcontext.get_device_temp_allocator(gpu_index).get<unsigned char>(DCX::X);
+                next_Input = gpu.dcx_ptr.Input + gpu.num_elements;
                 NCCLCHECK(ncclRecv(next_Input, DCX::X, ncclChar, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index)));
             }
             ncclGroupEnd();
