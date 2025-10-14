@@ -247,7 +247,7 @@ public:
             // //(mcontext.get_device_id(gpu));
             cudaMalloc(&malloc_base[gpu], malloc_size);
             CUERR;
-            cudaMalloc(&isa[gpu], min_pd_len * sizeof(sa_index_t));
+            cudaMalloc(&isa[gpu], mpd_array_aligned_len * sizeof(sa_index_t));
             CUERR;
 
             cudaMalloc(&inputs[gpu], minput_aligned_len);
@@ -257,9 +257,9 @@ public:
             {
                 cudaMemset(malloc_base[gpu], 0, malloc_size);
                 CUERR;
-                cudaMemset(isa[gpu], 0, min_pd_len * sizeof(sa_index_t));
+                cudaMemset(isa[gpu], 0, mpd_array_aligned_len * sizeof(sa_index_t));
                 CUERR;
-                cudaMemset(inputs[gpu], 0, min_gpu_len);
+                cudaMemset(inputs[gpu], 0, minput_aligned_len);
                 CUERR;
             }
 
