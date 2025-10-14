@@ -45,7 +45,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 12;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -753,27 +753,27 @@ private:
     void final_merge()
     {
         distrib_merge::DistributedArray<MergeStageSuffix, int, sa_index_t, NUM_GPUS> inp_S12, inp_S0, result;
-        {
-            SaGPU& gpu = mgpus[world_rank()];
-            std::vector<MergeStageSuffix> k(gpu.pd_elements);
-            cudaMemcpy(k.data(), gpu.merge_ptr.S12_result, sizeof(MergeStageSuffix) * gpu.pd_elements, cudaMemcpyDeviceToHost);
-            auto isa_h = comm_world().gatherv(send_buf(k), root(0));
-            if (world_rank() == 0) {
-                char fileName[16];
-                const char* text = "S12Dist";
-                sprintf(fileName, "%s", text);
-                std::ofstream out(fileName, std::ios::binary);
-                if (!out) {
-                    std::cerr << "Could not open file\n";
-                    //return 1;
-                }
-                printf("isa 12 length: %lu\n", isa_h.size());
+        // {
+        //     SaGPU& gpu = mgpus[world_rank()];
+        //     std::vector<MergeStageSuffix> k(gpu.pd_elements);
+        //     cudaMemcpy(k.data(), gpu.merge_ptr.S12_result, sizeof(MergeStageSuffix) * gpu.pd_elements, cudaMemcpyDeviceToHost);
+        //     auto isa_h = comm_world().gatherv(send_buf(k), root(0));
+        //     if (world_rank() == 0) {
+        //         char fileName[16];
+        //         const char* text = "S12Dist";
+        //         sprintf(fileName, "%s", text);
+        //         std::ofstream out(fileName, std::ios::binary);
+        //         if (!out) {
+        //             std::cerr << "Could not open file\n";
+        //             //return 1;
+        //         }
+        //         printf("isa 12 length: %lu\n", isa_h.size());
 
-                out.write(reinterpret_cast<char*>(isa_h.data()), sizeof(MergeStageSuffix) * isa_h.size());
-                out.close();
-            }
-            comm_world().barrier();
-        }
+        //         out.write(reinterpret_cast<char*>(isa_h.data()), sizeof(MergeStageSuffix) * isa_h.size());
+        //         out.close();
+        //     }
+        //     comm_world().barrier();
+        // }
         // {
         //     SaGPU& gpu = mgpus[world_rank()];
         //     const size_t S0_count = gpu.num_elements - gpu.pd_elements;
@@ -1620,10 +1620,10 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3,0,1,2,3,0,1,2,3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
-    warm_up_nccl(context);
+    // warm_up_nccl(context);
     // alltoallMeasure(context);
     // ncclMeasure(context);
     // sample_sort_merge_measure(context);
