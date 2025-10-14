@@ -233,7 +233,7 @@ public:
     {
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
-            in_buffer[i] = false;
+            in_buffer[i] = true;
         }
 
 
