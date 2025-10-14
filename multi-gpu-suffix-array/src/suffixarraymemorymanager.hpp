@@ -328,11 +328,18 @@ public:
             if (gpu == world_rank())
             {
                 cudaFree(isa[gpu]);
+                CUERR;
+
                 cudaFree(inputs[gpu]);
+                CUERR;
             }
             else if (mcontext.get_peer_status(world_rank(), gpu) >= 1) {
                 cudaIpcCloseMemHandle(isa[gpu]);
+                CUERR;
+
                 cudaIpcCloseMemHandle(inputs[gpu]);
+                CUERR;
+
             }
         }
     }
@@ -497,6 +504,6 @@ private:
     {
         return (offset / ALIGN_BYTES) * ALIGN_BYTES;
     }
-};
+        };
 
 #endif // SUFFIXARRAYMEMORYMANAGER_H
