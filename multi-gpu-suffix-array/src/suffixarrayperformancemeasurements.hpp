@@ -131,7 +131,7 @@ public:
         mloop_performance_recorder.writeMeas(outputFile);
         std::cout << "\nPrepare final merge:\n";
         mprepare_final_merge_performance_recorder.print();
-
+        mprepare_final_merge_performance_recorder.writeMeas(outputFile);
         std::cout << "\n\nMain:\n";
         mmain_performance_recorder.print();
         mmain_performance_recorder.writeMeas(outputFile);
