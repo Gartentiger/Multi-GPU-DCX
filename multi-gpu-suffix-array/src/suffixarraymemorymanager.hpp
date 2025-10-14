@@ -251,7 +251,7 @@ public:
             if (!mcontext.is_in_node()) {
                 add_x_for_next = DCX::X;
             }
-            cudaMalloc(&isa[gpu], (mpd_array_aligned_len + add_x_for_next) * sizeof(sa_index_t));
+            cudaMalloc(&isa[gpu], (min_pd_len + add_x_for_next) * sizeof(sa_index_t));
             CUERR;
 
             cudaMalloc(&inputs[gpu], (min_gpu_len + add_x_for_next));
@@ -261,7 +261,7 @@ public:
             {
                 cudaMemset(malloc_base[gpu], 0, malloc_size);
                 CUERR;
-                cudaMemset(isa[gpu], 0, (mpd_array_aligned_len + add_x_for_next) * sizeof(sa_index_t));
+                cudaMemset(isa[gpu], 0, (min_pd_len + add_x_for_next) * sizeof(sa_index_t));
                 CUERR;
                 cudaMemset(inputs[gpu], 0, (min_gpu_len + add_x_for_next));
                 CUERR;

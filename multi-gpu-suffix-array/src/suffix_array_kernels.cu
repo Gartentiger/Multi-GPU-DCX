@@ -786,10 +786,10 @@ namespace kernels {
 
             for (uint x = 0; x < DCX::X; x++) {
                 if (index + x < num_chars) {
-                    // sv.prefix[x] = Input[index + x];
+                    sv.prefix[x] = Input[index + x];
                 }
                 else {
-                    // sv.prefix[x] = (next_Input ? next_Input[nexInputIndex] : 0);
+                    sv.prefix[x] = (next_Input ? next_Input[nexInputIndex] : 0);
                     nexInputIndex++;
                 }
             }
@@ -797,14 +797,14 @@ namespace kernels {
             uint nexIsaIndex = 0;
             for (uint c = 0; c < DCX::C; c++) {
                 if (starting_isa_index < isa_size) {
-                    // sv.ranks[c] = Isa[starting_isa_index++] + 1;
+                    sv.ranks[c] = Isa[starting_isa_index++] + 1;
                 }
                 else {
                     if (next_Isa) {
-                        // sv.ranks[c] = next_Isa[nexIsaIndex] + 1;
+                        sv.ranks[c] = next_Isa[nexIsaIndex] + 1;
                     }
                     else {
-                        // sv.ranks[c] = index < num_chars - 1 ? 1 : 0;
+                        sv.ranks[c] = index < num_chars - 1 ? 1 : 0;
                     }
                     nexIsaIndex++;
                 }
