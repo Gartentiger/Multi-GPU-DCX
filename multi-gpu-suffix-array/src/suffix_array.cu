@@ -475,7 +475,7 @@ public:
         ASSERT(last_gpu_elems <= mper_gpu); // Because of merge.
 
         mreserved_len = SDIV(std::max(last_gpu_elems, mper_gpu) + 8, DCX::X * 2) * DCX::X * 2; // Ensure there are 12 elems more space.
-        mreserved_len = std::max(mreserved_len, 1024ul) + 10 * DCX::X;                       // Min len because of temp memory for CUB.
+        mreserved_len = std::max(mreserved_len, 1024ul) + 100 * DCX::X;                       // Min len because of temp memory for CUB.
 
         mpd_reserved_len = SDIV(mreserved_len, DCX::X) * DCX::C;
 
@@ -1837,7 +1837,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(100 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
