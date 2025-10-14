@@ -994,31 +994,22 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         thrust::host_vector<MergeSuffixes> tuples_host = merge_tuple_vec;
 
-        printf("[%lu] after non samples\n", world_rank());
-
         std::vector<MergeSuffixes> host_vec(tuples_host.begin(), tuples_host.end());
-        printf("[%lu] 1000\n", world_rank());
-
-        // std::vector<MergeSuffixes> host_key_out;
-        // HostSampleSort(host_vec, host_key_out, host_vec.size(), std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2));
-        auto all_vec = comm_world().gatherv(send_buf(host_vec), root(0));
-        printf("[%lu] 1005\n", world_rank());
-        std::vector<char> inp(mper_gpu);
-        printf("[%lu] 1007\n", world_rank());
-
-        for (size_t i = 0; i < inp.size(); i++)
+        printf("[%lu] all vec send\n", world_rank());
+        size_t all_num_elements = 0;
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
-            inp[i] = minput[i];
+            all_num_elements += mgpus[gpu_index].num_elements;
         }
-        printf("[%lu] 1013\n", world_rank());
 
-        auto allInput = comm_world().gatherv(send_buf(inp), root(0));
-        printf("[%lu] 1016\n", world_rank());
+        std::vector<MergeSuffixes> all_vec(all_num_elements);
+        comm_world().gatherv(send_buf(host_vec), recv_buf(all_vec), root(0));
+        printf("[%lu] all vec recv\n", world_rank());
 
         std::vector<sa_index_t> h_sa(all_vec.size());
-        printf("[%lu] send all vec\n", world_rank());
-        if (world_rank() == 0) {
-
+        printf("[%lu] 1010\n", world_rank());
+        if (world_rank() == 0)
+        {
             {
                 char fileName[16];
                 const char* text = "outputTuples";
@@ -1041,10 +1032,6 @@ private:
             {
                 h_sa[i] = all_vec[i].index;
             }
-            // std::vector<size_t> realsa = naive_suffix_sort(allInput.size(), allInput.data());
-            // if (std::equal(realsa.begin(), realsa.end(), h_sa.begin(), h_sa.end())) {
-            //     printf("real sorted\n");
-            // }
             {
                 char fileName[16];
                 const char* text = "outputDC";
@@ -1052,7 +1039,6 @@ private:
                 std::ofstream out(fileName, std::ios::binary);
                 if (!out) {
                     std::cerr << "Could not open file\n";
-                    //return 1;
                 }
                 printf("isa 12 length: %lu\n", h_sa.size());
 
@@ -1076,8 +1062,8 @@ private:
             printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(merge_tuple_out_vec.data()) + merge_tuple_out_vec.size() - 10, 10, world_rank() + NUM_GPUS);
             mcontext.sync_all_streams();
             comm_world().barrier();
-
-            auto globally_sorted_tuples = comm_world().gatherv(send_buf(locally_sorted_tuples_vec), root(0));
+            std::vector<MergeSuffixes> globally_sorted_tuples(all_num_elements);
+            comm_world().gatherv(send_buf(locally_sorted_tuples_vec), recv_buf(globally_sorted_tuples), root(0));
             if (world_rank() == 0) {
                 bool globally_sorted = std::is_sorted(globally_sorted_tuples.begin(), globally_sorted_tuples.end(), DCXComparatorHost{});
                 printf("[%lu] is globally sorted: %s\n", world_rank(), globally_sorted ? "true" : "false");
@@ -1127,7 +1113,8 @@ private:
         printf("[%lu] write sa\n", world_rank());
 
         {
-            auto all_sa = comm_world().gatherv(send_buf(sa), root(0));
+            std::vector<sa_index_t> all_sa(all_num_elements);
+            comm_world().gatherv(send_buf(sa), recv_buf(all_sa), root(0));
             if (world_rank() == 0) {
                 bool com = std::equal(h_sa.begin(), h_sa.end(), all_sa.begin(), all_sa.end());
                 printf("CPU sort equal to Samplesort: %s\n", com ? "true" : "false");
