@@ -904,7 +904,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (gpu.working_len > 0)
             {
-                if (gpu.index == world_rank())
+                if (gpu_index == world_rank())
                 {
 
                     //(mcontext.get_device_id(gpu_index));
@@ -913,8 +913,7 @@ private:
                     sa_index_t* in_buffer = gpu.Temp1;
                     sa_index_t* temp_buffer = gpu.Temp3;
                     if (initial) {
-                        kmer* current_buffer = in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer;
-                        in_buffer = reinterpret_cast<sa_index_t*>(current_buffer);
+                        in_buffer = reinterpret_cast<sa_index_t*>(in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer);
                         out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
                         temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
                     }
@@ -998,7 +997,7 @@ private:
             //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-}
+        }
         mcontext.sync_default_streams();
 #endif
         // printf("[%lu] before send compact\n", world_rank());
