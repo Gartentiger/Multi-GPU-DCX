@@ -233,7 +233,7 @@ public:
     {
         for (size_t i = 0; i < NUM_GPUS; i++)
         {
-            in_buffer[i] = true;
+            in_buffer[i] = false;
         }
 
 
@@ -694,11 +694,12 @@ private:
 
         {
             SaGPU& gpu = mgpus[world_rank()];
-
+            cub::DoubleBuffer<kmerDCX> keys(gpu.Kmer, gpu.Kmer_buffer);
+            cub::DoubleBuffer<sa_index_t> values(gpu.Isa, gpu.Sa_index);
             size_t temp_storage_bytes = 0;
             cudaError err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
-                gpu.Kmer, gpu.Kmer_buffer,
-                gpu.Isa, gpu.Sa_index,
+                keys,
+                values,
                 gpu.working_len,
                 DCXKmerDecomposer{}, 0, sizeof(kmerDCX) * 8,
                 mcontext.get_gpu_default_stream(gpu.index));
@@ -707,24 +708,26 @@ private:
             ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
             //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
             err = cub::DeviceRadixSort::SortPairs(gpu.Kmer_temp1, temp_storage_bytes,
-                gpu.Kmer, gpu.Kmer_buffer,
-                gpu.Isa, gpu.Sa_index,
+                keys,
+                values,
                 gpu.working_len,
                 DCXKmerDecomposer{}, 0, sizeof(kmerDCX) * 8,
                 mcontext.get_gpu_default_stream(gpu.index));
             CUERR_CHECK(err);
             mcontext.sync_default_streams();
-            // in_buffer[world_rank()] = keys.Current() == gpu.Kmer_buffer ? true : false;
+            in_buffer[world_rank()] = keys.Current() == gpu.Kmer_buffer ? true : false;
         }
         // only for in node merges
 
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
-            // comm_world().bcast(send_recv_buf(std::span<bool>(&in_buffer[gpu_index], 1)), send_recv_count(1), root((size_t)gpu_index));
-            merge_nodes_info[gpu_index] = { gpu.working_len, 0, gpu_index,
-                gpu.Kmer_buffer, gpu.Sa_index,
-                gpu.Kmer, gpu.Isa,
+            comm_world().bcast(send_recv_buf(std::span<bool>(&in_buffer[gpu_index], 1)), send_recv_count(1), root((size_t)gpu_index));
+            merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
+                in_buffer[gpu_index] ? gpu.Kmer_buffer : gpu.Kmer,
+                in_buffer[gpu_index] ? gpu.Sa_index : gpu.Isa,
+                in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer,
+                in_buffer[gpu_index] ? gpu.Isa : gpu.Sa_index ,
                 nullptr, nullptr };
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Kmer_temp1, mreserved_len * 3 * sizeof(sa_index_t));
         }
@@ -748,7 +751,7 @@ private:
         printf("after init merging\n");
 
         std::vector<kmerDCX> localList(mgpus[world_rank()].working_len);
-        cudaMemcpy(localList.data(), mgpus[world_rank()].Kmer_buffer, sizeof(kmerDCX) * localList.size(), cudaMemcpyDeviceToHost);
+        cudaMemcpy(localList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Kmer_buffer : mgpus[world_rank()].Kmer, sizeof(kmerDCX) * localList.size(), cudaMemcpyDeviceToHost);
         std::vector<kmerDCX> sortedList = comm_world().gatherv(send_buf(localList), root(0));
         if (world_rank() == 0) {
             ASSERT(thrust::is_sorted(sortedList.begin(), sortedList.end(), KmerComparator{}));
@@ -809,9 +812,9 @@ private:
         // auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
         // comm_world().barrier();
 
-        printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(30UL, gpu.working_len), world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+        // printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(20UL, gpu.working_len), world_rank());
+        // mcontext.sync_all_streams();
+        // comm_world().barrier();
 
 
         printf("[%lu] after check initial ranks\n", world_rank());
@@ -851,7 +854,7 @@ private:
         mcontext.sync_all_streams();
         comm_world().barrier();
         printf("[%lu] after do max\n", world_rank());
-        printArrayss << <1, 1 >> > (current_buffer, gpu.Sa_rank, std::min(30UL, gpu.working_len), world_rank());
+        printArrayss << <1, 1 >> > (current_buffer, gpu.Sa_rank, std::min(20UL, gpu.working_len), world_rank());
         mcontext.sync_default_streams();
         comm_world().barrier();
 
@@ -927,12 +930,12 @@ private:
                     // Run inclusive prefix max-scan
                     // void* temp;
                     // cudaMalloc(&temp, temp_storage_bytes);
-                    // if (in_buffer[gpu_index] && initial) {
-                    ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + madditional_temp_storage_size);
-                    // }
-                    // else {
-                        // ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
-                    // }
+                    if (in_buffer[gpu_index]) {
+                        ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + madditional_temp_storage_size);
+                    }
+                    else {
+                        ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
+                    }
 
                     err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, input_buffer, out_buffer,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
@@ -979,9 +982,9 @@ private:
         }
 
         mcontext.sync_default_streams();
-        printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, std::min(30UL, mgpus[world_rank()].working_len), world_rank());
-        mcontext.sync_default_streams();
-        comm_world().barrier();
+        // printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, std::min(20UL, mgpus[world_rank()].working_len), world_rank());
+        // mcontext.sync_default_streams();
+        // comm_world().barrier();
     }
 
     bool compact()
