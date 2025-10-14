@@ -495,7 +495,7 @@ public:
         // makes kmers easier because the set_sizes are now always set_sizes[0]=...=set_sizes[N-2]=set_sizes[N-1]+1=pd_elements/DCX::C
         last_gpu_extra_elements = DCX::C - last_gpu_add_pd_elements - 1 + DCX::C;
         size_t last_gpu_pd_elements = (last_gpu_elems / DCX::X) * DCX::C + last_gpu_add_pd_elements + last_gpu_extra_elements;
-        mpd_per_gpu_max_bit = std::min(sa_index_t(log2((NUM_GPUS - 1) * last_gpu_pd_elements)) + 1, sa_index_t(sizeof(sa_index_t) * 8));
+        mpd_per_gpu_max_bit = sizeof(sa_index_t) * 8;//= std::min(sa_index_t(log2((NUM_GPUS - 1) * last_gpu_pd_elements)) + 1, sa_index_t(sizeof(sa_index_t) * 8));
 
         auto cub_temp_mem = get_needed_cub_temp_memory(ms0_reserved_len, mpd_reserved_len);
         cub::DoubleBuffer<kmer> keys(nullptr, nullptr);
