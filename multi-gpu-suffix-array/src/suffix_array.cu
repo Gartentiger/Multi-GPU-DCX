@@ -403,14 +403,16 @@ public:
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
-        return;
+        TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         //
         // mcontext.sync_all_streams();
         printf("[%lu] prepare s12 for merge done\n", world_rank());
         // comm_world().barrier();
         //
+        TIMERSTOP(Total);
+        mperf_measure.done();
+        return;
 
-        TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
         prepare_S0_for_merge();
         //
@@ -428,8 +430,6 @@ public:
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
         // TIMER_START_MAIN_STAGE(MainStages::Copy_Results);
-        TIMERSTOP(Total);
-        mperf_measure.done();
 
         copy_result_to_host();
         //
@@ -2212,11 +2212,13 @@ int main(int argc, char** argv)
     comm_world().barrier();
     sorter.done();
 
+    CUERR;
     if (world_rank() == 0)
     {
         sorter.print_pd_stats();
         sorter.get_perf_measurements().print(argv[1]);
     }
+    CUERR;
 
     cudaFreeHost(input);
     CUERR;
