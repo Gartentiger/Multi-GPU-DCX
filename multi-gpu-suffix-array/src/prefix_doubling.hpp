@@ -822,48 +822,48 @@ private:
 
 
         printf("[%lu] after check initial ranks\n", world_rank());
-        {
-            std::vector<sa_index_t> check(gpu.working_len);
-            cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-            std::vector<kmer> local_kmer(gpu.working_len);
-            cudaMemcpy(local_kmer.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
+        // {
+        //     std::vector<sa_index_t> check(gpu.working_len);
+        //     cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
+        //     std::vector<kmer> local_kmer(gpu.working_len);
+        //     cudaMemcpy(local_kmer.data(), gpu.Kmer_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
 
-            bool first = true;
-            for (size_t i = 1; i < check.size(); i++)
-            {
-                if (local_kmer[i] == local_kmer[i - 1]) {
-                    if (first) {
-                        if (check[i] != 0) {
-                            printf("first time %lu and %lu are equal but i has not rank 0: %u\n", i - 1, i, check[i]);
-                            break;
+        //     bool first = true;
+        //     for (size_t i = 1; i < check.size(); i++)
+        //     {
+        //         if (local_kmer[i] == local_kmer[i - 1]) {
+        //             if (first) {
+        //                 if (check[i] != 0) {
+        //                     printf("first time %lu and %lu are equal but i has not rank 0: %u\n", i - 1, i, check[i]);
+        //                     break;
 
-                        }
-                        else {
-                            if (check[i - 1] != i) {
-                                printf("first time %lu and %lu are equal but i-1 has not rank i: %u\n", i - 1, i, check[i - 1]);
-                                break;
-                            }
-                        }
-                    }
-                    else {
-                        if (check[i] != 0 || check[i - 1] != 0) {
-                            printf("%lu and %lu should be zero %u, %u\n", i - 1, i, check[i - 1], check[i]);
-                            break;
-                        }
-                    }
-                }
-                else {
-                    first = true;
+        //                 }
+        //                 else {
+        //                     if (check[i - 1] != i) {
+        //                         printf("first time %lu and %lu are equal but i-1 has not rank i: %u\n", i - 1, i, check[i - 1]);
+        //                         break;
+        //                     }
+        //                 }
+        //             }
+        //             else {
+        //                 if (check[i] != 0 || check[i - 1] != 0) {
+        //                     printf("%lu and %lu should be zero %u, %u\n", i - 1, i, check[i - 1], check[i]);
+        //                     break;
+        //                 }
+        //             }
+        //         }
+        //         else {
+        //             first = true;
 
-                    if (i + 1 != check[i]) {
-                        printf("check[%lu] != i+1: %u\n", i, check[i]);
-                        break;
-                    }
-                }
-            }
+        //             if (i + 1 != check[i]) {
+        //                 printf("check[%lu] != i+1: %u\n", i, check[i]);
+        //                 break;
+        //             }
+        //         }
+        //     }
 
-            comm_world().barrier();
-        }
+        //     comm_world().barrier();
+        // }
 
         do_max_scan_on_ranks(true);
 
@@ -881,38 +881,38 @@ private:
         auto check = comm_world().gatherv(send_buf(sa), root(0));
         comm_world().barrier();
 
-        if (world_rank() == 0) {
-            size_t current_rank = check[0];
-            size_t rank_buffer = 0;
-            for (size_t i = 1; i < check.size(); i++)
-            {
-                if (check[i] == check[i - 1]) {
-                    if (kmerCheck[i] != kmerCheck[i - 1]) {
-                        printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
-                        for (size_t x = 0; x < DCX::X; x++)
-                        {
-                            printf("%c, ", kmerCheck[i].kmer[x]);
-                        }
-                        printf(" = ");
-                        for (size_t x = 0; x < DCX::X; x++)
-                        {
-                            printf("%c, ", kmerCheck[i - 1].kmer[x]);
-                        }
+        // if (world_rank() == 0) {
+        //     size_t current_rank = check[0];
+        //     size_t rank_buffer = 0;
+        //     for (size_t i = 1; i < check.size(); i++)
+        //     {
+        //         if (check[i] == check[i - 1]) {
+        //             if (kmerCheck[i] != kmerCheck[i - 1]) {
+        //                 printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
+        //                 for (size_t x = 0; x < DCX::X; x++)
+        //                 {
+        //                     printf("%c, ", kmerCheck[i].kmer[x]);
+        //                 }
+        //                 printf(" = ");
+        //                 for (size_t x = 0; x < DCX::X; x++)
+        //                 {
+        //                     printf("%c, ", kmerCheck[i - 1].kmer[x]);
+        //                 }
 
-                    }
-                    ASSERT(kmerCheck[i] == kmerCheck[i - 1]);
-                    rank_buffer++;
-                }
-                else {
-                    if (current_rank + rank_buffer + 1 != check[i]) {
-                        printf("[%lu] current rank: %lu + rank_buffer: %lu + 1 != next rank %u", i, current_rank, rank_buffer, check[i]);
-                    }
-                    ASSERT(current_rank + rank_buffer + 1 == check[i]);
-                    rank_buffer = 0;
-                    current_rank = check[i];
-                }
-            }
-        }
+        //             }
+        //             ASSERT(kmerCheck[i] == kmerCheck[i - 1]);
+        //             rank_buffer++;
+        //         }
+        //         else {
+        //             if (current_rank + rank_buffer + 1 != check[i]) {
+        //                 printf("[%lu] current rank: %lu + rank_buffer: %lu + 1 != next rank %u", i, current_rank, rank_buffer, check[i]);
+        //             }
+        //             ASSERT(current_rank + rank_buffer + 1 == check[i]);
+        //             rank_buffer = 0;
+        //             current_rank = check[i];
+        //         }
+        //     }
+        // }
         // comm_world().barrier();
         // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         // {
