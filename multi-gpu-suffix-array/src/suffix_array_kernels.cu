@@ -424,6 +424,7 @@ namespace kernels {
                         Output_kmers[i * DCX::C + c].kmer[j] = 0;
                     }
                 }
+                Output_kmers[i * DCX::C + c].kmer[DCX::X] = 2 * DCX::X + 1;
                 assert(i * DCX::C + c < mpd_reserved_len);
                 // if (i * DCX::C + c < mpd_reserved_len) {
                 Output_index[i * DCX::C + c] = i + set_per_gpu * rank + index_offset;
@@ -450,6 +451,14 @@ namespace kernels {
                 // }
                 // }
     }
+
+    __global__ void fixup_last_kmers(kmerDCX* Output_kmers, size_t N) {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+            Output_kmers[i].kmer[DCX::X] = N - i;
+        }
+    }
+
     __global__ void produce_index_kmer_tuples_12_64_dc7(const char* Input, sa_index_t start_index, sa_index_t* Output_index,
         ulong1* Output_kmers, size_t N) {
         assert(N % 14 == 0); // No one wants to deal with the "tails" here, we just write some more and don't care.

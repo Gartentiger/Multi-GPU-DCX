@@ -657,6 +657,9 @@ private:
         CUERR;
 
         cudaFreeAsync(samplePos, mcontext.get_gpu_default_stream(gpu_index));
+        if (world_rank() == NUM_GPUS - 1) {
+            kernels::fixup_last_kmers _KLC_SIMPLE_(last_gpu_extra_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.pd_ptr.Kmer + gpu.pd_elements - last_gpu_extra_elements, last_gpu_extra_elements);
+        }
         // mcontext.sync_all_streams();
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.pd_ptr.Kmer, gpu.pd_ptr.Isa, std::min(20UL, gpu.pd_elements), world_rank());
         mcontext.sync_default_streams();

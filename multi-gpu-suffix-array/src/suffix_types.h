@@ -376,7 +376,7 @@ using MergeStageSuffix = MergeStageSuffixS0;
 using DCX = DC21;
 
 struct kmerDCX {
-    unsigned char kmer[DCX::X];
+    unsigned char kmer[DCX::X + 1];
 };
 struct dc3_kmer_decomposer
 {
