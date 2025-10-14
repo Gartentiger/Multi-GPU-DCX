@@ -807,14 +807,14 @@ private:
         mcontext.get_device_temp_allocator(gpu_index).reset();
         printf("[%lu] after write ranks diff\n", world_rank());
 
-        std::vector<kmer> kmerCheck(gpu.working_len);
-        cudaMemcpy(kmerCheck.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
-        auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
-        comm_world().barrier();
+        // std::vector<kmer> kmerCheck(gpu.working_len);
+        // cudaMemcpy(kmerCheck.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
+        // auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
+        // comm_world().barrier();
 
-        printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(20UL, gpu.working_len), world_rank());
-        mcontext.sync_all_streams();
-        comm_world().barrier();
+        // printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(20UL, gpu.working_len), world_rank());
+        // mcontext.sync_all_streams();
+        // comm_world().barrier();
 
 
         printf("[%lu] after check initial ranks\n", world_rank());
@@ -897,6 +897,7 @@ private:
     void do_max_scan_on_ranks(bool initial = false)
     {
         sa_index_t* out_buffer = mgpus[world_rank()].Sa_rank;
+        printf("[%lu] before for\n", world_rank());
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             // uint gpu_index = world_rank();
@@ -917,8 +918,11 @@ private:
                         out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
                         temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
                     }
+                    printf("[%lu] after initial\n", world_rank());
+
                     MaxFunctor max_op;
                     size_t temp_storage_bytes = 0;
+                    printf("[%lu] before prep\n", world_rank());
 
                     cudaError_t err = cub::DeviceScan::InclusiveScan(nullptr, temp_storage_bytes, in_buffer,
                         out_buffer, max_op, gpu.working_len,
@@ -994,7 +998,7 @@ private:
             //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-        }
+}
         mcontext.sync_default_streams();
 #endif
         // printf("[%lu] before send compact\n", world_rank());
