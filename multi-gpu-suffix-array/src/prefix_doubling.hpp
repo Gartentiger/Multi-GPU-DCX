@@ -704,7 +704,7 @@ private:
                 DCXKmerDecomposer{}, 0, sizeof(kmerDCX) * 8,
                 mcontext.get_gpu_default_stream(gpu.index));
             CUERR_CHECK(err);
-            printf("[%lu] temp_storage_bytes radix_sort real: %lu\n", world_rank(), temp_storage_bytes);
+            // printf("[%lu] temp_storage_bytes radix_sort real: %lu\n", world_rank(), temp_storage_bytes);
             ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
             //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
             err = cub::DeviceRadixSort::SortPairs(gpu.Kmer_temp1, temp_storage_bytes,
@@ -750,14 +750,14 @@ private:
         comm_world().barrier();
         printf("after init merging\n");
 
-        std::vector<kmerDCX> localList(mgpus[world_rank()].working_len);
-        cudaMemcpy(localList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Kmer_buffer : mgpus[world_rank()].Kmer, sizeof(kmerDCX) * localList.size(), cudaMemcpyDeviceToHost);
-        std::vector<kmerDCX> sortedList = comm_world().gatherv(send_buf(localList), root(0));
-        if (world_rank() == 0) {
-            ASSERT(thrust::is_sorted(sortedList.begin(), sortedList.end(), KmerComparator{}));
-        }
-        comm_world().barrier();
-        printf("[%lu] after check\n", world_rank());
+        // std::vector<kmerDCX> localList(mgpus[world_rank()].working_len);
+        // cudaMemcpy(localList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Kmer_buffer : mgpus[world_rank()].Kmer, sizeof(kmerDCX) * localList.size(), cudaMemcpyDeviceToHost);
+        // std::vector<kmerDCX> sortedList = comm_world().gatherv(send_buf(localList), root(0));
+        // if (world_rank() == 0) {
+        //     ASSERT(thrust::is_sorted(sortedList.begin(), sortedList.end(), KmerComparator{}));
+        // }
+        // comm_world().barrier();
+        // printf("[%lu] after check\n", world_rank());
 
         // t.stop();
         t.aggregate_and_print(
@@ -805,7 +805,7 @@ private:
         //printf("write ranks diff multi\n");
         mcontext.sync_default_streams();
         mcontext.get_device_temp_allocator(gpu_index).reset();
-        printf("[%lu] after write ranks diff\n", world_rank());
+        // printf("[%lu] after write ranks diff\n", world_rank());
 
         // std::vector<kmer> kmerCheck(gpu.working_len);
         // cudaMemcpy(kmerCheck.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
@@ -817,7 +817,7 @@ private:
         // comm_world().barrier();
 
 
-        printf("[%lu] after check initial ranks\n", world_rank());
+        // printf("[%lu] after check initial ranks\n", world_rank());
         // {
         //     std::vector<sa_index_t> check(gpu.working_len);
         //     cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(gpu.Kmer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
@@ -851,10 +851,10 @@ private:
         do_max_scan_on_ranks(true);
 
 
-        mcontext.sync_all_streams();
-        comm_world().barrier();
-        printf("[%lu] after do max\n", world_rank());
-        printArrayss << <1, 1 >> > (current_buffer, gpu.Sa_rank, std::min(20UL, gpu.working_len), world_rank());
+        // mcontext.sync_all_streams();
+        // comm_world().barrier();
+        // printf("[%lu] after do max\n", world_rank());
+        // printArrayss << <1, 1 >> > (current_buffer, gpu.Sa_rank, std::min(20UL, gpu.working_len), world_rank());
         mcontext.sync_default_streams();
         comm_world().barrier();
 
