@@ -440,7 +440,7 @@ public:
         // TIMER_STOP_MAIN_STAGE(MainStages::Copy_Results);
     }
 
-    const sa_index_t* get_result() const
+    auto get_result()
     {
         return mmemory_manager.get_h_result();
     }
@@ -1099,20 +1099,18 @@ private:
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
         printf("[%lu] sample sorted\n", world_rank());
-
         size_t out_num_elements = merge_tuple_vec.size();
 
         printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
 
         thrust::device_vector<sa_index_t> d_sa(out_num_elements);
-        std::vector<sa_index_t> sa(out_num_elements);
         kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(thrust::raw_pointer_cast(merge_tuple_vec.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
-        cudaMemcpyAsync(sa.data(), thrust::raw_pointer_cast(d_sa.data()), out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
-        comm_world().barrier();
-        printf("[%lu] write sa\n", world_rank());
+        mmemory_manager.get_result_vec().swap(d_sa);
+
 
         {
+
             // std::vector<sa_index_t> all_sa(all_num_elements);
             // comm_world().gatherv(send_buf(sa), recv_buf(all_sa), root(0));
             // if (world_rank() == 0) {
@@ -1141,27 +1139,7 @@ private:
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
 
-        std::vector<size_t> recv_sizes(NUM_GPUS);
-        comm_world().allgather(send_buf(std::span<size_t>(&out_num_elements, 1)), recv_buf(recv_sizes), send_count(1));
-        size_t acc = std::accumulate(recv_sizes.begin(), recv_sizes.begin() + world_rank(), 0);
-        // printf("[%lu] acc: %lu\n", world_rank(), acc);
-        int ierr;
-        MPI_File outputFile;
-        ierr = MPI_File_open(MPI_COMM_WORLD, "outputSample",
-            MPI_MODE_CREATE | MPI_MODE_WRONLY,
-            MPI_INFO_NULL, &outputFile);
-        if (ierr != MPI_SUCCESS) {
-            fprintf(stderr, "[%lu] Error opening file\n", world_rank());
-            MPI_Abort(MPI_COMM_WORLD, ierr);
-        }
-        MPI_Offset offset = acc * sizeof(sa_index_t);
-        ierr = MPI_File_write_at_all(outputFile, offset, sa.data(), out_num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
-        // MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
-        if (ierr != MPI_SUCCESS) {
-            fprintf(stderr, "[%lu] Error in MPI_File_write_at_all\n", world_rank());
-            MPI_Abort(MPI_COMM_WORLD, ierr);
-        }
-        MPI_File_close(&outputFile);
+
 
         //
 
@@ -1342,46 +1320,15 @@ private:
 
     void copy_result_to_host()
     {
-        sa_index_t* h_result = mmemory_manager.get_h_result();
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        //{
-        uint gpu_index = world_rank();
-        SaGPU& gpu = mgpus[gpu_index];
-        //(mcontext.get_device_id(gpu_index));
-        cudaMemcpyAsync(h_result, gpu.merge_ptr.result, gpu.num_elements * sizeof(sa_index_t),
-            cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
-        CUERR;
-        mcontext.sync_gpu_default_stream(gpu_index);
+        sa_index_t* d_sa = mmemory_manager.get_sa();
+        size_t out_num_elements = mmemory_manager.get_result_vec().size();
+        sa_index_t* sa = (sa_index_t*)malloc(sizeof(sa_index_t) * out_num_elements);
 
-        MPI_File outputFile;
-        MPI_File_open(MPI_COMM_WORLD, "outputData",
-            MPI_MODE_CREATE | MPI_MODE_WRONLY,
-            MPI_INFO_NULL, &outputFile);
-        MPI_File_write_at_all(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
-        // MPI_File_write_at(outputFile, gpu.offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        cudaMemcpyAsync(sa, d_sa, out_num_elements * sizeof(sa_index_t), cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
+        mmemory_manager.set_result_ptr(sa);
+        mcontext.sync_all_streams();
+        comm_world().barrier();
 
-        MPI_File_close(&outputFile);
-
-        //}
-        // mcontext.sync_default_streams();
-
-        // std::vector<sa_index_t> recv;
-        // recv.clear();
-        // std::span<sa_index_t> sb(h_result + gpu.offset, gpu.num_elements);
-        // auto [sendCounts] = comm_world().gatherv(send_buf(sb), recv_buf<resize_to_fit>(recv), recv_counts_out());
-        // int sumCounts = 0;
-        // int i = 0;
-        // for (auto count : sendCounts) {
-        //     ASSERT(count == mgpus[i].num_elements);
-        //     memcpy(h_result + mgpus[i].offset, recv.data() + sumCounts, sizeof(sa_index_t) * count);
-        //     sumCounts += count;
-        //     i++;
-        // }
-        // for (int gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index) {
-        //     std::span<sa_index_t> buffer(h_result + gpu.offset, gpu.num_elements);
-        //     comm_world().bcast(send_recv_buf(buffer), root(gpu_index));
-        // }
-        // std::span<sa_index_t> rb(h_result, );
     }
 
 #ifdef ENABLE_DUMPING
@@ -2049,9 +1996,9 @@ int main(int argc, char** argv)
     NCCLCHECK(ncclCommInitRank(&nccl_comm, world_size(), Id, world_rank()));
     printf("[%lu] Active nccl comm\n", world_rank());
 
-    if (argc != 3)
+    if (argc != 4)
     {
-        error("Usage: sa-test <ofile> <ifile> !");
+        error("Usage: sa-test <ofile> <measfile> <ifile> !");
     }
 
     // for (int i = 0; i < 2; i++)
@@ -2062,7 +2009,7 @@ int main(int argc, char** argv)
 
     size_t realLen = 0;
     size_t maxLength = size_t(1024 * 1024) * size_t(100 * NUM_GPUS);
-    size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
+    size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
 
@@ -2205,7 +2152,7 @@ int main(int argc, char** argv)
     // nvtxRangePop();
     // t.stop();
     // if (world_rank() == 0)
-    //     write_array(argv[2], sorter.get_result(), realLen);
+    write_array_mpi(argv[1], sorter.get_result(), realLen);
     comm_world().barrier();
     sorter.done();
 
@@ -2213,7 +2160,7 @@ int main(int argc, char** argv)
     if (world_rank() == 0)
     {
         sorter.print_pd_stats();
-        sorter.get_perf_measurements().print(argv[1]);
+        sorter.get_perf_measurements().print(argv[2]);
     }
     CUERR;
 

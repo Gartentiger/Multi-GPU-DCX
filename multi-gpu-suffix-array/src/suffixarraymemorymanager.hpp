@@ -9,6 +9,7 @@
 #include <kamping/p2p/isend.hpp>
 #include <kamping/p2p/recv.hpp>
 #include <span>
+#include <thrust/device_vector.h>
 
 #include "suffix_types.h"
 
@@ -112,14 +113,24 @@ public:
     size_t get_temp_mem_kmer() {
         return kmer_additional_space;
     }
-    const sa_index_t* get_h_result() const
+
+    auto get_h_result()
     {
         return mh_result;
     }
 
-    sa_index_t* get_h_result()
+    void set_result_ptr(sa_index_t* ptr) {
+        mh_result = ptr;
+    }
+
+    sa_index_t* get_sa()
     {
-        return mh_result;
+        return thrust::raw_pointer_cast(result.data());
+    }
+
+    auto& get_result_vec()
+    {
+        return result;
     }
 
     size_t get_additional_pd_space_size() const
@@ -282,8 +293,8 @@ public:
         }
         //if (world_rank() == NUM_GPUS - 1)
         //{
-        cudaMallocHost(&mh_result, malloc_size);
-        CUERR;
+        // cudaMallocHost(&mh_result, malloc_size);
+        // CUERR;
         cudaMallocHost(&mhost_temp_mem, HOST_TEMP_MEM_SIZE);
         CUERR;
         //}
@@ -316,7 +327,7 @@ public:
         }
 
         cudaFreeHost(mhost_temp_mem);
-        cudaFreeHost(mh_result);
+        // cudaFreeHost(mh_result);
 
 #ifdef ENABLE_DUMPING
         cudaFreeHost(mhost_alloc_base);
@@ -342,6 +353,7 @@ public:
 
             }
         }
+        free(mh_result);
     }
 
     template<typename T, uint num_gpus>
@@ -399,7 +411,7 @@ private:
 #endif
     unsigned char* mhost_temp_mem;
     sa_index_t* mh_result;
-
+    thrust::device_vector<sa_index_t> result;
     PDArrays make_pd_arrays(unsigned char* base, unsigned char* input_ptr, sa_index_t* isa_ptr) const
     {
         // ASSERT(8 * mpd_array_aligned_len * sizeof(sa_index_t) < misa_offset);
