@@ -402,28 +402,32 @@ void MultiMerge(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
     using MergeNodeInfo = crossGPUReMerge::MergeNodeInfo<merge_types>;
     size_t temp_storage_size = 0;
     void* temp;
-    temp_storage_size = sizeof(uint64_t) * keys_vec.size() * 2;
+    temp_storage_size = sizeof(key) * keys_vec.size() * 2;
     cudaMalloc(&temp, temp_storage_size);
     mcontext.get_device_temp_allocator(world_rank()).init(temp, temp_storage_size);
 
-    uint64_t* h_temp_mem = (uint64_t*)malloc(temp_storage_size);
+    key* h_temp_mem = (key*)malloc(temp_storage_size);
     memset(h_temp_mem, 0, temp_storage_size);
     QDAllocator host_pinned_allocator(h_temp_mem, temp_storage_size);
     std::array<MergeNodeInfo, NUM_GPUS> merge_nodes_info;
     auto& t = kamping::measurements::timer();
     char sf[30];
-    size_t bytes = sizeof(MergeSuffixes) * keys_vec.size();
+    size_t bytes = sizeof(key) * keys_vec.size();
     sprintf(sf, "sample_sort_%lu", bytes);
     t.synchronize_and_start(sf);
     t.start("init_sort");
     thrust::sort(keys_vec.begin(), keys_vec.end(), cmp_device);
     t.stop();
     printf("[%lu] initial sort done\n", world_rank());
-    MergeSuffixes* keys_ptr = thrust::raw_pointer_cast(keys_vec.data());
-    MergeSuffixes* keys_buffer_ptr = thrust::raw_pointer_cast(keys_buffer_vec.data());
+    key* keys_ptr = thrust::raw_pointer_cast(keys_vec.data());
+    key* keys_buffer_ptr = thrust::raw_pointer_cast(keys_buffer_vec.data());
     for (uint gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
     {
-        merge_nodes_info[gpu_index] = { keys_vec.size(), 0, gpu_index,keys_ptr, nullptr , keys_buffer_ptr,  nullptr,  nullptr, nullptr };
+        merge_nodes_info[gpu_index] = { keys_vec.size(), 0, gpu_index,
+            keys_ptr, nullptr ,
+            keys_buffer_ptr,  nullptr,
+            nullptr, nullptr
+        };
     }
 
     MergeManager merge_manager(mcontext, host_pinned_allocator);

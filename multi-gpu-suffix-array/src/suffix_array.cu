@@ -939,7 +939,6 @@ private:
             }
             if (gpu_index + 1 < NUM_GPUS)
             {
-
                 next_Isa = gpu.dcx_ptr.Isa + gpu.pd_elements;
                 NCCLCHECK(ncclRecv(next_Isa, DCX::X, ncclUint32, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index)));
 
