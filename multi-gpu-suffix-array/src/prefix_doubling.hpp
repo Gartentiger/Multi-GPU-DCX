@@ -930,7 +930,7 @@ private:
                     // Run inclusive prefix max-scan
                     // void* temp;
                     // cudaMalloc(&temp, temp_storage_bytes);
-                    if (in_buffer[gpu_index]) {
+                    if (in_buffer[gpu_index] || !initial) {
                         ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + madditional_temp_storage_size);
                     }
                     else {
@@ -1304,7 +1304,12 @@ private:
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             SaGPU& gpu = mgpus[gpu_index];
-            multi_split_node_info[gpu_index].src_keys = in_buffer[gpu_index] ? gpu.Sa_index : gpu.Isa;
+            if (initial) {
+                multi_split_node_info[gpu_index].src_keys = in_buffer[gpu_index] ? gpu.Sa_index : gpu.Isa;
+            }
+            else {
+                multi_split_node_info[gpu_index].src_keys = gpu.Sa_index;
+            }
             multi_split_node_info[gpu_index].src_values = gpu.Sa_rank;
             multi_split_node_info[gpu_index].src_len = gpu.working_len;
 
