@@ -463,7 +463,7 @@ struct rank_decomposer
 
 __host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmerDCX& b)
 {
-    for (size_t i = 0; i < DCX::X; i++)
+    for (size_t i = 0; i < DCX::X + 1; i++)
     {
         if (a.kmer[i] == b.kmer[i]) {
             continue;
@@ -493,7 +493,7 @@ struct KmerComparator
     __host__ __device__ __forceinline__ bool operator()(const kmerDCX& a, const kmerDCX& b)
     {
 
-        for (size_t i = 0; i < DCX::X; i++)
+        for (size_t i = 0; i < DCX::X + 1; i++)
         {
             if (a.kmer[i] < b.kmer[i]) {
                 return true;
