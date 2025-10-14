@@ -433,7 +433,13 @@ __host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffi
             return false;
         }
     }
-    return a.ranks[r1] < b.ranks[r2];
+    if (a.ranks[r1] < b.ranks[r2]) {
+        return true;
+    }
+    if (a.ranks[r1] > b.ranks[r2]) {
+        return false;
+    }
+    return a.index < b.index;
 
 }
 __constant__ uint32_t lookupNext[DCX::X][DCX::X][3];
@@ -516,8 +522,13 @@ struct DCXComparatorDevice
                 return false;
             }
         }
-
-        return a.ranks[r1] < b.ranks[r2];
+        if (a.ranks[r1] < b.ranks[r2]) {
+            return true;
+        }
+        if (a.ranks[r1] > b.ranks[r2]) {
+            return false;
+        }
+        return a.index < b.index;
     }
 };
 struct DCXComparatorHost
@@ -536,8 +547,13 @@ struct DCXComparatorHost
                 return false;
             }
         }
-
-        return a.ranks[r1] < b.ranks[r2];
+        if (a.ranks[r1] < b.ranks[r2]) {
+            return true;
+        }
+        if (a.ranks[r1] > b.ranks[r2]) {
+            return false;
+        }
+        return a.index < b.index;
     }
 };
 #endif // CONFIG_H
