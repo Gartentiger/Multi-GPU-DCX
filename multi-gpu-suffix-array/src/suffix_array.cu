@@ -986,6 +986,7 @@ private:
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (nonSamples, count, gpu_index);
         mcontext.sync_default_streams();
         comm_world().barrier();
+        printf("[%lu] after non samples\n", world_rank());
         cudaFree(dcx);
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 

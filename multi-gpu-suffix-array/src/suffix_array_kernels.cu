@@ -786,10 +786,10 @@ namespace kernels {
 
             for (uint x = 0; x < DCX::X; x++) {
                 if (index + x < num_chars) {
-                    sv.prefix[x] = Input[index + x];
+                    // sv.prefix[x] = Input[index + x];
                 }
                 else {
-                    sv.prefix[x] = (next_Input ? next_Input[nexInputIndex] : 0);
+                    // sv.prefix[x] = (next_Input ? next_Input[nexInputIndex] : 0);
                     nexInputIndex++;
                 }
             }
