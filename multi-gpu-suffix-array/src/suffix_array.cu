@@ -667,33 +667,39 @@ private:
         // printArrayss << <1, 1 >> > (mgpus[world_rank()].prepare_S12_ptr.Isa, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
-        {
-            std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
+        // {
+        //     std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
 
-            cudaMemcpy(isa.data(), mgpus[world_rank()].dcx_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
-            auto isaglob = comm_world().gatherv(send_buf(isa), root(0));
-            if (world_rank() == 0) {
-                std::sort(isaglob.begin(), isaglob.end());
-                std::vector<sa_index_t> compareIsa(isaglob.size());
-                for (size_t i = 0; i < compareIsa.size(); i++)
-                {
-                    compareIsa[i] = i + 1;
-                }
-                size_t write_counter = 0;
-                for (size_t i = 0; i < compareIsa.size(); i++)
-                {
-                    if (isaglob[i] != compareIsa[i] && write_counter < 30) {
+        //     cudaMemcpy(isa.data(), mgpus[world_rank()].dcx_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
+        //     std::vector<size_t> recv_counts_vec(NUM_GPUS);
+        //     for (size_t i = 0; i < NUM_GPUS; i++)
+        //     {
+        //         recv_counts_vec[i] = mgpus[i].pd_elements;
+        //     }
 
-                        printf("[%lu] %u != %u\n", i, isaglob[i], compareIsa[i]);
-                        write_counter++;
-                    }
-                }
-                bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
-                bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
-                printf("isa before contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
-                printf("isa before mpd_per_gpu: %lu\n", mpd_per_gpu);
-            }
-        }
+        //     auto isaglob = comm_world().gatherv(send_buf(isa), recv_counts(recv_counts_vec), root(0));
+        //     if (world_rank() == 0) {
+        //         std::sort(isaglob.begin(), isaglob.end());
+        //         std::vector<sa_index_t> compareIsa(isaglob.size());
+        //         for (size_t i = 0; i < compareIsa.size(); i++)
+        //         {
+        //             compareIsa[i] = i + 1;
+        //         }
+        //         size_t write_counter = 0;
+        //         for (size_t i = 0; i < compareIsa.size(); i++)
+        //         {
+        //             if (isaglob[i] != compareIsa[i] && write_counter < 30) {
+
+        //                 printf("[%lu] %u != %u\n", i, isaglob[i], compareIsa[i]);
+        //                 write_counter++;
+        //             }
+        //         }
+        //         bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
+        //         bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
+        //         printf("isa before contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
+        //         printf("isa before mpd_per_gpu: %lu\n", mpd_per_gpu);
+        //     }
+        // }
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -778,24 +784,24 @@ private:
         comm_world().barrier();
         {
 
-            std::vector<sa_index_t> isa_local(mgpus[world_rank()].pd_elements);
-            cudaMemcpy(isa_local.data(), mgpus[world_rank()].dcx_ptr.Isa, isa_local.size() * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
-            std::vector<sa_index_t> isaglob = comm_world().gatherv(send_buf(isa_local), root(0)); //(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
-            printf("[%lu] all suffixes received\n", world_rank());
-            if (world_rank() == 0) {
-                char fileName[16];
-                const char* text = "outputIsa";
-                sprintf(fileName, "%s", text);
-                std::ofstream out(fileName, std::ios::binary);
-                if (!out) {
-                    std::cerr << "Could not open file\n";
-                    //return 1;
-                }
-                printf("isa 12 length: %lu\n", isaglob.size());
+            // std::vector<sa_index_t> isa_local(mgpus[world_rank()].pd_elements);
+            // cudaMemcpy(isa_local.data(), mgpus[world_rank()].dcx_ptr.Isa, isa_local.size() * sizeof(sa_index_t), cudaMemcpyDeviceToHost);
+            // std::vector<sa_index_t> isaglob = comm_world().gatherv(send_buf(isa_local), root(0)); //(mgpus.front().pd_elements * (NUM_GPUS - 1) + mgpus.back().pd_elements - last_gpu_extra_elements);
+            // printf("[%lu] all suffixes received\n", world_rank());
+            // if (world_rank() == 0) {
+            //     char fileName[16];
+            //     const char* text = "outputIsa";
+            //     sprintf(fileName, "%s", text);
+            //     std::ofstream out(fileName, std::ios::binary);
+            //     if (!out) {
+            //         std::cerr << "Could not open file\n";
+            //         //return 1;
+            //     }
+            //     printf("isa 12 length: %lu\n", isaglob.size());
 
-                out.write(reinterpret_cast<char*>(isaglob.data()), sizeof(sa_index_t) * isaglob.size());
-                out.close();
-            }
+            //     out.write(reinterpret_cast<char*>(isaglob.data()), sizeof(sa_index_t) * isaglob.size());
+            //     out.close();
+            // }
 
             // std::vector<char> input_all = comm_world().gatherv(send_buf(std::span<char>(minput, mper_gpu)), root(0));
             // printf("[%lu] all input received\n", world_rank());
@@ -995,97 +1001,96 @@ private:
         thrust::host_vector<MergeSuffixes> tuples_host = merge_tuple_vec;
 
         std::vector<MergeSuffixes> host_vec(tuples_host.begin(), tuples_host.end());
-        printf("[%lu] all vec send\n", world_rank());
-        size_t all_num_elements = 0;
-        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-        {
-            all_num_elements += mgpus[gpu_index].num_elements;
-        }
+        // printf("[%lu] all vec send\n", world_rank());
+        // size_t all_num_elements = 0;
+        // for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        // {
+        //     all_num_elements += mgpus[gpu_index].num_elements;
+        // }
 
-        std::vector<MergeSuffixes> all_vec(all_num_elements);
-        comm_world().gatherv(send_buf(host_vec), recv_buf(all_vec), root(0));
-        printf("[%lu] all vec recv\n", world_rank());
+        // std::vector<MergeSuffixes> all_vec(all_num_elements);
+        // comm_world().gatherv(send_buf(host_vec), recv_buf(all_vec), root(0));
+        // printf("[%lu] all vec recv\n", world_rank());
 
-        std::vector<sa_index_t> h_sa(all_vec.size());
-        printf("[%lu] 1010\n", world_rank());
-        if (world_rank() == 0)
-        {
-            {
-                char fileName[16];
-                const char* text = "outputTuples";
-                sprintf(fileName, "%s", text);
-                std::ofstream out(fileName, std::ios::binary);
-                if (!out) {
-                    std::cerr << "Could not open file\n";
-                    //return 1;
-                }
-                printf("tuples 12 length: %lu\n", all_vec.size());
+        // std::vector<sa_index_t> h_sa(all_vec.size());
+        // if (world_rank() == 0)
+        // {
+        //     {
+        //         char fileName[16];
+        //         const char* text = "outputTuples";
+        //         sprintf(fileName, "%s", text);
+        //         std::ofstream out(fileName, std::ios::binary);
+        //         if (!out) {
+        //             std::cerr << "Could not open file\n";
+        //             //return 1;
+        //         }
+        //         printf("tuples 12 length: %lu\n", all_vec.size());
 
-                out.write(reinterpret_cast<char*>(all_vec.data()), sizeof(MergeSuffixes) * all_vec.size());
-                out.close();
-            }
+        //         out.write(reinterpret_cast<char*>(all_vec.data()), sizeof(MergeSuffixes) * all_vec.size());
+        //         out.close();
+        //     }
 
-            std::sort(all_vec.begin(), all_vec.end(), DCXComparatorHost{});
-            printf("[%lu] sorted\n", world_rank());
+        //     std::sort(all_vec.begin(), all_vec.end(), DCXComparatorHost{});
+        //     printf("[%lu] sorted\n", world_rank());
 
-            for (size_t i = 0; i < h_sa.size(); i++)
-            {
-                h_sa[i] = all_vec[i].index;
-            }
-            {
-                char fileName[16];
-                const char* text = "outputDC";
-                sprintf(fileName, "%s", text);
-                std::ofstream out(fileName, std::ios::binary);
-                if (!out) {
-                    std::cerr << "Could not open file\n";
-                }
-                printf("isa 12 length: %lu\n", h_sa.size());
+        //     for (size_t i = 0; i < h_sa.size(); i++)
+        //     {
+        //         h_sa[i] = all_vec[i].index;
+        //     }
+        //     {
+        //         char fileName[16];
+        //         const char* text = "outputDC";
+        //         sprintf(fileName, "%s", text);
+        //         std::ofstream out(fileName, std::ios::binary);
+        //         if (!out) {
+        //             std::cerr << "Could not open file\n";
+        //         }
+        //         printf("isa 12 length: %lu\n", h_sa.size());
 
-                out.write(reinterpret_cast<char*>(h_sa.data()), sizeof(sa_index_t) * h_sa.size());
-                out.close();
-            }
+        //         out.write(reinterpret_cast<char*>(h_sa.data()), sizeof(sa_index_t) * h_sa.size());
+        //         out.close();
+        //     }
 
-        }
-        comm_world().barrier();
+        // }
+        // comm_world().barrier();
         thrust::device_vector<MergeSuffixes> merge_tuple_out_vec(merge_tuple_vec.size());
         SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext);
         {
-            bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
-            printf("[%lu] is locally sorted: %s\n", world_rank(), locally_sorted ? "true" : "false");
-            thrust::host_vector<MergeSuffixes> locally_sorted_tuples = merge_tuple_out_vec;
-            std::vector<MergeSuffixes> locally_sorted_tuples_vec(locally_sorted_tuples.begin(), locally_sorted_tuples.end());
+            // bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
+            // printf("[%lu] is locally sorted: %s\n", world_rank(), locally_sorted ? "true" : "false");
+            // thrust::host_vector<MergeSuffixes> locally_sorted_tuples = merge_tuple_out_vec;
+            // std::vector<MergeSuffixes> locally_sorted_tuples_vec(locally_sorted_tuples.begin(), locally_sorted_tuples.end());
 
-            printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(merge_tuple_out_vec.data()), 10, world_rank());
-            mcontext.sync_all_streams();
-            comm_world().barrier();
-            printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(merge_tuple_out_vec.data()) + merge_tuple_out_vec.size() - 10, 10, world_rank() + NUM_GPUS);
-            mcontext.sync_all_streams();
-            comm_world().barrier();
-            std::vector<MergeSuffixes> globally_sorted_tuples(all_num_elements);
-            comm_world().gatherv(send_buf(locally_sorted_tuples_vec), recv_buf(globally_sorted_tuples), root(0));
-            if (world_rank() == 0) {
-                bool globally_sorted = std::is_sorted(globally_sorted_tuples.begin(), globally_sorted_tuples.end(), DCXComparatorHost{});
-                printf("[%lu] is globally sorted: %s\n", world_rank(), globally_sorted ? "true" : "false");
+            // printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(merge_tuple_out_vec.data()), 10, world_rank());
+            // mcontext.sync_all_streams();
+            // comm_world().barrier();
+            // printArrayss << <1, 1 >> > (thrust::raw_pointer_cast(merge_tuple_out_vec.data()) + merge_tuple_out_vec.size() - 10, 10, world_rank() + NUM_GPUS);
+            // mcontext.sync_all_streams();
+            // comm_world().barrier();
+            // std::vector<MergeSuffixes> globally_sorted_tuples(all_num_elements);
+            // comm_world().gatherv(send_buf(locally_sorted_tuples_vec), recv_buf(globally_sorted_tuples), root(0));
+            // if (world_rank() == 0) {
+            //     bool globally_sorted = std::is_sorted(globally_sorted_tuples.begin(), globally_sorted_tuples.end(), DCXComparatorHost{});
+            //     printf("[%lu] is globally sorted: %s\n", world_rank(), globally_sorted ? "true" : "false");
 
-                bool sorted_equal_host = std::equal(globally_sorted_tuples.begin(), globally_sorted_tuples.end(), all_vec.begin(), all_vec.end());
+            //     bool sorted_equal_host = std::equal(globally_sorted_tuples.begin(), globally_sorted_tuples.end(), all_vec.begin(), all_vec.end());
 
-                printf("[%lu] cpu sorted tuples equal: %s\n", world_rank(), sorted_equal_host ? "true" : "false");
+            //     printf("[%lu] cpu sorted tuples equal: %s\n", world_rank(), sorted_equal_host ? "true" : "false");
 
-                char fileName[30];
-                const char* text = "outputSortedTuples";
-                sprintf(fileName, "%s", text);
-                std::ofstream out(fileName, std::ios::binary);
-                if (!out) {
-                    std::cerr << "Could not open file\n";
-                    //return 1;
-                }
-                printf("tuples 12 length: %lu\n", globally_sorted_tuples.size());
+            //     char fileName[30];
+            //     const char* text = "outputSortedTuples";
+            //     sprintf(fileName, "%s", text);
+            //     std::ofstream out(fileName, std::ios::binary);
+            //     if (!out) {
+            //         std::cerr << "Could not open file\n";
+            //         //return 1;
+            //     }
+            //     printf("tuples 12 length: %lu\n", globally_sorted_tuples.size());
 
-                out.write(reinterpret_cast<char*>(globally_sorted_tuples.data()), sizeof(MergeSuffixes) * globally_sorted_tuples.size());
-                out.close();
+            //     out.write(reinterpret_cast<char*>(globally_sorted_tuples.data()), sizeof(MergeSuffixes) * globally_sorted_tuples.size());
+            //     out.close();
 
-            }
+            // }
 
         }
         // MultiMerge<MergeSuffixes, DCXComparatorDevice, DCXComparatorHost, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, DCXComparatorDevice{}, DCXComparatorHost{}, mcontext);
@@ -1113,30 +1118,30 @@ private:
         printf("[%lu] write sa\n", world_rank());
 
         {
-            std::vector<sa_index_t> all_sa(all_num_elements);
-            comm_world().gatherv(send_buf(sa), recv_buf(all_sa), root(0));
-            if (world_rank() == 0) {
-                bool com = std::equal(h_sa.begin(), h_sa.end(), all_sa.begin(), all_sa.end());
-                printf("CPU sort equal to Samplesort: %s\n", com ? "true" : "false");
-                std::vector<sa_index_t> compareSa(all_sa.size());
-                for (size_t i = 0; i < compareSa.size(); i++)
-                {
-                    compareSa[i] = i;
-                }
-                size_t write_counter = 0;
-                for (size_t i = 0; i < compareSa.size(); i++)
-                {
-                    if (all_sa[i] != compareSa[i] && write_counter < 30) {
+            // std::vector<sa_index_t> all_sa(all_num_elements);
+            // comm_world().gatherv(send_buf(sa), recv_buf(all_sa), root(0));
+            // if (world_rank() == 0) {
+            //     bool com = std::equal(h_sa.begin(), h_sa.end(), all_sa.begin(), all_sa.end());
+            //     printf("CPU sort equal to Samplesort: %s\n", com ? "true" : "false");
+            //     std::vector<sa_index_t> compareSa(all_sa.size());
+            //     for (size_t i = 0; i < compareSa.size(); i++)
+            //     {
+            //         compareSa[i] = i;
+            //     }
+            //     size_t write_counter = 0;
+            //     for (size_t i = 0; i < compareSa.size(); i++)
+            //     {
+            //         if (all_sa[i] != compareSa[i] && write_counter < 30) {
 
-                        printf("[%lu] %u != %u\n", i, all_sa[i], compareSa[i]);
-                        write_counter++;
-                    }
-                }
+            //             printf("[%lu] %u != %u\n", i, all_sa[i], compareSa[i]);
+            //             write_counter++;
+            //         }
+            //     }
 
-                bool ascend = std::equal(compareSa.begin(), compareSa.end(), all_sa.begin(), all_sa.end());
-                bool containsDuplicates = (std::unique(all_sa.begin(), all_sa.end()) != all_sa.end());
-                printf("SA contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
-            }
+            //     bool ascend = std::equal(compareSa.begin(), compareSa.end(), all_sa.begin(), all_sa.end());
+            //     bool containsDuplicates = (std::unique(all_sa.begin(), all_sa.end()) != all_sa.end());
+            //     printf("SA contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
+            // }
         }
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
@@ -1144,7 +1149,7 @@ private:
         std::vector<size_t> recv_sizes(NUM_GPUS);
         comm_world().allgather(send_buf(std::span<size_t>(&out_num_elements, 1)), recv_buf(recv_sizes), send_count(1));
         size_t acc = std::accumulate(recv_sizes.begin(), recv_sizes.begin() + world_rank(), 0);
-        printf("[%lu] acc: %lu\n", world_rank(), acc);
+        // printf("[%lu] acc: %lu\n", world_rank(), acc);
         int ierr;
         MPI_File outputFile;
         ierr = MPI_File_open(MPI_COMM_WORLD, "outputSample",
