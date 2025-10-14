@@ -676,7 +676,7 @@ private:
             std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
 
             cudaMemcpy(isa.data(), mgpus[world_rank()].dcx_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
-            std::vector<size_t> recv_counts_vec(NUM_GPUS);
+            std::vector<int> recv_counts_vec(NUM_GPUS);
             for (size_t i = 0; i < NUM_GPUS; i++)
             {
                 recv_counts_vec[i] = mgpus[i].pd_elements;
