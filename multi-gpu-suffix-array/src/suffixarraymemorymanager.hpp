@@ -127,10 +127,10 @@ public:
     {
         return thrust::raw_pointer_cast(result.data());
     }
-    auto get_sa_length() {
+    auto get_sa_length(){
         return sa_length;
     }
-    void set_sa_length(size_t _sa_length) {
+    void set_sa_length(size_t _sa_length){
         sa_length = _sa_length;
     }
     auto& get_result_vec()
@@ -207,9 +207,9 @@ public:
         // count elements so min_pd_len is 256 byte aligned
         mpd_array_aligned_len = align_len(min_pd_len, sizeof(sa_index_t));
         minput_aligned_len = align_len(min_gpu_len, 1);
-        kmer_aligned_len = std::max(kmer_aligned_len, min_pd_len);
-        kmer_aligned_len = align_len(kmer_aligned_len, sizeof(sa_index_t)) * sizeof(sa_index_t);
+        kmer_aligned_len = align_len(bytes_for_kmer, 1);
         // only relevant for dc3 
+        kmer_aligned_len = std::max(kmer_aligned_len, mpd_array_aligned_len * sizeof(sa_index_t));
 
         printf("per gpu bytes for kmer: %lu, minput_aligned_len: %lu, kmer_aligned_len: %lu\n", mpd_array_aligned_len * sizeof(sa_index_t), minput_aligned_len, kmer_aligned_len);
         mhalf_merge_suffix_s12_aligned_len = align_len(min_pd_len, HALF_MERGE_STAGE_SUFFIX_SIZE);
