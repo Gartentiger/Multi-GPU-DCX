@@ -874,12 +874,12 @@ private:
                         printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
                         for (size_t x = 0; x < DCX::X; x++)
                         {
-                            printf("%c, ", kmerCheck[i].prefix[x]);
+                            printf("%c, ", kmerCheck[i].kmer[x]);
                         }
                         printf(" = ");
                         for (size_t x = 0; x < DCX::X; x++)
                         {
-                            printf("%c, ", kmerCheck[i - 1].prefix[x]);
+                            printf("%c, ", kmerCheck[i - 1].kmer[x]);
                         }
 
                     }
@@ -2097,6 +2097,6 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         return std::string(kmer);
     }
 #endif
-    };
+};
 
 #endif // PREFIX_DOUBLING_HPP
