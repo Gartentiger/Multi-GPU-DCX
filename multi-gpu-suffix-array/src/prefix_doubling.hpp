@@ -922,7 +922,7 @@ private:
                     size_t temp_storage_bytes = 0;
                     printf("[%lu] before prep\n", world_rank());
 
-                    cudaError_t err = cub::DeviceScan::InclusiveScan(nullptr, temp_storage_bytes, in_buffer,
+                    cudaError_t err = cub::DeviceScan::InclusiveScan(nullptr, temp_storage_bytes, input_buffer,
                         out_buffer, max_op, gpu.working_len,
                         mcontext.get_gpu_default_stream(gpu_index));
                     CUERR_CHECK(err);
@@ -937,7 +937,7 @@ private:
                         ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
                     }
 
-                    err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, in_buffer, out_buffer,
+                    err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, input_buffer, out_buffer,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
                     cudaMemcpyAsync(mhost_temp_mem + gpu_index, out_buffer + gpu.working_len - 1,
                         sizeof(sa_index_t), cudaMemcpyDeviceToHost,
