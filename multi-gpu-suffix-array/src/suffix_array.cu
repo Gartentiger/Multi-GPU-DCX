@@ -1163,9 +1163,6 @@ private:
         }
         MPI_File_close(&outputFile);
 
-
-        mmemory_manager.free_Input_Isa();
-
         //
 
 
@@ -1509,7 +1506,7 @@ private:
 #endif
 
 
-};
+    };
 
 void print_device_info()
 {
