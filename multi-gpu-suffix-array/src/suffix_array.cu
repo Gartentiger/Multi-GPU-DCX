@@ -1506,7 +1506,7 @@ private:
 #endif
 
 
-    };
+};
 
 void print_device_info()
 {
@@ -2061,7 +2061,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(1 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(100 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[2], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
