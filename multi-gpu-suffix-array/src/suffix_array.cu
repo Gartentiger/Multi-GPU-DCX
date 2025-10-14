@@ -926,6 +926,7 @@ private:
         cudaMemcpy(dcx->samplePosition, DCX::samplePosition, DCX::C * sizeof(uint32_t), cudaMemcpyHostToDevice);
         unsigned char* next_Input = nullptr;
         sa_index_t* next_Isa = nullptr;      //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
+        printf("[%lu] before sending\n", world_rank());
         if (mcontext.is_in_node()) {
             next_Isa = (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].dcx_ptr.Isa : nullptr;
         }
@@ -948,6 +949,8 @@ private:
         }
         mcontext.sync_all_streams();
         comm_world().barrier();
+        printf("[%lu] after sending\n", world_rank());
+
         const unsigned char* c_next_Input = mcontext.is_in_node() ? ((gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].dcx_ptr.Input : nullptr) : next_Input;
 
 

@@ -250,7 +250,7 @@ public:
             cudaMalloc(&isa[gpu], min_pd_len * sizeof(sa_index_t));
             CUERR;
 
-            cudaMalloc(&inputs[gpu], min_gpu_len);
+            cudaMalloc(&inputs[gpu], minput_aligned_len);
             CUERR;
 
             if (zero)
