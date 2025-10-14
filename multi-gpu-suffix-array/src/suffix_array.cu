@@ -998,9 +998,9 @@ private:
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
-        thrust::host_vector<MergeSuffixes> tuples_host = merge_tuple_vec;
+        // thrust::host_vector<MergeSuffixes> tuples_host = merge_tuple_vec;
 
-        std::vector<MergeSuffixes> host_vec(tuples_host.begin(), tuples_host.end());
+        // std::vector<MergeSuffixes> host_vec(tuples_host.begin(), tuples_host.end());
         // printf("[%lu] all vec send\n", world_rank());
         // size_t all_num_elements = 0;
         // for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
@@ -1053,8 +1053,8 @@ private:
 
         // }
         // comm_world().barrier();
-        thrust::device_vector<MergeSuffixes> merge_tuple_out_vec(merge_tuple_vec.size());
-        SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext);
+        thrust::device_vector<MergeSuffixes> merge_tuple_out_vec;
+        SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext);
         {
             // bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
             // printf("[%lu] is locally sorted: %s\n", world_rank(), locally_sorted ? "true" : "false");
@@ -2142,7 +2142,7 @@ int main(int argc, char** argv)
     //     thrust::device_vector<T> keys_out;
 
     //     t.synchronize_and_start(sf);
-    //     SampleSort<T, DCXComparatorDevice, NUM_GPUS>(suffixes, keys_out, a + 1, DCXComparatorDevice{}, context);
+    //     SampleSort<T, DCXComparatorDevice, NUM_GPUS>(suffixes, a + 1, DCXComparatorDevice{}, context);
     //     context.sync_all_streams();
     //     comm_world().barrier();
 

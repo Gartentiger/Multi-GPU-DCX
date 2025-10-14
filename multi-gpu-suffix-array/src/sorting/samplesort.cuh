@@ -39,7 +39,7 @@
 
 
 template<typename key, typename Compare, size_t NUM_GPUS>
-void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <key>& keys_out_vec, size_t sample_size, Compare cmp, MultiGPUContext<NUM_GPUS>& mcontext) {
+void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compare cmp, MultiGPUContext<NUM_GPUS>& mcontext) {
     key* keys = thrust::raw_pointer_cast(keys_vec.data());
     size_t size = keys_vec.size();
     ASSERT(sample_size < size);
@@ -166,16 +166,16 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
     // printf("[%lu] picked splitters\n", world_rank());
     t.stop();
 
-    {
-        comm_world().barrier();
-        thrust::host_vector<key> h_samples = d_samples_vec;
-        for (size_t i = 0; i < h_samples.size(); i++)
-        {
-            printf("[%lu] splitter[%lu]: %8u\n", world_rank(), i, reinterpret_cast<MergeSuffixes*>(thrust::raw_pointer_cast(h_samples.data()))[i].index);
-        }
-        comm_world().barrier();
+    // {
+    //     comm_world().barrier();
+    //     thrust::host_vector<key> h_samples = d_samples_vec;
+    //     for (size_t i = 0; i < h_samples.size(); i++)
+    //     {
+    //         printf("[%lu] splitter[%lu]: %8u\n", world_rank(), i, reinterpret_cast<MergeSuffixes*>(thrust::raw_pointer_cast(h_samples.data()))[i].index);
+    //     }
+    //     comm_world().barrier();
 
-    }
+    // }
 
     // comm_world().bcast(send_recv_buf(std::span<key>(d_samples, NUM_GPUS - 1)), send_recv_count(NUM_GPUS - 1), root(0));
 
@@ -199,25 +199,30 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
     std::vector<size_t> h_bucket_sizes(NUM_GPUS);
     {
         thrust::device_vector<size_t> bucket_sizes(NUM_GPUS);
-        thrust::device_vector<size_t> bound(size);
+        thrust::device_vector<uint32_t> bound(size);
         thrust::upper_bound(d_samples_vec.begin(), d_samples_vec.end(), keys_vec.begin(), keys_vec.end(), bound.begin(), cmp);
         // printf("[%lu] after upper bound\n", world_rank());
         t.stop();
         t.start("sorting_upper_bound");
-        thrust::device_vector<size_t> sorted_upper_bounds(size);
+        thrust::device_vector<uint32_t> sorted_upper_bounds(size);
         thrust::device_vector<key> sorted_keys(size);
         // most significant bit is exclusive -> +1
-        int sortDown = std::min(int(sizeof(size_t) * 8), int(ceil(log2(NUM_GPUS)) + 3));
+        int sortDown = std::min(int(sizeof(size_t) * 8), int(log2(NUM_GPUS) + 1));
+
+        cub::DoubleBuffer<uint32_t> double_keys(thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sorted_upper_bounds.data()));
+        cub::DoubleBuffer<key> double_values(keys, thrust::raw_pointer_cast(sorted_keys.data()));
+
         size_t temp_storage_size = 0;
         cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_size,
-            thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sorted_upper_bounds.data()),
-            keys, thrust::raw_pointer_cast(sorted_keys.data()),
+            double_keys,
+            double_values,
             size, 0, sortDown);
         size_t* num_run;
         size_t temp_storage_size2 = 0;
+
         cub::DeviceRunLengthEncode::Encode(
             nullptr, temp_storage_size2,
-            thrust::raw_pointer_cast(sorted_upper_bounds.data()), reinterpret_cast<size_t*>(keys),
+            double_keys.Current(), reinterpret_cast<uint32_t*>(double_values.Alternate()),
             thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size);
         void* temp;
         temp_storage_size = std::max(temp_storage_size, temp_storage_size2);
@@ -226,8 +231,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
         cudaMalloc(&num_run, sizeof(size_t));
 
         cub::DeviceRadixSort::SortPairs(temp, temp_storage_size,
-            thrust::raw_pointer_cast(bound.data()), thrust::raw_pointer_cast(sorted_upper_bounds.data()),
-            keys, thrust::raw_pointer_cast(sorted_keys.data()),
+            double_keys,
+            double_values,
             size, 0, sortDown,
             mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
@@ -238,31 +243,34 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
 
         t.start("find_lengths");
         cub::DeviceRunLengthEncode::Encode(
-            temp, temp_storage_size,
-            thrust::raw_pointer_cast(sorted_upper_bounds.data()), reinterpret_cast<size_t*>(keys),
+            temp, temp_storage_size2,
+            double_keys.Current(), reinterpret_cast<uint32_t*>(double_keys.Alternate()),
             thrust::raw_pointer_cast(bucket_sizes.data()), num_run, size, mcontext.get_gpu_default_stream(world_rank()));
         cudaMemcpyAsync(h_bucket_sizes.data(), thrust::raw_pointer_cast(bucket_sizes.data()), sizeof(size_t) * NUM_GPUS, cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
-        size_t test = 0;
-        for (size_t i = 0; i < h_bucket_sizes.size(); i++)
-        {
-            printf("[%lu] bucket_size[%lu]: %lu\n", world_rank(), i, h_bucket_sizes[i]);
-            test += h_bucket_sizes[i];
-        }
-        ASSERT(sorted_keys.size() == keys_vec.size());
-        ASSERT(test == keys_vec.size());
-        printf("[%lu] sorted_key.size %lu == keys %lu", world_rank(), sorted_keys.size(), keys_vec.size());
+        // size_t test = 0;
+        // for (size_t i = 0; i < h_bucket_sizes.size(); i++)
+        // {
+            // printf("[%lu] bucket_size[%lu]: %lu\n", world_rank(), i, h_bucket_sizes[i]);
+            // test += h_bucket_sizes[i];
+        // }
+        // ASSERT(sorted_keys.size() == keys_vec.size());
+        // ASSERT(test == keys_vec.size());
+        // printf("[%lu] sorted_key.size %lu == keys %lu", world_rank(), sorted_keys.size(), keys_vec.size());
 
-        size_t prefix_sum = 0;
-        for (size_t i = 0; i < NUM_GPUS; i++) {
-            cudaMemcpyAsync(keys + prefix_sum, thrust::raw_pointer_cast(sorted_keys.data()) + prefix_sum, sizeof(key) * h_bucket_sizes[i], cudaMemcpyDeviceToDevice, mcontext.get_gpu_default_stream(world_rank()));
-            prefix_sum += h_bucket_sizes[i];
+        if (double_values.Current() != keys) {
+            keys_vec.swap(sorted_keys);
+            // size_t prefix_sum = 0;
+            // for (size_t i = 0; i < NUM_GPUS; i++) {
+            //     cudaMemcpyAsync(keys + prefix_sum, thrust::raw_pointer_cast(sorted_keys.data()) + prefix_sum, sizeof(key) * h_bucket_sizes[i], cudaMemcpyDeviceToDevice, mcontext.get_gpu_default_stream(world_rank()));
+            //     prefix_sum += h_bucket_sizes[i];
+            // }
         }
         cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(num_run, mcontext.get_gpu_default_stream(world_rank()));
         mcontext.sync_all_streams();
         t.stop();
-        printf("[%lu] after memcpy\n", world_rank());
+        // printf("[%lu] after memcpy\n", world_rank());
     }
 
     t.stop();
@@ -298,48 +306,51 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
     size_t out_size = std::accumulate(recv_sizes.begin(), recv_sizes.end(), 0);
     t.stop();
     t.start("resize_keys_out");
-    keys_out_vec.resize(out_size);
-    // keys_vec.resize(out_size);
-    t.stop();
-    t.start("reorder");
-    size_t send_sum = 0;
-    size_t recv_sum = 0;
-    printf("[%lu] sending\n", world_rank());
-    // ALL to ALL
-    ncclGroupStart();
-    for (size_t dst = 0; dst < NUM_GPUS; dst++)
     {
-        // comm_world().isend(send_buf(std::span<key>(keys + send_sum, send_sizes[dst])), send_count(send_sizes[dst]), destination(dst));;
+        thrust::device_vector<key> keys_buffer_vec(out_size);
+        // keys_vec.resize(out_size);
+        t.stop();
+        t.start("reorder");
+        size_t send_sum = 0;
+        size_t recv_sum = 0;
+        printf("[%lu] sending\n", world_rank());
+        // ALL to ALL
+        ncclGroupStart();
+        for (size_t dst = 0; dst < NUM_GPUS; dst++)
+        {
+            // comm_world().isend(send_buf(std::span<key>(keys + send_sum, send_sizes[dst])), send_count(send_sizes[dst]), destination(dst));;
 
-        NCCLCHECK(ncclSend(keys + send_sum, sizeof(key) * h_bucket_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
-        // NCCLCHECK(ncclSend(thrust::raw_pointer_cast(buckets[dst].data()), sizeof(key) * send_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
-        send_sum += h_bucket_sizes[dst];
+            NCCLCHECK(ncclSend(thrust::raw_pointer_cast(keys_vec.data()) + send_sum, sizeof(key) * h_bucket_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
+            // NCCLCHECK(ncclSend(thrust::raw_pointer_cast(buckets[dst].data()), sizeof(key) * send_sizes[dst], ncclChar, dst, mcontext.get_nccl(), mcontext.get_streams(world_rank())[dst]));
+            send_sum += h_bucket_sizes[dst];
+        }
+
+        for (size_t src = 0; src < NUM_GPUS; src++)
+        {
+            // comm_world().irecv(recv_buf(std::span<key>(keys_out + recv_sum, recv_sizes[src])), recv_count(recv_sizes[src]), source(src));;
+
+            // NCCLCHECK(ncclRecv(keys_out + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
+            NCCLCHECK(ncclRecv(thrust::raw_pointer_cast(keys_buffer_vec.data()) + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
+
+            recv_sum += recv_sizes[src];
+        }
+        ncclGroupEnd();
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        keys_vec.swap(keys_buffer_vec);
     }
-
-    for (size_t src = 0; src < NUM_GPUS; src++)
-    {
-        // comm_world().irecv(recv_buf(std::span<key>(keys_out + recv_sum, recv_sizes[src])), recv_count(recv_sizes[src]), source(src));;
-
-        // NCCLCHECK(ncclRecv(keys_out + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
-        NCCLCHECK(ncclRecv(thrust::raw_pointer_cast(keys_out_vec.data()) + recv_sum, sizeof(key) * recv_sizes[src], ncclChar, src, mcontext.get_nccl(), mcontext.get_streams(src)[world_rank()]));
-
-        recv_sum += recv_sizes[src];
-    }
-    ncclGroupEnd();
-    mcontext.sync_all_streams();
-    comm_world().barrier();
     t.stop();
     printf("[%lu] reordered keys with splitter, size: %lu\n", world_rank(), out_size);
     {
 
         t.start("final_sort");
         size_t temp_storage_size = 0;
-        cub::DeviceMergeSort::StableSortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_out_vec.data()), out_size, cmp);
+        cub::DeviceMergeSort::StableSortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()), out_size, cmp);
         // keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
         void* temp;
         cudaMalloc(&temp, temp_storage_size);
         CUERR;
-        cub::DeviceMergeSort::StableSortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_out_vec.data()), out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
+        cub::DeviceMergeSort::StableSortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()), out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
         cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
 
         mcontext.sync_all_streams();
@@ -347,7 +358,7 @@ void SampleSort(thrust::device_vector <key>& keys_vec, thrust::device_vector <ke
     }
     comm_world().barrier();
     t.stop();
-    printf("[%lu] sorted key.size: %lu\n", world_rank(), keys_out_vec.size());
+    printf("[%lu] sorted key.size: %lu\n", world_rank(), keys_vec.size());
 }
 
 template<typename key>
