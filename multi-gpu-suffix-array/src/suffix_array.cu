@@ -1061,7 +1061,7 @@ private:
 
         // }
         // comm_world().barrier();
-        SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, std::min(size_t(16ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext);
+        SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, std::min(size_t(32ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext);
         {
             // bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
             // printf("[%lu] is locally sorted: %s\n", world_rank(), locally_sorted ? "true" : "false");
@@ -1840,7 +1840,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(100 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;

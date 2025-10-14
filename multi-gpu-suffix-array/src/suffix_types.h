@@ -418,9 +418,9 @@ struct MergeSuffixes {
     std::array<sa_index_t, DCX::C> ranks;
     std::array<unsigned char, DCX::X> prefix;
 };
-
 __host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffixes& b)
 {
+    sizeof(MergeSuffixes);
     uint32_t l = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0];
     uint32_t r1 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1];
     uint32_t r2 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][2];
