@@ -897,7 +897,6 @@ private:
     void do_max_scan_on_ranks(bool initial = false)
     {
         sa_index_t* out_buffer = mgpus[world_rank()].Sa_rank;
-        printf("[%lu] before for\n", world_rank());
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
             // uint gpu_index = world_rank();
@@ -910,14 +909,14 @@ private:
                     //(mcontext.get_device_id(gpu_index));
                     // Temp1 --> Sa_rank
                     // uses: Temp3, 4
-                    sa_index_t* in_buffer = gpu.Temp1;
+                    sa_index_t* input_buffer = gpu.Temp1;
                     sa_index_t* temp_buffer = gpu.Temp3;
+
                     if (initial) {
-                        in_buffer = reinterpret_cast<sa_index_t*>(in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer);
+                        input_buffer = reinterpret_cast<sa_index_t*>(in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer);
                         out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
                         temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
                     }
-                    printf("[%lu] after initial\n", world_rank());
 
                     MaxFunctor max_op;
                     size_t temp_storage_bytes = 0;
