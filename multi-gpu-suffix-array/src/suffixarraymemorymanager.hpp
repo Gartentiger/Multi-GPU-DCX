@@ -261,9 +261,9 @@ public:
             {
                 cudaMemset(malloc_base[gpu], 0, malloc_size);
                 CUERR;
-                cudaMemset(isa[gpu], 0, mpd_array_aligned_len * sizeof(sa_index_t));
+                cudaMemset(isa[gpu], 0, (min_pd_len + add_x_for_next) * sizeof(sa_index_t));
                 CUERR;
-                cudaMemset(inputs[gpu], 0, minput_aligned_len);
+                cudaMemset(inputs[gpu], 0, (min_gpu_len + add_x_for_next));
                 CUERR;
             }
 
