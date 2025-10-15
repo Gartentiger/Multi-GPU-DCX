@@ -830,7 +830,21 @@ private:
                     if (local_kmer[i] != local_kmer[i + 1]) {
                         printf("%lu and %lu are equal but next not starting with 0\n", i, i + 1);
                     }
-                    ASSERT(check[i] == i + 1);
+                    if (check[i] != i + 1) {
+                        printf("%lu and %lu are not equal but have the same rank:\n", i, i + 1);
+                        for (size_t k = 0;k < DCX::X; k++)
+                        {
+                            printf("%c, ", local_kmer[i].kmer[k]);
+                        }
+                        printf("\n i+1\n");
+                        for (size_t k = 0;k < DCX::X; k++)
+                        {
+                            printf("%c, ", local_kmer[i + 1].kmer[k]);
+                        }
+                        printf("\n");
+                        printf("check[%lu]: %u != i + 1 \n", i, check[i]);
+                    }
+                    // ASSERT(check[i] == i + 1);
                     ASSERT(local_kmer[i] == local_kmer[i + 1]);
                     in_group = true;
                 }
