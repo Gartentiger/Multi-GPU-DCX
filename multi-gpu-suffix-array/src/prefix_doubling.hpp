@@ -823,7 +823,7 @@ private:
             cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(other_buffer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
             std::vector<kmer> local_kmer(gpu.working_len);
             cudaMemcpy(local_kmer.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
-            bool in_group = true;
+            bool in_group = check[0] == 0;
             for (size_t i = 0; i < check.size() - 1; i++)
             {
                 if (check[i] != 0 && check[i + 1] == 0) {
