@@ -824,15 +824,14 @@ private:
             std::vector<kmer> local_kmer(gpu.working_len);
             cudaMemcpy(local_kmer.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
             bool in_group = true;
-            sa_index_t current_rank = check[0];
             for (size_t i = 0; i < check.size() - 1; i++)
             {
                 if (check[i] != 0 && check[i + 1] == 0) {
                     if (local_kmer[i] != local_kmer[i + 1]) {
                         printf("%lu and %lu are equal but next not starting with 0\n", i, i + 1);
                     }
+                    ASSERT(check[i] == i + 1);
                     ASSERT(local_kmer[i] == local_kmer[i + 1]);
-                    current_rank++;
                     in_group = true;
                 }
                 else {
@@ -852,16 +851,14 @@ private:
                             printf("\n");
                         }
                         ASSERT(local_kmer[i] == local_kmer[i + 1]);
-                        current_rank++;
                     }
                     if (check[i] != 0 && check[i + 1] != 0) {
-                        ASSERT(current_rank == check[i] == check[i] + 1);
+                        ASSERT(check[i] == check[i] + 1);
                         ASSERT(!in_group);
-                        current_rank++;
                     }
                     if (check[i] == 0 && check[i + 1] != 0) {
                         ASSERT(in_group);
-                        if (local_kmer[i] != local_kmer[i + 1]) {
+                        if (local_kmer[i] == local_kmer[i + 1]) {
                             printf("%lu and %lu are not equal but have the same rank:\n", i, i + 1);
                             for (size_t k = 0;k < DCX::X; k++)
                             {
@@ -875,8 +872,6 @@ private:
                             printf("\n");
                         }
                         ASSERT(local_kmer[i] != local_kmer[i + 1]);
-                        ASSERT(check[i + 1] == current_rank + 1);
-                        current_rank++;
                         in_group = false;
                     }
                 }
