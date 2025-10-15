@@ -424,9 +424,9 @@ namespace kernels {
                         Output_kmers[i * DCX::C + c].kmer[j] = 0;
                     }
                 }
-                Output_kmers[i * DCX::C + c].kmer[DCX::X] = 2 * DCX::X + 1;
                 assert(i * DCX::C + c < mpd_reserved_len);
                 // if (i * DCX::C + c < mpd_reserved_len) {
+                Output_kmers[i * DCX::C + c].kmer[DCX::X] = UCHAR_MAX;
                 Output_index[i * DCX::C + c] = i + set_per_gpu * rank + index_offset;
                 // }
                 index_offset += set_sizes[c];
