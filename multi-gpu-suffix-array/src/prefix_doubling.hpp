@@ -247,7 +247,7 @@ public:
         mhost_temp_mem_size = mmemory_manager.get_host_temp_mem().second;
         mhost_temp_pinned_allocator.init(mhost_temp_mem, mhost_temp_mem_size);
         size_t max_length_per_gpu = std::max(misa_divisor, last_gpu_len);
-        mwrite_isa_sort_high_bit = std::min(sa_index_t(log2(float(max_length_per_gpu))) + 2,
+        mwrite_isa_sort_high_bit = std::min(sa_index_t(log2(float(max_length_per_gpu))) + 1,
             sa_index_t(sizeof(sa_index_t) * 8));
 
         mgpus[0].offset = 0;
@@ -1336,7 +1336,7 @@ private:
     void write_to_isa(bool initial = false)
     {
         const sa_index_t sort_threshold = 524288; // empirically, could need adjusting
-        const sa_index_t low_bit = 0;
+        const sa_index_t low_bit = 13;
         const sa_index_t high_bit = mwrite_isa_sort_high_bit;
 
         std::array<MultiSplitNodeInfoT<sa_index_t, sa_index_t, sa_index_t>, NUM_GPUS> multi_split_node_info;
