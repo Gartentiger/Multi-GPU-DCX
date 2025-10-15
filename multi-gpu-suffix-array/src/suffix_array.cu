@@ -857,11 +857,7 @@ private:
 
                 // auto sa = naive_suffix_sort(minput_len, input_all.data());
                 printf("sorted sa, size: %lu, minput_len: %lu\n", sa.size(), minput_len);
-                thrust::host_vector<sa_index_t> sampleSa(sa.size());
-                for (size_t i = 0; i < sa.size(); i++)
-                {
-                    sampleSa[i] = sa[i];
-                }
+                thrust::host_vector<sa_index_t> sampleSa(sa.begin(), sa.end());
                 thrust::host_vector<sa_index_t> inverter(sampleSa.size());
                 for (size_t i = 0; i < inverter.size(); i++)
                 {
@@ -881,7 +877,7 @@ private:
                     }
                 }
                 sampleSa.resize(satotal);
-
+                printf("sa total: %lu\n", satotal);
                 thrust::host_vector<sa_index_t> inverter2(sampleSa.size());
                 for (size_t i = 0; i < inverter2.size(); i++)
                 {
