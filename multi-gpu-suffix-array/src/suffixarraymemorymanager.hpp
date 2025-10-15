@@ -86,7 +86,7 @@ class SuffixArrayMemoryManager
 {
 public:
     static const size_t ALIGN_BYTES = 256;
-    static const size_t NUM_PD_ARRAYS = 9;
+    static const size_t NUM_PD_ARRAYS = 10;
     static const size_t HOST_TEMP_MEM_SIZE = 1024 * NUM_GPUS;
 
     static const size_t HALF_MERGE_STAGE_SUFFIX_SIZE = sizeof(MergeStageSuffix) / 2;
