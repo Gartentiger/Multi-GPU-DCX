@@ -417,7 +417,6 @@ namespace kernels {
                 for (size_t j = 0; j < DCX::X; j++)
                 {
                     if (DCX::X * i + period[c] + j < input_len) {
-
                         Output_kmers[i * DCX::C + c].kmer[j] = baseInput[j];
                     }
                     else {
