@@ -875,6 +875,7 @@ private:
                             printf("\n");
                         }
                         ASSERT(local_kmer[i] != local_kmer[i + 1]);
+                        ASSERT(check[i + 1] == current_rank + 1);
                         current_rank++;
                         in_group = false;
                     }
@@ -2126,7 +2127,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-}
+    }
 #endif
 };
 
