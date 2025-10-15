@@ -876,6 +876,7 @@ private:
                         }
                         ASSERT(local_kmer[i] != local_kmer[i + 1]);
                         current_rank++;
+                        in_group = false;
                     }
                 }
             }
@@ -1320,7 +1321,7 @@ private:
         }
 
         return false;
-        }
+    }
 
     // Sa_rank, Sa_index --> Isa
     void write_to_isa(bool initial = false)
@@ -2125,7 +2126,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
