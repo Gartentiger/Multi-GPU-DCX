@@ -376,34 +376,34 @@ using MergeStageSuffix = MergeStageSuffixS0;
 using DCX = DC21;
 
 struct kmerDCX {
-    unsigned char kmer[DCX::X + 1];
+    unsigned char kmer[DCX::X];
 };
 struct dc3_kmer_decomposer
 {
-    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
     {
-        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3] };
+        return { key.kmer[0],key.kmer[1],key.kmer[2] };
     }
 };
 struct dc7_kmer_decomposer
 {
-    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
     {
-        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3],key.kmer[4],key.kmer[5],key.kmer[6],key.kmer[7] };
+        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3],key.kmer[4],key.kmer[5],key.kmer[6] };
     }
 };
 struct dc13_kmer_decomposer
 {
-    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned  char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
     {
-        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3],key.kmer[4],key.kmer[5],key.kmer[6],key.kmer[7],key.kmer[8],key.kmer[9],key.kmer[10],key.kmer[11],key.kmer[12],key.kmer[13] };
+        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3],key.kmer[4],key.kmer[5],key.kmer[6],key.kmer[7],key.kmer[8],key.kmer[9],key.kmer[10],key.kmer[11],key.kmer[12] };
     }
 };
 struct dc21_kmer_decomposer
 {
-    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned  char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned  char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
     {
-        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3],key.kmer[4],key.kmer[5],key.kmer[6],key.kmer[7],key.kmer[8],key.kmer[9],key.kmer[10],key.kmer[11],key.kmer[12],key.kmer[13],key.kmer[14],key.kmer[15],key.kmer[16],key.kmer[17],key.kmer[18],key.kmer[19],key.kmer[20],key.kmer[21] };
+        return { key.kmer[0],key.kmer[1],key.kmer[2],key.kmer[3],key.kmer[4],key.kmer[5],key.kmer[6],key.kmer[7],key.kmer[8],key.kmer[9],key.kmer[10],key.kmer[11],key.kmer[12],key.kmer[13],key.kmer[14],key.kmer[15],key.kmer[16],key.kmer[17],key.kmer[18],key.kmer[19],key.kmer[20] };
     }
 };
 
@@ -463,7 +463,7 @@ struct rank_decomposer
 
 __host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmerDCX& b)
 {
-    for (size_t i = 0; i < DCX::X + 1; i++)
+    for (size_t i = 0; i < DCX::X; i++)
     {
         if (a.kmer[i] == b.kmer[i]) {
             continue;
@@ -493,7 +493,7 @@ struct KmerComparator
     __host__ __device__ __forceinline__ bool operator()(const kmerDCX& a, const kmerDCX& b)
     {
 
-        for (size_t i = 0; i < DCX::X + 1; i++)
+        for (size_t i = 0; i < DCX::X; i++)
         {
             if (a.kmer[i] < b.kmer[i]) {
                 return true;

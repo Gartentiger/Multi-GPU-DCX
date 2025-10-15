@@ -426,7 +426,6 @@ namespace kernels {
                 }
                 assert(i * DCX::C + c < mpd_reserved_len);
                 // if (i * DCX::C + c < mpd_reserved_len) {
-                Output_kmers[i * DCX::C + c].kmer[DCX::X] = UCHAR_MAX;
                 Output_index[i * DCX::C + c] = i + set_per_gpu * rank + index_offset;
                 // }
                 index_offset += set_sizes[c];
@@ -455,7 +454,7 @@ namespace kernels {
     __global__ void fixup_last_kmers(kmerDCX* Output_kmers, size_t N) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
-            Output_kmers[i].kmer[DCX::X] = N - i;
+            Output_kmers[i].kmer[DCX::X - 1] = N - i;
         }
     }
 
