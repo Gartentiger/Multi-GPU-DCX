@@ -34,8 +34,11 @@ public:
     float stop() {
         //(0);
         float elapsed;
+        CUERR;
         cudaEventRecord(mstop, 0);
+        CUERR;
         cudaEventSynchronize(mstop);
+        CUERR;
         cudaEventElapsedTime(&elapsed, mstart, mstop);
         CUERR;
         return elapsed;
