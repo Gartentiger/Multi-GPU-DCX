@@ -716,6 +716,8 @@ private:
             CUERR_CHECK(err);
             mcontext.sync_default_streams();
             in_buffer[world_rank()] = keys.Current() == gpu.Kmer_buffer ? true : false;
+
+            printf("[%lu] local_in_buffer: %s\n", world_rank(), keys.Current() == gpu.Kmer_buffer ? "true" : "false");
         }
         // only for in node merges
 
@@ -732,7 +734,10 @@ private:
             mcontext.get_device_temp_allocator(gpu_index).init(gpu.Kmer_temp1, mreserved_len * 3 * sizeof(sa_index_t));
         }
 
-
+        for (size_t i = 0; i < NUM_GPUS; i++)
+        {
+            printf("[%lu] in_buffer[%lu]: %s\n", world_rank(), i, in_buffer[i] ? "true" : "false");
+        }
 
         merge_manager.set_node_info(merge_nodes_info);
 
@@ -780,6 +785,8 @@ private:
         kmer* current_buffer = in_buffer[gpu_index] ? gpu.Kmer_buffer : gpu.Kmer;
         kmer* other_buffer = in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer;
         kmer* last_buffer = gpu_index > 0 ? (in_buffer[gpu_index - 1] ? mgpus[gpu_index - 1].Kmer_buffer : mgpus[gpu_index - 1].Kmer) : nullptr;
+
+
         //(mcontext.get_device_id(gpu_index));
         //printf("initial\n");
         const kmer* last_element_prev = mcontext.is_in_node() && gpu_index > 0 ? &last_buffer[mgpus[gpu_index - 1].working_len - 1] : nullptr;
