@@ -35,7 +35,9 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
     fseek(file, 0, SEEK_END);
 
     size_t len = ftell(file);
-    printf("Filesize: %lu, sizeof(size_t): %lu, max: %lu\n", len, sizeof(size_t), maxLength);
+    if (kamping::world_rank() == 0) {
+        printf("Filesize: %lu, max: %lu\n", len, maxLength);
+    }
     if (len > maxLength)
         len = maxLength;
 
@@ -65,8 +67,8 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
     fclose(file);
 
     // For logging.
-    fprintf(stdout, "Read %zu bytes from %s.\n", copy_len, path);
-    fprintf(stderr, "Read %zu bytes from %s.\n", copy_len, path);
+    fprintf(stdout, "[%lu] Read %zu bytes from %s.\n", kamping::world_rank(), copy_len, path);
+    fprintf(stderr, "[%lu] Read %zu bytes from %s.\n", kamping::world_rank(), copy_len, path);
 
     real_len = len;
 

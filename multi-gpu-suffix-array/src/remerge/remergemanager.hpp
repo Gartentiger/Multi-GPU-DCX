@@ -59,7 +59,7 @@ namespace crossGPUReMerge
                 t.synchronize_and_start("do_searches:" + std::to_string(i));
                 nvtxRangePush("do_searches");
                 mmerge_processor.do_searches(comp);
-                printf("do search %lu, it: %d\n", world_rank(), i);
+                // printf("do search %lu, it: %d\n", world_rank(), i);
                 nvtxRangePop();
                 t.stop();
                 // printf("[%lu] do_searches done\n", world_rank());

@@ -45,7 +45,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-static const uint NUM_GPUS = 16;
+static const uint NUM_GPUS = 12;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -244,7 +244,11 @@ public:
         // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
         // std::cout << std::endl;
         //            mpd_sorter.dump("done");
+        CUERR;
+
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
+        CUERR;
+
         prepare_S12_for_merge();
         //
         mcontext.sync_all_streams();
@@ -445,7 +449,7 @@ private:
         std::array<sa_index_t, NUM_GPUS> dest_lens, src_lens;
 
 
-
+        CUERR;
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
         {
@@ -480,7 +484,7 @@ private:
         // printf("[%lu] after write indices s12\n", world_rank());
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
-        mcontext.sync_default_streams();
+        mcontext.sync_all_streams();
         // for (size_t src = 0; src < NUM_GPUS; src++)
         // {
         //     for (size_t dst = 0; dst < NUM_GPUS; dst++)
@@ -515,9 +519,9 @@ private:
                 ncclGroupStart();
                 if (gpu_index > 0)
                 {
-                    ncclSend(gpu.prepare_S12_ptr.Isa, 1, ncclUint32, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]);
+                    ncclSend(gpu.prepare_S12_ptr.Isa, 1, ncclUint32, gpu_index - 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
 
-                    ncclSend(gpu.prepare_S12_ptr.Input, 1, ncclChar, gpu_index - 1, mcontext.get_nccl(), mcontext.get_streams(gpu_index)[gpu_index - 1]);
+                    ncclSend(gpu.prepare_S12_ptr.Input, 1, ncclChar, gpu_index - 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
                 }
                 if (gpu_index + 1 < NUM_GPUS)
                 {
@@ -528,6 +532,9 @@ private:
                     ncclRecv(next_Input_recv, 1, ncclChar, gpu_index + 1, mcontext.get_nccl(), mcontext.get_gpu_default_stream(gpu_index));
 
                 }
+                ncclGroupEnd();
+                mcontext.sync_all_streams();
+                comm_world().barrier();
                 const sa_index_t* const_next_isa = next_Isa_recv;
                 const unsigned char* const_next_Input = next_Input_recv;
                 kernels::prepare_S12_ind_kv _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))((sa_index_t*)gpu.prepare_S12_ptr.S12_result_half,
@@ -536,7 +543,6 @@ private:
                     mpd_per_gpu,
                     gpu.prepare_S12_ptr.S12_buffer1, gpu.prepare_S12_ptr.S12_buffer1_half, gpu.pd_elements);
                 CUERR;
-                ncclGroupEnd();
             }
 
         }
@@ -557,7 +563,8 @@ private:
             all2all_node_info[gpu_index].temp_values = gpu.prepare_S12_ptr.S12_result_half;
             all2all_node_info[gpu_index].temp_len = mpd_reserved_len; // not sure...
         }
-        mcontext.sync_default_streams();
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         //
         // mcontext.get_device_temp_allocator(world_rank()).reset();
         //
@@ -565,10 +572,9 @@ private:
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
 
         //            dump_prepare_s12("After split");
-        comm_world().barrier();
         // printf("[%lu] after prepare_S12_ind_kv s12\n", world_rank());
         mall2all.execKVAsync(all2all_node_info, split_table, true);
-        mcontext.sync_all_streams_mpi_safe();
+        mcontext.sync_all_streams();
         comm_world().barrier();
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         // printf("[%lu] all2all s12\n", world_rank());
@@ -616,7 +622,7 @@ private:
                 gpu.prepare_S12_ptr.S12_result, gpu.pd_elements);
             CUERR;
         }
-        mcontext.sync_default_stream_mpi_safe();
+        mcontext.sync_all_streams();
         comm_world().barrier();
         // mcontext.sync_default_streams();
 
@@ -1620,7 +1626,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3, 0,1,2,3, 0,1,2,3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     // warm_up_nccl(context);
