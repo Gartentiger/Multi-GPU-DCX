@@ -910,7 +910,7 @@ private:
         comm_world().barrier();
 
         if (world_rank() == 0) {
-            size_t current_rank = check[0];
+            size_t current_rank = 1;
             size_t rank_buffer = 0;
             for (size_t i = 1; i < check.size(); i++)
             {
