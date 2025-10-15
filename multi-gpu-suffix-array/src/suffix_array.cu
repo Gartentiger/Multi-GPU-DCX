@@ -658,7 +658,8 @@ private:
 
         cudaFreeAsync(samplePos, mcontext.get_gpu_default_stream(gpu_index));
         if (world_rank() == NUM_GPUS - 1) {
-            kernels::fixup_last_kmers _KLC_SIMPLE_(last_gpu_extra_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.pd_ptr.Kmer + gpu.pd_elements - last_gpu_extra_elements, last_gpu_extra_elements);
+            size_t fixups = last_gpu_extra_elements + DCX::C - 1;
+            kernels::fixup_last_kmers _KLC_SIMPLE_(last_gpu_extra_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.pd_ptr.Kmer + gpu.pd_elements - fixups, fixups);
         }
         // mcontext.sync_all_streams();
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.pd_ptr.Kmer, gpu.pd_ptr.Isa, std::min(20UL, gpu.pd_elements), world_rank());
@@ -1870,7 +1871,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(250 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(200 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
