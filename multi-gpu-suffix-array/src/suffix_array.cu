@@ -45,7 +45,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-static const uint NUM_GPUS = 1;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -855,22 +855,22 @@ private:
             cudaMemcpyDeviceToHost, mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
         mcontext.sync_gpu_default_stream(gpu_index);
-        // int ierr;
-        // MPI_File outputFile;
-        // ierr = MPI_File_open(MPI_COMM_WORLD, "outputData",
-        //     MPI_MODE_CREATE | MPI_MODE_WRONLY,
-        //     MPI_INFO_NULL, &outputFile);
-        // if (ierr != MPI_SUCCESS) {
-        //     fprintf(stderr, "[%lu] Error opening file\n", world_rank());
-        //     MPI_Abort(MPI_COMM_WORLD, ierr);
-        // }
-        // MPI_Offset offset = gpu.offset * sizeof(sa_index_t);
-        // ierr = MPI_File_write_at_all(outputFile, offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
-        // if (ierr != MPI_SUCCESS) {
-        //     fprintf(stderr, "[%lu] Error in MPI_File_write_at_all\n", world_rank());
-        //     MPI_Abort(MPI_COMM_WORLD, ierr);
-        // }
-        // MPI_File_close(&outputFile);
+        int ierr;
+        MPI_File outputFile;
+        ierr = MPI_File_open(MPI_COMM_WORLD, "outputData",
+            MPI_MODE_CREATE | MPI_MODE_WRONLY,
+            MPI_INFO_NULL, &outputFile);
+        if (ierr != MPI_SUCCESS) {
+            fprintf(stderr, "[%lu] Error opening file\n", world_rank());
+            MPI_Abort(MPI_COMM_WORLD, ierr);
+        }
+        MPI_Offset offset = gpu.offset * sizeof(sa_index_t);
+        ierr = MPI_File_write_at_all(outputFile, offset, h_result, gpu.num_elements, MPI_UINT32_T, MPI_STATUS_IGNORE);
+        if (ierr != MPI_SUCCESS) {
+            fprintf(stderr, "[%lu] Error in MPI_File_write_at_all\n", world_rank());
+            MPI_Abort(MPI_COMM_WORLD, ierr);
+        }
+        MPI_File_close(&outputFile);
 
         // MPI_File outputFile;
         // MPI_File_open(MPI_COMM_WORLD, "outputData",
@@ -881,8 +881,8 @@ private:
 
         // MPI_File_close(&outputFile);
 
-        //}
-        // mcontext.sync_default_streams();
+        // }
+        mcontext.sync_default_streams();
 
         // std::vector<sa_index_t> recv;
         // recv.clear();
@@ -1613,7 +1613,7 @@ int main(int argc, char** argv)
 
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(2048 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(200 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
@@ -1626,9 +1626,9 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3 };
 
-    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 1);
+    MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     // warm_up_nccl(context);
     // alltoallMeasure(context);
     // ncclMeasure(context);
