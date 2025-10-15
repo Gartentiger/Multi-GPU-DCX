@@ -55,7 +55,7 @@
 #include "dcx_data_generation.hpp"
 #include "sorting/samplesort.cuh"
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 8;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -675,39 +675,39 @@ private:
         // printArrayss << <1, 1 >> > (mgpus[world_rank()].prepare_S12_ptr.Isa, mgpus[world_rank()].pd_elements, world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
-        {
-            std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
+        // {
+        //     std::vector<sa_index_t> isa(mgpus[world_rank()].pd_elements);
 
-            cudaMemcpy(isa.data(), mgpus[world_rank()].dcx_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
-            std::vector<int> recv_counts_vec(NUM_GPUS);
-            for (size_t i = 0; i < NUM_GPUS; i++)
-            {
-                recv_counts_vec[i] = mgpus[i].pd_elements;
-            }
+        //     cudaMemcpy(isa.data(), mgpus[world_rank()].dcx_ptr.Isa, sizeof(sa_index_t) * mgpus[world_rank()].pd_elements, cudaMemcpyDeviceToHost);
+        //     std::vector<int> recv_counts_vec(NUM_GPUS);
+        //     for (size_t i = 0; i < NUM_GPUS; i++)
+        //     {
+        //         recv_counts_vec[i] = mgpus[i].pd_elements;
+        //     }
 
-            auto isaglob = comm_world().gatherv(send_buf(isa), recv_counts(recv_counts_vec), root(0));
-            if (world_rank() == 0) {
-                std::sort(isaglob.begin(), isaglob.end());
-                std::vector<sa_index_t> compareIsa(isaglob.size());
-                for (size_t i = 0; i < compareIsa.size(); i++)
-                {
-                    compareIsa[i] = i + 1;
-                }
-                size_t write_counter = 0;
-                for (size_t i = 0; i < compareIsa.size(); i++)
-                {
-                    if (isaglob[i] != compareIsa[i] && write_counter < 30) {
+        //     auto isaglob = comm_world().gatherv(send_buf(isa), recv_counts(recv_counts_vec), root(0));
+        //     if (world_rank() == 0) {
+        //         std::sort(isaglob.begin(), isaglob.end());
+        //         std::vector<sa_index_t> compareIsa(isaglob.size());
+        //         for (size_t i = 0; i < compareIsa.size(); i++)
+        //         {
+        //             compareIsa[i] = i + 1;
+        //         }
+        //         size_t write_counter = 0;
+        //         for (size_t i = 0; i < compareIsa.size(); i++)
+        //         {
+        //             if (isaglob[i] != compareIsa[i] && write_counter < 30) {
 
-                        printf("[%lu] %u != %u\n", i, isaglob[i], compareIsa[i]);
-                        write_counter++;
-                    }
-                }
-                bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
-                bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
-                printf("isa before contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
-                printf("isa before mpd_per_gpu: %lu\n", mpd_per_gpu);
-            }
-        }
+        //                 printf("[%lu] %u != %u\n", i, isaglob[i], compareIsa[i]);
+        //                 write_counter++;
+        //             }
+        //         }
+        //         bool ascend = std::equal(compareIsa.begin(), compareIsa.end(), isaglob.begin(), isaglob.end());
+        //         bool containsDuplicates = (std::unique(isaglob.begin(), isaglob.end()) != isaglob.end());
+        //         printf("isa before contains_dup: %s, is_ascending: %s\n", containsDuplicates ? "true" : "false", ascend ? "true" : "false");
+        //         printf("isa before mpd_per_gpu: %lu\n", mpd_per_gpu);
+        //     }
+        // }
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
         for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
@@ -1840,7 +1840,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(100 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(200 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
