@@ -779,24 +779,26 @@ private:
         SaGPU& gpu = mgpus[gpu_index];
         kmer* current_buffer = in_buffer[gpu_index] ? gpu.Kmer_buffer : gpu.Kmer;
         kmer* other_buffer = in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer;
-
+        kmer* last_buffer = gpu_index > 0 ? (in_buffer[gpu_index - 1] ? mgpus[gpu_index - 1].Kmer_buffer : mgpus[gpu_index - 1].Kmer) : nullptr;
         //(mcontext.get_device_id(gpu_index));
         //printf("initial\n");
-        const kmer* last_element_prev = nullptr;
+        const kmer* last_element_prev = mcontext.is_in_node() && gpu_index > 0 ? &last_buffer[mgpus[gpu_index - 1].working_len - 1] : nullptr;
+        if (!mcontext.is_in_node()) {
+            mcontext.get_device_temp_allocator(gpu_index).reset();
+            if (world_rank() < NUM_GPUS - 1) {
+                std::span<kmer> sb(current_buffer + gpu.working_len - 1, 1);
+                comm_world().send(send_buf(sb), send_count(1), destination(world_rank() + 1));
+            }
+            if (gpu_index > 0)
+            {
 
-        mcontext.get_device_temp_allocator(gpu_index).reset();
-        if (world_rank() < NUM_GPUS - 1) {
-            std::span<kmer> sb(current_buffer + gpu.working_len - 1, 1);
-            comm_world().send(send_buf(sb), send_count(1), destination(world_rank() + 1));
-        }
-        if (gpu_index > 0)
-        {
-            kmer* temp = mcontext.get_device_temp_allocator(gpu_index).get<kmer>(1);
-            std::span<kmer> rb(temp, 1);
-            comm_world().recv(recv_buf(rb), recv_count(1));
+                kmer* temp = mcontext.get_device_temp_allocator(gpu_index).get<kmer>(1);
+                std::span<kmer> rb(temp, 1);
+                comm_world().recv(recv_buf(rb), recv_count(1));
 
-            //  last element of previous gpu
-            last_element_prev = temp;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
+                //  last element of previous gpu
+                last_element_prev = temp;//&reinterpret_cast<const rank_t*>(mgpus[gpu_index - 1].Old_ranks)[mgpus[gpu_index - 1].working_len - 1];
+            }
         }
         //printf("last element\n");
         kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(current_buffer, last_element_prev, gpu.offset + 1, 0, reinterpret_cast<sa_index_t*>(other_buffer), gpu.working_len);
