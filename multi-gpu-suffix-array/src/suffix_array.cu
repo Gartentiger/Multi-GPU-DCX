@@ -475,7 +475,7 @@ public:
         ASSERT(last_gpu_elems <= mper_gpu); // Because of merge.
 
         mreserved_len = SDIV(std::max(last_gpu_elems, mper_gpu) + 8, DCX::X * 4) * DCX::X * 4; // Ensure there are 12 elems more space.
-        mreserved_len = std::max(mreserved_len, 1024ul) + 100 * DCX::X;                       // Min len because of temp memory for CUB.
+        mreserved_len = std::max(mreserved_len, 1024ul) + 200 * DCX::X;                       // Min len because of temp memory for CUB.
 
         mpd_reserved_len = SDIV(mreserved_len, DCX::X) * DCX::C;
 
