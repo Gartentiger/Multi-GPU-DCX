@@ -754,7 +754,7 @@ private:
         merge_manager.merge(ranges, KmerComparator{}, KmerComparator{});
         mcontext.sync_default_streams();
         comm_world().barrier();
-        printArrayss << <1, 1 >> > (in_buffer[world_rank()] ? gpu.Kmer_buffer : gpu.Kmer, in_buffer[world_rank()] ? gpu.Sa_index : gpu.Isa, std::min(80UL, gpu.working_len), world_rank());
+        printArrayss << <1, 1 >> > (in_buffer[world_rank()] ? mgpus[world_rank()].Kmer_buffer : mgpus[world_rank()].Kmer, in_buffer[world_rank()] ? mgpus[world_rank()].Sa_index : mgpus[world_rank()].Isa, std::min(80UL, mgpus[world_rank()].working_len), world_rank());
         mcontext.sync_all_streams();
         comm_world().barrier();
         printf("after init merging\n");
