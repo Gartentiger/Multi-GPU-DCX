@@ -622,12 +622,12 @@ private:
         cudaMemcpyAsync(gpu.pd_ptr.Input, minput, copy_len, cudaMemcpyHostToDevice,
             mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
-        if (gpu_index == NUM_GPUS - 1)
-        {
-            cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, 1,
-                mcontext.get_gpu_default_stream(gpu_index));
-            CUERR;
-        }
+        // if (gpu_index == NUM_GPUS - 1)
+        // {
+        //     cudaMemsetAsync(gpu.pd_ptr.Input + gpu.num_elements, 0, 1,
+        //         mcontext.get_gpu_default_stream(gpu_index));
+        //     CUERR;
+        // }
         //}
 
         mcontext.sync_default_streams();
