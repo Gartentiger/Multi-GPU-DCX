@@ -475,7 +475,7 @@ public:
         ASSERT(last_gpu_elems <= mper_gpu); // Because of merge.
 
         mreserved_len = SDIV(std::max(last_gpu_elems, mper_gpu) + 8, DCX::X * 4) * DCX::X * 4; // Ensure there are 12 elems more space.
-        mreserved_len = std::max(mreserved_len, 1024ul) + 200 * DCX::X;                       // Min len because of temp memory for CUB.
+        mreserved_len = std::max(mreserved_len, 1024ul) + 100 * DCX::X;                       // Min len because of temp memory for CUB.
 
         mpd_reserved_len = SDIV(mreserved_len, DCX::X) * DCX::C;
 
@@ -618,7 +618,7 @@ private:
 
         // Need the halo to the right for kmers...
         size_t copy_len = std::min(gpu.num_elements + sizeof(kmer), minput_len - gpu.offset);
-        printf("[%lu] gpu.offset: %lu, copy_len: %lu\n", world_rank(), gpu.offset, copy_len);
+
         cudaMemcpyAsync(gpu.pd_ptr.Input, minput, copy_len, cudaMemcpyHostToDevice,
             mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
@@ -655,11 +655,12 @@ private:
             ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, gpu.pd_ptr.Kmer,
                 gpu.pd_elements, samplePos, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
         CUERR;
-
         cudaFreeAsync(samplePos, mcontext.get_gpu_default_stream(gpu_index));
+        mcontext.sync_all_streams();
         if (world_rank() == NUM_GPUS - 1) {
             size_t fixups = last_gpu_extra_elements + DCX::C - 1;
-            kernels::fixup_last_kmers _KLC_SIMPLE_(last_gpu_extra_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.pd_ptr.Kmer + gpu.pd_elements - fixups, fixups);
+            printf("fixup: %lu\n", fixups);
+            kernels::fixup_last_kmers _KLC_SIMPLE_(last_gpu_extra_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.pd_ptr.Kmer + gpu.pd_elements - 1, 1);
         }
         // mcontext.sync_all_streams();
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.pd_ptr.Kmer, gpu.pd_ptr.Isa, std::min(20UL, gpu.pd_elements), world_rank());
