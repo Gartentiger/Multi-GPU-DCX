@@ -717,7 +717,7 @@ private:
             mcontext.sync_default_streams();
             in_buffer[world_rank()] = keys.Current() == gpu.Kmer_buffer ? true : false;
 
-            printf("[%lu] local_in_buffer: %s\n", world_rank(), keys.Current() == gpu.Kmer_buffer ? "true" : "false");
+            // printf("[%lu] local_in_buffer: %s\n", world_rank(), keys.Current() == gpu.Kmer_buffer ? "true" : "false");
             ASSERT(keys.Current() == gpu.Kmer_buffer ? values.Current() == gpu.Sa_index : values.Current() == gpu.Isa);
         }
         // only for in node merges
@@ -726,7 +726,7 @@ private:
         {
             SaGPU& gpu = mgpus[gpu_index];
             comm_world().bcast(send_recv_buf(std::span<bool>(&in_buffer[gpu_index], 1)), send_recv_count(1), root((size_t)gpu_index));
-            merge_nodes_info[gpu_index] = { gpu.working_len, gpu.working_len, gpu_index,
+            merge_nodes_info[gpu_index] = { gpu.working_len, 0, gpu_index,
                 in_buffer[gpu_index] ? gpu.Kmer_buffer : gpu.Kmer,
                 in_buffer[gpu_index] ? gpu.Sa_index : gpu.Isa,
                 in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer,
@@ -754,7 +754,10 @@ private:
         merge_manager.merge(ranges, KmerComparator{}, KmerComparator{});
         mcontext.sync_default_streams();
         comm_world().barrier();
-        // printf("after init merging\n");
+        printArrayss << <1, 1 >> > (in_buffer[world_rank()] ? gpu.Kmer_buffer : gpu.Kmer, in_buffer[world_rank()] ? gpu.Sa_index : gpu.Isa, std::min(80UL, gpu.working_len), world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        printf("after init merging\n");
 
         // std::vector<kmerDCX> localList(mgpus[world_rank()].working_len);
         // cudaMemcpy(localList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Kmer_buffer : mgpus[world_rank()].Kmer, sizeof(kmerDCX) * localList.size(), cudaMemcpyDeviceToHost);
@@ -822,9 +825,9 @@ private:
         // auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
         // comm_world().barrier();
 
-        // printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(20UL, gpu.working_len), world_rank());
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
+        printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(80UL, gpu.working_len), world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
 
 
         // printf("[%lu] after check initial ranks\n", world_rank());
@@ -903,8 +906,12 @@ private:
         // }
 
         do_max_scan_on_ranks(true);
-
-
+        printf("[%lu] after do max\n", world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        printArrayss << <1, 1 >> > (gpu.Sa_rank, std::min(80UL, gpu.working_len), world_rank());
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         // mcontext.sync_all_streams();
         // comm_world().barrier();
         // printf("[%lu] after do max\n", world_rank());
