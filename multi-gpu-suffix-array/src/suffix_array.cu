@@ -668,7 +668,7 @@ private:
         cudaMemset(gpu.pd_ptr.Kmer_buffer, 0, sizeof(kmer) * gpu.pd_elements);
         kmer* last2 = (kmer*)malloc(sizeof(kmer));
         cudaMemcpy(last2, gpu.pd_ptr.Kmer + gpu.pd_elements, sizeof(kmer), cudaMemcpyDeviceToHost);
-        ASSSERT(*last == *last2);
+        ASSERT(*last == *last2);
         free(last);
         free(last2);
         mcontext.sync_default_streams();
