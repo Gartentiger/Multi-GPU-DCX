@@ -85,13 +85,13 @@ size_t read_file_into_host_memory(char** contents, const char* path, size_t& rea
 
     size_t copy_len = std::min(mper_gpu + sizeof(kmer), len - offset);
 
-    fseek(file, offset, SEEK_SET);
+    fseek(file, 0, SEEK_SET);
 
-    size_t len_padded = SDIV(copy_len, padd_to) * padd_to;
+    size_t len_padded = SDIV(len, padd_to) * padd_to;
     cudaMallocHost(contents, len_padded);
     CUERR;
 
-    if (fread(*contents, 1, copy_len, file) != copy_len)
+    if (fread(*contents, 1, len, file) != len)
         error("Error reading file!");
 
     fclose(file);

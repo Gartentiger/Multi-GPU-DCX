@@ -263,14 +263,12 @@ public:
             // //(mcontext.get_device_id(gpu));
             cudaMalloc(&malloc_base[gpu], malloc_size);
             CUERR;
-            size_t add_x_for_next = 0;
-            if (!mcontext.is_in_node()) {
-                add_x_for_next = DCX::X;
-            }
-            cudaMalloc(&isa[gpu], (min_pd_len + add_x_for_next) * sizeof(sa_index_t));
+
+
+            cudaMalloc(&isa[gpu], (min_pd_len + DCX::X * 2) * sizeof(sa_index_t));
             CUERR;
 
-            cudaMalloc(&inputs[gpu], (min_gpu_len + add_x_for_next));
+            cudaMalloc(&inputs[gpu], (min_gpu_len + DCX::X * 2));
             CUERR;
 
             if (zero)

@@ -618,7 +618,7 @@ private:
 
         // Need the halo to the right for kmers...
         size_t copy_len = std::min(gpu.num_elements + sizeof(kmer), minput_len - gpu.offset);
-
+        printf("[%lu] gpu.offset: %lu, copy_len: %lu\n", world_rank(), gpu.offset, copy_len);
         cudaMemcpyAsync(gpu.pd_ptr.Input, minput, copy_len, cudaMemcpyHostToDevice,
             mcontext.get_gpu_default_stream(gpu_index));
         CUERR;
