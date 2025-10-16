@@ -911,7 +911,7 @@ private:
         // comm_world().barrier();
         // printf("[%lu] after do max\n", world_rank());
         if (world_rank() == 0) {
-            printArrayss << <1, 1 >> > (current_buffer, gpu.Sa_rank, std::min(80UL, gpu.working_len), world_rank());
+            printArrayss << <1, 1 >> > (gpu.Sa_rank, std::min(80UL, gpu.working_len), world_rank());
         }
 
 
@@ -974,7 +974,7 @@ private:
 
                     if (initial) {
                         input_buffer = reinterpret_cast<sa_index_t*>(in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer);
-                        out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : reinterpret_cast<sa_index_t*>(gpu.Kmer);
+                        out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : gpu.Sa_index;
                         temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
                     }
 
