@@ -1362,11 +1362,14 @@ private:
         {
             SaGPU& gpu = mgpus[gpu_index];
             if (initial) {
-                multi_split_node_info[gpu_index].src_keys = in_buffer[gpu_index] ? gpu.Sa_index : gpu.Isa;
+                if (!in_buffer[gpu_index]) {
+                    cudaMemcpyAsync(gpu.Sa_index, gpu.Isa, sizeof(sa_index_t) * gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
+                }
+                // multi_split_node_info[gpu_index].src_keys = in_buffer[gpu_index] ? gpu.Sa_index : gpu.Isa;
             }
-            else {
-                multi_split_node_info[gpu_index].src_keys = gpu.Sa_index;
-            }
+            // else {
+            multi_split_node_info[gpu_index].src_keys = gpu.Sa_index;
+            // }
             multi_split_node_info[gpu_index].src_values = gpu.Sa_rank;
             multi_split_node_info[gpu_index].src_len = gpu.working_len;
 
@@ -1381,7 +1384,8 @@ private:
         }
         PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
 
-        // comm_world().barrier();
+        mcontext.sync_default_streams();
+        comm_world().barrier();
 
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
         // mcontext.sync_default_streams();
