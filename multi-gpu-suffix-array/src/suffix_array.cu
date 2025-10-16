@@ -660,7 +660,7 @@ private:
         if (world_rank() == NUM_GPUS - 1) {
             size_t fixups = last_gpu_extra_elements + DCX::C - 1;
             printf("fixup: %lu\n", fixups);
-            kernels::fixup_last_kmers _KLC_SIMPLE_(last_gpu_extra_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.pd_ptr.Kmer + gpu.pd_elements - 1, 1);
+            kernels::fixup_last_kmers << <1, 1 >> > (gpu.pd_ptr.Kmer + gpu.pd_elements - fixups, fixups);
         }
         // mcontext.sync_all_streams();
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.pd_ptr.Kmer, gpu.pd_ptr.Isa, std::min(20UL, gpu.pd_elements), world_rank());
