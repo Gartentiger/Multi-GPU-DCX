@@ -1363,7 +1363,7 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (initial) {
                 if (!in_buffer[gpu_index]) {
-                    cudaMemcpyAsync(gpu.Sa_index, gpu.Isa, sizeof(sa_index_t) * gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
+                    cudaMemcpyAsync(gpu.Sa_index, gpu.Isa, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToDevice, mcontext.get_gpu_default_stream(gpu_index));
                 }
                 // multi_split_node_info[gpu_index].src_keys = in_buffer[gpu_index] ? gpu.Sa_index : gpu.Isa;
             }
