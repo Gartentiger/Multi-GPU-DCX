@@ -759,19 +759,19 @@ private:
         // comm_world().barrier();
         // printf("after init merging\n");
 
-        // std::vector<kmerDCX> localList(mgpus[world_rank()].working_len);
-        // cudaMemcpy(localList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Kmer_buffer : mgpus[world_rank()].Kmer, sizeof(kmerDCX) * localList.size(), cudaMemcpyDeviceToHost);
-        // std::vector<kmerDCX> sortedList = comm_world().gatherv(send_buf(localList), root(0));
-        // auto globalList = comm_world().gatherv(send_buf(localList), root(0));
-        // std::vector<sa_index_t> localSaList(mgpus[world_rank()].working_len);
-        // cudaMemcpy(localSaList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Sa_index : mgpus[world_rank()].Isa, sizeof(sa_index_t) * localList.size(), cudaMemcpyDeviceToHost);
-        // auto globalSaList = comm_world().gatherv(send_buf(localSaList), root(0));
-        // if (world_rank() == 0) {
-        //     ASSERT(thrust::is_sorted(globalList.begin(), globalList.end(), KmerComparator{}));
-        //     ASSERT(std::unique(globalSaList.begin(), globalSaList.end()) == globalSaList.end());
-        // }
-        // comm_world().barrier();
-        // printf("[%lu] after check\n", world_rank());
+        std::vector<kmerDCX> localList(mgpus[world_rank()].working_len);
+        cudaMemcpy(localList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Kmer_buffer : mgpus[world_rank()].Kmer, sizeof(kmerDCX) * localList.size(), cudaMemcpyDeviceToHost);
+        std::vector<kmerDCX> sortedList = comm_world().gatherv(send_buf(localList), root(0));
+        auto globalList = comm_world().gatherv(send_buf(localList), root(0));
+        std::vector<sa_index_t> localSaList(mgpus[world_rank()].working_len);
+        cudaMemcpy(localSaList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Sa_index : mgpus[world_rank()].Isa, sizeof(sa_index_t) * localList.size(), cudaMemcpyDeviceToHost);
+        auto globalSaList = comm_world().gatherv(send_buf(localSaList), root(0));
+        if (world_rank() == 0) {
+            ASSERT(thrust::is_sorted(globalList.begin(), globalList.end(), KmerComparator{}));
+            ASSERT(std::unique(globalSaList.begin(), globalSaList.end()) == globalSaList.end());
+        }
+        comm_world().barrier();
+        printf("[%lu] after check\n", world_rank());
 
         // t.stop();
         // t.aggregate_and_print(
