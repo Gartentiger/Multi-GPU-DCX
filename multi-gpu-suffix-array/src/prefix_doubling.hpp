@@ -1363,7 +1363,8 @@ private:
             SaGPU& gpu = mgpus[gpu_index];
             if (initial) {
                 if (!in_buffer[gpu_index]) {
-                    cudaMemcpyAsync(gpu.Sa_index, gpu.Isa, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToDevice, mcontext.get_gpu_default_stream(gpu_index));
+                    cudaMemcpy(gpu.Sa_index, gpu.Isa, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToDevice);
+                    CUERR;
                 }
                 // multi_split_node_info[gpu_index].src_keys = in_buffer[gpu_index] ? gpu.Sa_index : gpu.Isa;
             }
@@ -1386,7 +1387,7 @@ private:
 
         mcontext.sync_default_streams();
         comm_world().barrier();
-
+        printf("[%lu] After copy isa\n", world_rank());
         mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
         mcontext.sync_default_streams();
         printf("[%lu] After multi_split isa\n", world_rank());
@@ -2151,7 +2152,7 @@ public: // Needs to be public because lamda wouldn't work otherwise...
         kmer[4] = 0;
         *((sa_index_t*)kmer) = __builtin_bswap32(value);
         return std::string(kmer);
-    }
+}
 #endif
 };
 
