@@ -815,7 +815,10 @@ private:
         mcontext.sync_default_streams();
         mcontext.get_device_temp_allocator(gpu_index).reset();
         // printf("[%lu] after write ranks diff\n", world_rank());
-
+        if (world_rank() == 0) {
+            printArrayss << <1, 1 >> > (current_buffer, reinterpret_cast<sa_index_t*>(other_buffer), std::min(80UL, gpu.working_len), world_rank());
+            mcontext.sync_all_streams();
+        }
         std::vector<kmer> kmerCheck(gpu.working_len);
         cudaMemcpy(kmerCheck.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
         auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
@@ -1053,7 +1056,7 @@ private:
             //(mcontext.get_device_id(gpu_index));
             cudaMemsetAsync(gpu.Old_ranks, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
             cudaMemsetAsync(gpu.Segment_heads, 0, gpu.working_len * sizeof(sa_index_t), mcontext.get_gpu_default_stream(gpu_index));
-}
+        }
         mcontext.sync_default_streams();
 #endif
         // printf("[%lu] before send compact\n", world_rank());

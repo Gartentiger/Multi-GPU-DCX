@@ -659,7 +659,6 @@ private:
         mcontext.sync_all_streams();
         if (world_rank() == NUM_GPUS - 1) {
             size_t fixups = last_gpu_extra_elements + DCX::C - 1;
-            printf("fixup: %lu\n", fixups);
             kernels::fixup_last_kmers << <1, 1 >> > (gpu.pd_ptr.Kmer + gpu.pd_elements - fixups, fixups);
         }
         // mcontext.sync_all_streams();
