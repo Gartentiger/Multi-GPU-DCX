@@ -907,8 +907,8 @@ private:
         do_max_scan_on_ranks(true);
 
 
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
+        mcontext.sync_all_streams();
+        comm_world().barrier();
         // printf("[%lu] after do max\n", world_rank());
         if (world_rank() == 0) {
             printArrayss << <1, 1 >> > (gpu.Sa_rank, std::min(80UL, gpu.working_len), world_rank());
@@ -971,11 +971,13 @@ private:
                     // uses: Temp3, 4
                     sa_index_t* input_buffer = gpu.Temp1;
                     sa_index_t* temp_buffer = gpu.Temp3;
-
+                    sa_index_t* add_buffer;
                     if (initial) {
                         input_buffer = reinterpret_cast<sa_index_t*>(in_buffer[gpu_index] ? gpu.Kmer : gpu.Kmer_buffer);
-                        out_buffer = in_buffer[gpu_index] ? gpu.Sa_rank : gpu.Sa_index;
-                        temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
+
+                        cudaMalloc(&add_buffer, sizeof(sa_index_t) * gpu.working_len);
+                        out_buffer = add_buffer;//in_buffer[gpu_index] ? gpu.Sa_rank : gpu.Sa_index;
+                        // temp_buffer = in_buffer[gpu_index] ? gpu.Temp3 : gpu.Kmer_temp1;
                     }
 
                     MaxFunctor max_op;
@@ -988,8 +990,9 @@ private:
                     CUERR_CHECK(err);
                     // printf("[%lu] after prep\n", world_rank());
                     // Run inclusive prefix max-scan
-                    // void* temp;
-                    // cudaMalloc(&temp, temp_storage_bytes);
+                    void* temp;
+                    cudaMalloc(&temp, temp_storage_bytes);
+
                     if (in_buffer[gpu_index] || !initial) {
                         ASSERT(temp_storage_bytes < 2 * mreserved_len * sizeof(sa_index_t) + madditional_temp_storage_size);
                     }
@@ -997,12 +1000,13 @@ private:
                         ASSERT(temp_storage_bytes <= mmemory_manager.get_temp_mem_kmer());
                     }
 
-                    err = cub::DeviceScan::InclusiveScan(temp_buffer, temp_storage_bytes, input_buffer, out_buffer,
+                    err = cub::DeviceScan::InclusiveScan(temp, temp_storage_bytes, input_buffer, out_buffer,
                         max_op, gpu.working_len, mcontext.get_gpu_default_stream(gpu_index));
                     cudaMemcpyAsync(mhost_temp_mem + gpu_index, out_buffer + gpu.working_len - 1,
                         sizeof(sa_index_t), cudaMemcpyDeviceToHost,
                         mcontext.get_gpu_default_stream(gpu_index));
                     CUERR;
+                    cudaFreeAsync(temp, mcontext.get_gpu_default_stream(gpu_index));
 
                 }
                 // Now temp1 is written to Sa_rank
@@ -1040,7 +1044,9 @@ private:
                 CUERR;
             }
         }
-
+        if (initial) {
+            cudaFreeAsync(out_buffer, mcontext.get_gpu_default_stream(gpu_index));
+        }
         mcontext.sync_default_streams();
         // printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, std::min(20UL, mgpus[world_rank()].working_len), world_rank());
         // mcontext.sync_default_streams();
