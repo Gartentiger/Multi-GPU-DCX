@@ -663,14 +663,7 @@ private:
         }
         // mcontext.sync_all_streams();
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.pd_ptr.Kmer, gpu.pd_ptr.Isa, std::min(20UL, gpu.pd_elements), world_rank());
-        kmer* last = (kmer*)malloc(sizeof(kmer));
-        cudaMemcpy(last, gpu.pd_ptr.Kmer + gpu.pd_elements, sizeof(kmer), cudaMemcpyDeviceToHost);
-        cudaMemset(gpu.pd_ptr.Kmer_buffer, 0, sizeof(kmer) * gpu.pd_elements);
-        kmer* last2 = (kmer*)malloc(sizeof(kmer));
-        cudaMemcpy(last2, gpu.pd_ptr.Kmer + gpu.pd_elements, sizeof(kmer), cudaMemcpyDeviceToHost);
-        ASSERT(*last == *last2);
-        free(last);
-        free(last2);
+
         mcontext.sync_default_streams();
         comm_world().barrier();
     }
