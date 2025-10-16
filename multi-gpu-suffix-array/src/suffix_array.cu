@@ -56,7 +56,7 @@
 #include "sorting/samplesort.cuh"
 
 static const uint NUM_GPUS = 2;
-static const uint NUM_GPUS_PER_NODE = 4;
+static const uint NUM_GPUS_PER_NODE = 2;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
