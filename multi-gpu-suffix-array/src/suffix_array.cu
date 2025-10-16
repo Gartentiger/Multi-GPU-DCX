@@ -518,7 +518,7 @@ public:
         printf("mpd_reserved_len after cub temp: %lu\n", mpd_reserved_len);
 
 
-        mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true, (mpd_per_gpu + 3 * DCX::X) * sizeof(kmerDCX), temp_storage_size_S12);
+        mmemory_manager.alloc(minput_len, mreserved_len, mpd_reserved_len, ms0_reserved_len, true, (mpd_per_gpu + 5 * DCX::X) * sizeof(kmerDCX), temp_storage_size_S12);
 
         size_t pd_total_len = 0, offset = 0, pd_offset = 0;
         for (uint i = 0; i < NUM_GPUS - 1; i++)
@@ -663,6 +663,14 @@ private:
         }
         // mcontext.sync_all_streams();
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (gpu.pd_ptr.Kmer, gpu.pd_ptr.Isa, std::min(20UL, gpu.pd_elements), world_rank());
+        kmer* last = (kmer*)malloc(sizeof(kmer));
+        cudaMemcpy(last, gpu.pd_ptr.Kmer + gpu.pd_elements, sizeof(kmer), cudaMemcpyDeviceToHost);
+        cudaMemset(gpu.pd_ptr.Kmer_buffer, 0, sizeof(kmer) * gpu.pd_elements);
+        kmer* last2 = (kmer*)malloc(sizeof(kmer));
+        cudaMemcpy(last2, gpu.pd_ptr.Kmer + gpu.pd_elements, sizeof(kmer), cudaMemcpyDeviceToHost);
+        ASSSERT(*last == *last2);
+        free(last);
+        free(last2);
         mcontext.sync_default_streams();
         comm_world().barrier();
     }

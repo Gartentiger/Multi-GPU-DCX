@@ -411,7 +411,6 @@ namespace kernels {
 #pragma unroll
             for (size_t c = 0; c < DCX::C; c++)
             {
-
                 const unsigned char* baseInput = Input + DCX::X * i + period[c];
 #pragma unroll
                 for (size_t j = 0; j < DCX::X; j++)
