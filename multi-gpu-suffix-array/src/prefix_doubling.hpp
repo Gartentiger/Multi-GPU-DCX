@@ -1042,10 +1042,10 @@ private:
                 //(mcontext.get_device_id(gpu_index));
                 kernels::write_if_eq _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(out_buffer, gpu.Sa_rank, 0, mhost_temp_mem[gpu_index - 1], gpu.working_len);
                 CUERR;
+                if (initial) {
+                    cudaFreeAsync(out_buffer, mcontext.get_gpu_default_stream(gpu_index));
+                }
             }
-        }
-        if (initial) {
-            cudaFreeAsync(out_buffer, mcontext.get_gpu_default_stream(gpu_index));
         }
         mcontext.sync_default_streams();
         // printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, std::min(20UL, mgpus[world_rank()].working_len), world_rank());
