@@ -277,7 +277,7 @@ public:
         TIMERSTOP(Total);
         mperf_measure.done();
 
-        copy_result_to_host();
+        // copy_result_to_host();
         //
         // mcontext.sync_all_streams();
         // printf("[%lu] complete\n", world_rank());
