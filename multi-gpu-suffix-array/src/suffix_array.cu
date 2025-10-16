@@ -394,12 +394,12 @@ public:
 
         mtook_pd_iterations = mpd_sorter.sort(1);
         // comm_world().barrier();
-        auto& t = kamping::measurements::timer();
-        t.aggregate_and_print(
-            kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
-        std::cout << std::endl;
-        t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        std::cout << std::endl;
+        // auto& t = kamping::measurements::timer();
+        // t.aggregate_and_print(
+        //     kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
+        // std::cout << std::endl;
+        // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+        // std::cout << std::endl;
         //            mpd_sorter.dump("done");
         TIMER_START_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         prepare_S12_for_merge();
@@ -1871,7 +1871,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(2 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(500 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
