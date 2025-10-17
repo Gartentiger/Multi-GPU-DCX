@@ -645,7 +645,7 @@ struct prefix_equal {
         const size_t N = DCX::X;
         for (; offset + 8 <= N; offset += 8)
         {
-            const int c = cmp8(pa + offset, pb + offset);
+            int c = cmp8(pa + offset, pb + offset);
             if (c < 0) return true;
             if (c > 0) return false;
         }
