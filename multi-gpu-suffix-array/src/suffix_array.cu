@@ -378,7 +378,7 @@ public:
 
         //
         mcontext.sync_all_streams();
-        printf("[%lu] Copy Input\n", world_rank());
+        // printf("[%lu] Copy Input\n", world_rank());
         comm_world().barrier();
         //
 
@@ -389,7 +389,7 @@ public:
         produce_kmers();
         //
         mcontext.sync_all_streams();
-        printf("[%lu] Produce kmers\n", world_rank());
+        // printf("[%lu] Produce kmers\n", world_rank());
         comm_world().barrier();
         //
 
@@ -411,7 +411,7 @@ public:
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S12_for_Merge);
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] prepare s12 for merge done\n", world_rank());
+        // printf("[%lu] prepare s12 for merge done\n", world_rank());
         // comm_world().barrier();
         //
         TIMERSTOP(Total);
@@ -2014,8 +2014,8 @@ int main(int argc, char** argv)
     // nvtxRangePop();
     // t.stop();
     // if (world_rank() == 0)
-    write_array_mpi(argv[1], sorter.get_result(), sorter.get_sa_length());
-    comm_world().barrier();
+    // write_array_mpi(argv[1], sorter.get_result(), sorter.get_sa_length());
+    // comm_world().barrier();
     sorter.done();
 
     CUERR;
@@ -2029,11 +2029,11 @@ int main(int argc, char** argv)
     cudaFreeHost(input);
     CUERR;
     // }
-    std::ofstream outFile("outputSampleSort", std::ios::app);
-    t.aggregate_and_print(
-        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
-    std::cout << std::endl;
-    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-    std::cout << std::endl;
+    // std::ofstream outFile("outputSampleSort", std::ios::app);
+    // t.aggregate_and_print(
+    //     kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    // std::cout << std::endl;
+    // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    // std::cout << std::endl;
     return 0;
 }
