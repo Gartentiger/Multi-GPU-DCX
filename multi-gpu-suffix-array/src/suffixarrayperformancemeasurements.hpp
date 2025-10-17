@@ -53,7 +53,8 @@ public:
         mloop_performance_recorder(perf_rec::loop_stage_names, max_repetitions),
         mwrite_isa_performance_recorder(perf_rec::write_isa_stage_names, max_repetitions),
         mfetch_rank_performance_recorder(perf_rec::fetch_rank_stage_names, max_repetitions),
-        mprepare_final_merge_performance_recorder(perf_rec::prepare_final_merge_stages_names, 1)
+        mprepare_final_merge_performance_recorder(perf_rec::prepare_final_merge_stages_names, 1),
+        msample_sort_performance_recorder(perf_rec::samplesort_names, 1)
     {
     }
 
