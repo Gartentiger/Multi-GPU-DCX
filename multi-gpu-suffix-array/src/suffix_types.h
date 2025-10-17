@@ -646,16 +646,18 @@ struct prefix_equal {
         for (; offset + 8 <= N; offset += 8)
         {
             int c = cmp8(pa + offset, pb + offset);
-            if (c < 0) return true;
+            if (c < 0) return false;
             if (c > 0) return false;
         }
 
         // tail: remaining bytes (<8)
         for (; offset < N; ++offset)
         {
-            if (pa[offset] < pb[offset]) return true;
+            if (pa[offset] < pb[offset]) return false;
             if (pa[offset] > pb[offset]) return false;
         }
+
+        return true;
     }
 };
 
