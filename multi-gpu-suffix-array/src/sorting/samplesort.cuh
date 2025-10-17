@@ -429,18 +429,20 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
         sa_index_t num_valid = thrust::get<0>(new_zip_end.get_iterator_tuple()) - d_segment_starts.begin();
         d_segment_starts.resize(num_valid);
         d_segment_ends.resize(num_valid);
+
         // // Step 5: compute segment_end = segment_start + segment_count (device transform)
         // thrust::transform(
             //     d_segment_starts.begin(),
             //     d_segment_starts.end(),
-            //     d_counts.begin(), // note: counts correspond to the same filtered segments
+            //     d_segment_ends.begin(), // note: counts correspond to the same filtered segments
             //     d_segment_ends.begin(),
             //     [] __device__(sa_index_t start, sa_index_t count) {
                 //     return start + count;
                 // }
                 // );
+                // ---------------------------------------------- ChatGPT
         thrust::host_vector<sa_index_t> h_segment_starts = d_segment_starts;
-        thrust::host_vector<sa_index_t> h_counts = d_counts;
+        thrust::host_vector<sa_index_t> h_counts = d_segment_ends;
 
         printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_valid);
         for (int i = 0; i < num_valid; ++i)
@@ -449,21 +451,20 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
 
         thrust::host_vector<MergeSuffixes> h_vec_keys = keys_vec;
 
-        comm_world().barrier();
-        for (size_t i = 0; i < h_vec_keys.size(); i++) {
-            printf("[%lu] ", world_rank());
-            for (size_t x = 0; x < DCX::X; x++) {
-                printf("%c, ", h_vec_keys[i].prefix[x]);
-            }
-            printf(" r ");
-            for (size_t x = 0; x < DCX::C; x++) {
-                printf("%u, ", h_vec_keys[i].ranks[x]);
-            }
-            printf("idx %u\n", h_vec_keys[i].index);
-        }
+        // comm_world().barrier();
+        // for (size_t i = 0; i < h_vec_keys.size(); i++) {
+        //     printf("[%lu] ", world_rank());
+        //     for (size_t x = 0; x < DCX::X; x++) {
+        //         printf("%c, ", h_vec_keys[i].prefix[x]);
+        //     }
+        //     printf(" r ");
+        //     for (size_t x = 0; x < DCX::C; x++) {
+        //         printf("%u, ", h_vec_keys[i].ranks[x]);
+        //     }
+        //     printf("idx %u\n", h_vec_keys[i].index);
+        // }
 
         comm_world().barrier();
-        // ---------------------------------------------- ChatGPT
         TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
         TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
         for (size_t i = 0; i < d_segment_starts.size(); i++)
