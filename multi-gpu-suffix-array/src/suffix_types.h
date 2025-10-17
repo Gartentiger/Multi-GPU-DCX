@@ -636,7 +636,7 @@ struct prefix_equal {
         uint8_t cb = static_cast<uint8_t>((vb >> (byte * 8)) & 0xFF);
         return (ca < cb) ? -1 : 1;
     }
-    __host__ __device__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const {
+    __device__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const {
 
         const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
         const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
