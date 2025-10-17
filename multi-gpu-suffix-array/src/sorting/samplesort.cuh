@@ -44,6 +44,7 @@ template<typename key, typename Compare, size_t NUM_GPUS>
 void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compare cmp, MultiGPUContext<NUM_GPUS>& mcontext, SuffixArrayPerformanceMeasurements& mperf_measure) {
 #define TIMER_START_SAMPLESORT(stage) mperf_measure.start_samplesort(stage)
 #define TIMER_STOP_SAMPLESORT(stage) mperf_measure.stop_samplesort(stage)
+    using SamplesortStages = perf_rec::SamplesortStages;
     TIMER_START_SAMPLESORT(SamplesortStages::SAMPLE);
     key* keys = thrust::raw_pointer_cast(keys_vec.data());
     size_t size = keys_vec.size();
