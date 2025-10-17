@@ -1485,10 +1485,10 @@ private:
         // exit(0);
         //            dump("Before merge");
 
-        for (size_t i = 0; i < ranges.size(); i++)
-        {
-            printf("[%lu] start node: %u, index: %u, end node: %u, index: %u\n", i, ranges[i].start.node, ranges[i].start.index, ranges[i].end.node, ranges[i].end.index);
-        }
+        // for (size_t i = 0; i < ranges.size(); i++)
+        // {
+        //     printf("[%lu] start node: %u, index: %u, end node: %u, index: %u\n", i, ranges[i].start.node, ranges[i].start.index, ranges[i].end.node, ranges[i].end.index);
+        // }
 
 
 
