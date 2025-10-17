@@ -443,31 +443,40 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
                 // ---------------------------------------------- ChatGPT
         thrust::host_vector<sa_index_t> h_segment_starts = d_segment_starts;
         thrust::host_vector<sa_index_t> h_counts = d_segment_ends;
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            if (world_rank() == gpu_index) {
+                printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_valid);
+                for (int i = 0; i < num_valid; ++i)
+                    printf("[%lu]  segment %u: start=%u end=%u (size=%u)\n", world_rank(),
+                        i, h_segment_starts[i], h_segment_starts[i] + h_counts[i], h_counts[i]);
+            }
+            comm_world().barrier();
 
-        printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_valid);
-        for (int i = 0; i < num_valid; ++i)
-            printf("[%lu]  segment %u: start=%u end=%u (size=%u)\n", world_rank(),
-                i, h_segment_starts[i], h_segment_starts[i] + h_counts[i], h_counts[i]);
-
+        }
         thrust::host_vector<MergeSuffixes> h_vec_keys = keys_vec;
 
-        // comm_world().barrier();
-        // for (size_t i = 0; i < h_vec_keys.size(); i++) {
-        //     printf("[%lu] ", world_rank());
-        //     for (size_t x = 0; x < DCX::X; x++) {
-        //         printf("%c, ", h_vec_keys[i].prefix[x]);
-        //     }
-        //     printf(" r ");
-        //     for (size_t x = 0; x < DCX::C; x++) {
-        //         printf("%u, ", h_vec_keys[i].ranks[x]);
-        //     }
-        //     printf("idx %u\n", h_vec_keys[i].index);
-        // }
-
         comm_world().barrier();
+        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+        {
+            if (world_rank() == gpu_index) {
+                for (size_t i = 0; i < h_vec_keys.size(); i++) {
+                    printf("[%lu] ", world_rank());
+                    for (size_t x = 0; x < DCX::X; x++) {
+                        printf("%c, ", h_vec_keys[i].prefix[x]);
+                    }
+                    printf(" r ");
+                    for (size_t x = 0; x < DCX::C; x++) {
+                        printf("%u, ", h_vec_keys[i].ranks[x]);
+                    }
+                    printf("idx %u\n", h_vec_keys[i].index);
+                }
+            }
+            comm_world().barrier();
+        }
         TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
         TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
-        for (size_t i = 0; i < d_segment_starts.size(); i++)
+        for (size_t i = 0; i < num_valid; i++)
         {
             size_t temp_storage_size = 0;
             cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{}, mcontext.get_gpu_default_stream(world_rank()));
@@ -478,6 +487,8 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
             cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{}, mcontext.get_gpu_default_stream(world_rank()));
             cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
         }
+        cudaDeviceSynchronize();
+        CUERR;
         mcontext.sync_all_streams();
         comm_world().barrier();
     }
