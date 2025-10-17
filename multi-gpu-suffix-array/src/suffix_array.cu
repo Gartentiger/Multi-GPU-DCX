@@ -1255,7 +1255,7 @@ int main(int argc, char** argv)
     char* input = nullptr;
     cudaSetDevice(0);
     size_t realLen;
-    size_t maxLength = size_t(1024 * 1024) * size_t(150 * 3 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(150 * 4 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, 0);
 #ifdef DGX1_TOPOLOGY
     //    const std::array<uint, NUM_GPUS> gpu_ids { 0, 3, 2, 1,  5, 6, 7, 4 };
