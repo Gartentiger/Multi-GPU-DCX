@@ -447,6 +447,22 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
             printf("[%lu]  segment %u: start=%u end=%u (size=%u)\n", world_rank(),
                 i, h_segment_starts[i], h_segment_starts[i] + h_counts[i], h_counts[i]);
 
+        thrust::host_vector<MergeSuffixes> h_vec_keys = keys_vec;
+
+        comm_world().barrier();
+        for (size_t i = 0; i < h_vec_keys.size(); i++) {
+            printf("[%lu] ", world_rank());
+            for (size_t x = 0; x < DCX::X; x++) {
+                printf("%c, ", h_vec_keys[i].prefix[x]);
+            }
+            printf(" r ");
+            for (size_t x = 0; x < DCX::C; x++) {
+                printf("%u, ", h_vec_keys[i].ranks[x]);
+            }
+            printf("idx %u\n", h_vec_keys[i].index);
+        }
+
+        comm_world().barrier();
         // ---------------------------------------------- ChatGPT
         TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
         TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
