@@ -373,7 +373,7 @@ struct DC21 {
 };
 
 using MergeStageSuffix = MergeStageSuffixS0;
-using DCX = DC3;
+using DCX = DC21;
 
 struct kmerDCX {
     unsigned char kmer[DCX::X];
@@ -410,7 +410,7 @@ struct dc21_kmer_decomposer
 using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjustment in code
 
 
-using DCXKmerDecomposer = dc3_kmer_decomposer;
+using DCXKmerDecomposer = dc21_kmer_decomposer;
 
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
@@ -505,8 +505,54 @@ struct KmerComparator
         return false;
     }
 };
+struct DCXComparatorDeviceOpt
+{
+    // compare one 8-byte block lexicographically; returns -1, 0, or +1
+    __device__ __forceinline__ static int cmp8(const unsigned char* pa, const unsigned char* pb)
+    {
+        uint64_t va = *reinterpret_cast<const uint64_t*>(pa);
+        uint64_t vb = *reinterpret_cast<const uint64_t*>(pb);
+        if (va == vb) return 0;
 
-struct DCXComparatorDevice
+        uint64_t diff = va ^ vb;               // non-zero
+        int bit = __ffsll(diff);               // 1-based index of least-significant set bit
+        int byte = (bit - 1) >> 3;             // byte index inside this 8-byte word (0..7)
+        uint8_t ca = static_cast<uint8_t>((va >> (byte * 8)) & 0xFF);
+        uint8_t cb = static_cast<uint8_t>((vb >> (byte * 8)) & 0xFF);
+        return (ca < cb) ? -1 : 1;
+    }
+
+    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const
+    {
+        const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
+        const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
+
+        // Compare 8 bytes at a time
+        size_t offset = 0;
+        const size_t N = DCX::X;
+        for (; offset + 8 <= N; offset += 8)
+        {
+            int c = cmp8(pa + offset, pb + offset);
+            if (c < 0) return true;
+            if (c > 0) return false;
+        }
+
+        // tail: remaining bytes (<8)
+        for (; offset < N; ++offset)
+        {
+            if (pa[offset] < pb[offset]) return true;
+            if (pa[offset] > pb[offset]) return false;
+        }
+
+        // prefixes equal -> compare ranks (same as original)
+        uint32_t ia = a.index % DCX::X;
+        uint32_t ib = b.index % DCX::X;
+        uint32_t r1 = lookupNext[ia][ib][1];
+        uint32_t r2 = lookupNext[ia][ib][2];
+        return a.ranks[r1] < b.ranks[r2];
+    }
+};
+struct DCXComparatorDeviceUnOpt
 {
     __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
     {
@@ -531,6 +577,7 @@ struct DCXComparatorDevice
         return a.index < b.index;
     }
 };
+
 struct DCXComparatorHost
 {
     __host__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
@@ -556,4 +603,5 @@ struct DCXComparatorHost
         return a.index < b.index;
     }
 };
+using DCXComparatorDevice = DCXComparatorDeviceOpt;
 #endif // CONFIG_H
