@@ -355,7 +355,7 @@ class SuffixSorter
     size_t last_gpu_extra_elements;
     size_t mtook_pd_iterations;
     thrust::host_vector<size_t> set_sizes;
-
+    D_DCX* dcx;
 public:
     SuffixSorter(Context& context, size_t len, char* input)
         : mcontext(context), mmemory_manager(context),
@@ -364,6 +364,11 @@ public:
         mpd_sorter(mcontext, mmemory_manager, mmulti_split, mall2all, mperf_measure),
         minput(input), minput_len(len)
     {
+        cudaMalloc(&dcx, sizeof(D_DCX));
+        cudaMemcpy(dcx->inverseSamplePosition, DCX::inverseSamplePosition, DCX::X * sizeof(uint32_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(dcx->nextNonSample, DCX::nextNonSample, DCX::nonSampleCount * sizeof(uint32_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(dcx->nextSample, DCX::nextSample, DCX::X * DCX::X * 2 * sizeof(uint32_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(dcx->samplePosition, DCX::samplePosition, DCX::C * sizeof(uint32_t), cudaMemcpyHostToDevice);
     }
 
     void do_sa()
@@ -646,16 +651,13 @@ private:
         // kernels::produce_index_kmer_tuples_12_64_dc7 _KLC_SIMPLE_(gpu.num_elements, mcontext.get_gpu_default_stream(gpu_index))((char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, reinterpret_cast<ulong1*>(gpu.pd_ptr.Sa_rank),
         //     SDIV(gpu.num_elements, 14) * 14);
         thrust::device_vector<size_t> d_set_sizes = set_sizes;
-        uint32_t* samplePos;
-        cudaMallocAsync(&samplePos, sizeof(uint32_t) * DCX::C, mcontext.get_gpu_default_stream(gpu_index));
-        cudaMemcpyAsync(samplePos, DCX::samplePosition, sizeof(uint32_t) * DCX::C, cudaMemcpyHostToDevice, mcontext.get_gpu_default_stream(gpu_index));
+
 
         mcontext.sync_all_streams();
         kernels::produce_index_kmer_tuples_12_64_dcx _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
             ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, gpu.pd_ptr.Kmer,
-                gpu.pd_elements, samplePos, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
+                gpu.pd_elements, dcx->samplePosition, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
         CUERR;
-        cudaFreeAsync(samplePos, mcontext.get_gpu_default_stream(gpu_index));
         mcontext.sync_all_streams();
         if (world_rank() == NUM_GPUS - 1) {
             size_t fixups = last_gpu_extra_elements + DCX::C - 1;
@@ -964,12 +966,7 @@ private:
 
         uint gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
-        D_DCX* dcx;
-        cudaMalloc(&dcx, sizeof(D_DCX));
-        cudaMemcpy(dcx->inverseSamplePosition, DCX::inverseSamplePosition, DCX::X * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(dcx->nextNonSample, DCX::nextNonSample, DCX::nonSampleCount * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(dcx->nextSample, DCX::nextSample, DCX::X * DCX::X * 2 * sizeof(uint32_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(dcx->samplePosition, DCX::samplePosition, DCX::C * sizeof(uint32_t), cudaMemcpyHostToDevice);
+
         unsigned char* next_Input = nullptr;
         sa_index_t* next_Isa = nullptr;      //= (gpu_index + 1 < NUM_GPUS) ? mgpus[gpu_index + 1].prepare_S12_ptr.Isa : nullptr;
         // printf("[%lu] before sending\n", world_rank());

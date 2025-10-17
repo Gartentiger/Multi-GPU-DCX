@@ -14,8 +14,8 @@ decl_main_stage(Final_Transpose)       \
 decl_main_stage(Prepare_S12_for_Merge) \
 decl_main_stage(Prepare_S0_for_Merge)  \
 decl_main_stage(Final_Merge)           
-// decl_main_stage(Copy_Input)          
-//decl_main_stage(Copy_Results)
+    // decl_main_stage(Copy_Input)          
+    //decl_main_stage(Copy_Results)
 
 #define LOOP_STAGES(decl_loop_stage) \
     decl_loop_stage(Fetch_Rank)      \
@@ -48,7 +48,13 @@ decl_main_stage(Final_Merge)
     decl_prepare_final_merge_stage(S0_Merge)                       \
     decl_prepare_final_merge_stage(S0_Combine)
 
-
+#define SAMPLESORT(decl_samplesort_stage)  \
+    decl_samplesort_stage(SAMPLE)          \
+    decl_samplesort_stage(SEND_SAMPLES)    \
+    decl_samplesort_stage(SORT_SAMPLES)    \
+    decl_samplesort_stage(BUCKET)          \
+    decl_samplesort_stage(ALL2ALL_BUCKETS) \
+    decl_samplesort_stage(SORT_BUCKETS)
 
 #define CREATE_STAGE_ENUM(name) name,
 
@@ -102,7 +108,14 @@ decl_main_stage(Final_Merge)
         PREPARE_FINAL_MERGE_STAGES(CREATE_STAGE_STRINGS)
     };
 
+    enum class Samplesort {
+        SAMPLESORT(CREATE_STAGE_ENUM)
+        NO_STAGES
+    };
 
+    const std::array<const char*, size_t(Samplesort::NO_STAGES)> samplesort_names = {
+        SAMPLESORT(CREATE_STAGE_STRINGS)
+    };
 }
 
 #endif // STAGES_H

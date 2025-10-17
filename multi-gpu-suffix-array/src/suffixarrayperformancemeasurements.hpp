@@ -102,6 +102,15 @@ public:
         mprepare_final_merge_performance_recorder.register_measurement(stage, t);
     }
 
+    void start_samplesort(perf_rec::Samplesort stage) {
+        msamplesort_helpers[int(stage)].start();
+    }
+
+    void stop_samplesort(perf_rec::Samplesort stage) {
+        float t = msamplesort_helpers[int(stage)].stop();
+        msample_sort_performance_recorder.register_measurement(stage, t);
+    }
+
     void start_loop() {
         mwrite_isa_performance_recorder.next_iteration();
     }
@@ -129,6 +138,9 @@ public:
         // mloop_performance_recorder
         mloop_performance_recorder.print();
         mloop_performance_recorder.writeMeas(outputFile);
+        std::cout << "\nSamplesort:\n";
+        msample_sort_performance_recorder.print();
+        msample_sort_performance_recorder.writeMeas(outputFile);
         std::cout << "\nPrepare final merge:\n";
         mprepare_final_merge_performance_recorder.print();
         mprepare_final_merge_performance_recorder.writeMeas(outputFile);
@@ -146,6 +158,8 @@ private:
     static const size_t NO_WRITE_ISA_STAGES = size_t(perf_rec::WriteISAStages::NO_STAGES);
     static const size_t NO_FETCH_RANK_STAGES = size_t(perf_rec::FetchRankStages::NO_STAGES);
     static const size_t NO_PREPARE_FINAL_MERGE_STAGES = size_t(perf_rec::PrepareFinalMergeStages::NO_STAGES);
+    static const size_t NO_SAMPLESORT = size_t(perf_rec::Samplesort::NO_STAGES);
+
 
     perf_rec::PerformanceRecorder<perf_rec::MainStages, NO_MAIN_STAGES, float>
         mmain_performance_recorder;
@@ -162,11 +176,17 @@ private:
     perf_rec::PerformanceRecorder<perf_rec::PrepareFinalMergeStages, NO_PREPARE_FINAL_MERGE_STAGES, float>
         mprepare_final_merge_performance_recorder;
 
+    perf_rec::PerformanceRecorder<perf_rec::Samplesort, NO_SAMPLESORT, float>
+        msample_sort_performance_recorder;
+
+
     std::array<CudaMeasureHelper, NO_MAIN_STAGES> mmain_helpers;
     std::array<CudaMeasureHelper, NO_LOOP_STAGES> mloop_helpers;
     std::array<CudaMeasureHelper, NO_WRITE_ISA_STAGES> mwrite_isa_helpers;
     std::array<CudaMeasureHelper, NO_FETCH_RANK_STAGES> mfetch_rank_helpers;
     std::array<CudaMeasureHelper, NO_PREPARE_FINAL_MERGE_STAGES> mprepare_final_merge_helpers;
+    std::array<CudaMeasureHelper, NO_SAMPLESORT> msamplesort_helpers;
+
 };
 
 #endif // SUFFIXARRAYPERFORMANCEMEASUREMENTS_H

@@ -42,9 +42,9 @@ namespace crossGPUReMerge
             std::function<void()> debug_func = nullptr)
         {
 
-            auto& t = kamping::measurements::timer();
+            // auto& t = kamping::measurements::timer();
             // t.start("prep_merges");
-            t.start("merges_loop");
+            // t.start("merges_loop");
             init_node_utils();
             init_micro_ranges(ranges);
             // t.stop();
@@ -52,38 +52,38 @@ namespace crossGPUReMerge
             int i = 0;
             while (schedule_micro_merges() > 0)
             {
-                t.start("iteration:" + std::to_string(i));
+                // t.start("iteration:" + std::to_string(i));
                 // t.start("schedule_partitioning_searches:" + std::to_string(i));
                 schedule_partitioning_searches();
                 // t.stop();
-                t.start("sampling_splitting:" + std::to_string(i));
+                // t.start("sampling_splitting:" + std::to_string(i));
                 //printf("do search %lu\n", world_rank());
                 // nvtxRangePush("do_searches");
 
                 mmerge_processor.do_searches(comp, comp_host);
 
                 // nvtxRangePop();
-                t.stop();
+                // t.stop();
                 // printf("[%lu] do_searches done\n", world_rank());
                 // t.start("create_partitions_from_search_results:" + std::to_string(i));
                 create_partitions_from_search_results();
                 // t.stop();
                 // printf("[%lu] create partitions done\n", world_rank());
                 //                debug_print();
-                t.start("reorder_merge:" + std::to_string(i));
+                // t.start("reorder_merge:" + std::to_string(i));
                 // nvtxRangePush("do_copy_and_merge");
                 mmerge_processor.do_copy_and_merge(comp, debug_func);
                 // nvtxRangePop();
-                t.stop();
+                // t.stop();
                 // printf("[%lu] do copy and merge done\n", world_rank());
-                t.start("combine_finished_microranges:" + std::to_string(i));
+                // t.start("combine_finished_microranges:" + std::to_string(i));
                 combine_finished_microranges();
-                t.stop();
-                t.stop();
+                // t.stop();
+                // t.stop();
                 //                std::cerr << "\n\nNew iteration... ---------------------------------------------\n";
             }
             mmerges.clear();
-            t.stop();
+            // t.stop();
 
             // t.aggregate_and_print(
             //     kamping::measurements::SimpleJsonPrinter{ std::cout }
