@@ -14,6 +14,7 @@
 #include <kamping/collectives/gather.hpp>
 #include <kamping/collectives/reduce.hpp>
 
+#include "stages.h"
 #include "suffixarrayperformancemeasurements.hpp"
 
 #include <stdio.h>
