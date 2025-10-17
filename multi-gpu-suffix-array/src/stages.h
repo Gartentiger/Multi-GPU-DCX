@@ -108,12 +108,12 @@ decl_main_stage(Final_Merge)
         PREPARE_FINAL_MERGE_STAGES(CREATE_STAGE_STRINGS)
     };
 
-    enum class Samplesort {
+    enum class SamplesortStages {
         SAMPLESORT(CREATE_STAGE_ENUM)
         NO_STAGES
     };
 
-    const std::array<const char*, size_t(Samplesort::NO_STAGES)> samplesort_names = {
+    const std::array<const char*, size_t(SamplesortStages::NO_STAGES)> samplesort_names = {
         SAMPLESORT(CREATE_STAGE_STRINGS)
     };
 }

@@ -44,7 +44,7 @@ template<typename key, typename Compare, size_t NUM_GPUS>
 void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compare cmp, MultiGPUContext<NUM_GPUS>& mcontext, SuffixArrayPerformanceMeasurements& mperf_measure) {
 #define TIMER_START_SAMPLESORT(stage) mperf_measure.start_samplesort(stage)
 #define TIMER_STOP_SAMPLESORT(stage) mperf_measure.stop_samplesort(stage)
-    TIMER_START_SAMPLESORT(Samplesort::SAMPLE);
+    TIMER_START_SAMPLESORT(SamplesortStages::SAMPLE);
     key* keys = thrust::raw_pointer_cast(keys_vec.data());
     size_t size = keys_vec.size();
     ASSERT(sample_size < size);
@@ -84,8 +84,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
     mcontext.sync_all_streams();
     // printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
     comm_world().barrier();
-    TIMER_STOP_SAMPLESORT(Samplesort::SAMPLE);
-    TIMER_START_SAMPLESORT(Samplesort::SEND_SAMPLES);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::SAMPLE);
+    TIMER_START_SAMPLESORT(SamplesortStages::SEND_SAMPLES);
     // send samples
     ncclGroupStart();
     // thrust::device_vector<key> d_samples_global(sample_size * world_rank());
@@ -119,8 +119,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
     ncclGroupEnd();
     mcontext.sync_all_streams();
     comm_world().barrier();
-    TIMER_STOP_SAMPLESORT(Samplesort::SEND_SAMPLES);
-    TIMER_START_SAMPLESORT(Samplesort::SORT_SAMPLES);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::SEND_SAMPLES);
+    TIMER_START_SAMPLESORT(SamplesortStages::SORT_SAMPLES);
     // t.stop();
     // printf("[%lu] received all samples\n", world_rank());
     // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
@@ -145,8 +145,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
     // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
     mcontext.sync_all_streams();
     comm_world().barrier();
-    TIMER_STOP_SAMPLESORT(Samplesort::SORT_SAMPLES);
-    TIMER_START_SAMPLESORT(Samplesort::BUCKET);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::SORT_SAMPLES);
+    TIMER_START_SAMPLESORT(SamplesortStages::BUCKET);
 
     // t.start("select_splitter");
     selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size);
@@ -261,8 +261,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
         // t.stop();
         // printf("[%lu] after memcpy\n", world_rank());
     }
-    TIMER_STOP_SAMPLESORT(Samplesort::BUCKET);
-    TIMER_START_SAMPLESORT(Samplesort::ALL2ALL_BUCKETS);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::BUCKET);
+    TIMER_START_SAMPLESORT(SamplesortStages::ALL2ALL_BUCKETS);
     // t.stop();
 
     // for (size_t i = 0; i < NUM_GPUS; i++)
@@ -329,8 +329,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
         comm_world().barrier();
         keys_vec.swap(keys_buffer_vec);
     }
-    TIMER_STOP_SAMPLESORT(Samplesort::ALL2ALL_BUCKETS);
-    TIMER_START_SAMPLESORT(Samplesort::SORT_BUCKETS);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::ALL2ALL_BUCKETS);
+    TIMER_START_SAMPLESORT(SamplesortStages::SORT_BUCKETS);
     // t.stop();
     // printf("[%lu] reordered keys with splitter, size: %lu\n", world_rank(), out_size);
     {
@@ -349,7 +349,7 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
         // t.stop();
     }
     comm_world().barrier();
-    TIMER_STOP_SAMPLESORT(Samplesort::SORT_BUCKETS);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::SORT_BUCKETS);
     // t.stop();
     // printf("[%lu] sorted key.size: %lu\n", world_rank(), keys_vec.size());
 }

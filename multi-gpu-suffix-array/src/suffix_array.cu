@@ -1133,6 +1133,7 @@ private:
         // merge_tuple_out_vec.swap(merge_tuple_vec);
 
         mcontext.sync_all_streams();
+
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
         // printf("[%lu] sample sorted\n", world_rank());

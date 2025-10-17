@@ -103,11 +103,11 @@ public:
         mprepare_final_merge_performance_recorder.register_measurement(stage, t);
     }
 
-    void start_samplesort(perf_rec::Samplesort stage) {
+    void start_samplesort(perf_rec::SamplesortStages stage) {
         msamplesort_helpers[int(stage)].start();
     }
 
-    void stop_samplesort(perf_rec::Samplesort stage) {
+    void stop_samplesort(perf_rec::SamplesortStages stage) {
         float t = msamplesort_helpers[int(stage)].stop();
         msample_sort_performance_recorder.register_measurement(stage, t);
     }
@@ -159,7 +159,7 @@ private:
     static const size_t NO_WRITE_ISA_STAGES = size_t(perf_rec::WriteISAStages::NO_STAGES);
     static const size_t NO_FETCH_RANK_STAGES = size_t(perf_rec::FetchRankStages::NO_STAGES);
     static const size_t NO_PREPARE_FINAL_MERGE_STAGES = size_t(perf_rec::PrepareFinalMergeStages::NO_STAGES);
-    static const size_t NO_SAMPLESORT = size_t(perf_rec::Samplesort::NO_STAGES);
+    static const size_t NO_SAMPLESORT = size_t(perf_rec::SamplesortStages::NO_STAGES);
 
 
     perf_rec::PerformanceRecorder<perf_rec::MainStages, NO_MAIN_STAGES, float>
@@ -177,7 +177,7 @@ private:
     perf_rec::PerformanceRecorder<perf_rec::PrepareFinalMergeStages, NO_PREPARE_FINAL_MERGE_STAGES, float>
         mprepare_final_merge_performance_recorder;
 
-    perf_rec::PerformanceRecorder<perf_rec::Samplesort, NO_SAMPLESORT, float>
+    perf_rec::PerformanceRecorder<perf_rec::SamplesortStages, NO_SAMPLESORT, float>
         msample_sort_performance_recorder;
 
 
