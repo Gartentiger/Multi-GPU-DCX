@@ -45,7 +45,7 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
 #define TIMER_START_SAMPLESORT(stage) mperf_measure.start_samplesort(stage)
 #define TIMER_STOP_SAMPLESORT(stage) mperf_measure.stop_samplesort(stage)
     using SamplesortStages = perf_rec::SamplesortStages;
-    TIMER_START_SAMPLESORT(SamplesortStages::SAMPLE);
+    TIMER_START_SAMPLESORT(SamplesortStages::Pick_samples);
     key* keys = thrust::raw_pointer_cast(keys_vec.data());
     size_t size = keys_vec.size();
     ASSERT(sample_size < size);
@@ -85,8 +85,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
     mcontext.sync_all_streams();
     // printf("[%lu] mapped sample positions to corresponding keys\n", world_rank());
     comm_world().barrier();
-    TIMER_STOP_SAMPLESORT(SamplesortStages::SAMPLE);
-    TIMER_START_SAMPLESORT(SamplesortStages::SEND_SAMPLES);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::Pick_samples);
+    TIMER_START_SAMPLESORT(SamplesortStages::Send_samples);
     // send samples
     ncclGroupStart();
     // thrust::device_vector<key> d_samples_global(sample_size * world_rank());
@@ -120,8 +120,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
     ncclGroupEnd();
     mcontext.sync_all_streams();
     comm_world().barrier();
-    TIMER_STOP_SAMPLESORT(SamplesortStages::SEND_SAMPLES);
-    TIMER_START_SAMPLESORT(SamplesortStages::SORT_SAMPLES);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::Send_samples);
+    TIMER_START_SAMPLESORT(SamplesortStages::Sort_samples);
     // t.stop();
     // printf("[%lu] received all samples\n", world_rank());
     // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
@@ -146,8 +146,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
     // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size * NUM_GPUS, world_rank());
     mcontext.sync_all_streams();
     comm_world().barrier();
-    TIMER_STOP_SAMPLESORT(SamplesortStages::SORT_SAMPLES);
-    TIMER_START_SAMPLESORT(SamplesortStages::BUCKET);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::Sort_samples);
+    TIMER_START_SAMPLESORT(SamplesortStages::Bucketing);
 
     // t.start("select_splitter");
     selectSplitter << <1, NUM_GPUS - 1, 0, mcontext.get_gpu_default_stream(world_rank()) >> > (d_samples, sample_size);
@@ -262,8 +262,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
         // t.stop();
         // printf("[%lu] after memcpy\n", world_rank());
     }
-    TIMER_STOP_SAMPLESORT(SamplesortStages::BUCKET);
-    TIMER_START_SAMPLESORT(SamplesortStages::ALL2ALL_BUCKETS);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::Bucketing);
+    TIMER_START_SAMPLESORT(SamplesortStages::All2All_buckets);
     // t.stop();
 
     // for (size_t i = 0; i < NUM_GPUS; i++)
@@ -330,31 +330,142 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
         comm_world().barrier();
         keys_vec.swap(keys_buffer_vec);
     }
-    TIMER_STOP_SAMPLESORT(SamplesortStages::ALL2ALL_BUCKETS);
-    TIMER_START_SAMPLESORT(SamplesortStages::SORT_BUCKETS);
+    TIMER_STOP_SAMPLESORT(SamplesortStages::All2All_buckets);
+    // TIMER_START_SAMPLESORT(SamplesortStages::X_prefix_sort);
     // t.stop();
     // printf("[%lu] reordered keys with splitter, size: %lu\n", world_rank(), out_size);
-    {
 
-        // t.start("final_sort");
-        size_t temp_storage_size = 0;
-        cub::DeviceMergeSort::StableSortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()), out_size, cmp);
-        // keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
-        void* temp;
-        cudaMalloc(&temp, temp_storage_size);
-        CUERR;
-        cub::DeviceMergeSort::StableSortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()), out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
-        cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+    // t.start("final_sort");
+    // cub::DeviceMergeSort::StableSortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()), out_size, cmp);
+    // // keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
+    // void* temp;
+    // cudaMalloc(&temp, temp_storage_size);
+    // CUERR;
+    // cub::DeviceMergeSort::StableSortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()), out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
+    // cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+    // TIMER_START_SAMPLESORT(SamplesortStages::X_prefix_sort);
 
-        mcontext.sync_all_streams();
-        // t.stop();
-    }
-    comm_world().barrier();
-    TIMER_STOP_SAMPLESORT(SamplesortStages::SORT_BUCKETS);
+    // t.stop();
+
     // t.stop();
     // printf("[%lu] sorted key.size: %lu\n", world_rank(), keys_vec.size());
 }
+template<size_t NUM_GPUS>
+void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUContext<NUM_GPUS>& mcontext, SuffixArrayPerformanceMeasurements& mperf_measure) {
+#define TIMER_START_SAMPLESORT(stage) mperf_measure.start_samplesort(stage)
+#define TIMER_STOP_SAMPLESORT(stage) mperf_measure.stop_samplesort(stage)
+    using SamplesortStages = perf_rec::SamplesortStages;
+    TIMER_START_SAMPLESORT(SamplesortStages::X_prefix_sort);
+    {
+        size_t temp_storage_size = 0;
+        thrust::device_vector<MergeSuffixes> keys_buffer(keys_vec.size());
+        cub::DoubleBuffer<MergeSuffixes> keys(thrust::raw_pointer_cast(keys_vec.data()), thrust::raw_pointer_cast(keys_buffer.data()));
+        size_t temp_storage_bytes = 0;
+        // packing could be beneficial
+        cudaError err = cub::DeviceRadixSort::SortKeys(nullptr, temp_storage_bytes,
+            keys,
+            keys_vec.size(),
+            decomposer_x_prefix{}, 0, DCX::X * 8,
+            mcontext.get_gpu_default_stream(world_rank()));
+        CUERR_CHECK(err);
+        // printf("[%lu] temp_storage_bytes radix_sort real: %lu\n", world_rank(), temp_storage_bytes);
+        void* temp;
+        cudaMallocAsync(&temp, temp_storage_bytes, mcontext.get_gpu_default_stream(world_rank()));
+        CUERR;
+        //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
+        err = cub::DeviceRadixSort::SortKeys(temp, temp_storage_bytes,
+            keys,
+            keys_vec.size(),
+            decomposer_x_prefix{}, 0, DCX::X * 8,
+            mcontext.get_gpu_default_stream(world_rank()));
+        CUERR_CHECK(err);
+        cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+        mcontext.sync_default_streams();
 
+        if (keys.Current() != thrust::raw_pointer_cast(keys_vec.data())) {
+            keys_vec.swap(keys_buffer);
+        }
+    }
+    TIMER_STOP_SAMPLESORT(SamplesortStages::X_prefix_sort);
+    TIMER_START_SAMPLESORT(SamplesortStages::Find_segments);
+
+    // ---------------------------------------------- ChatGPT
+
+    sa_index_t num_segments = 0;
+    thrust::device_vector<sa_index_t> d_counts(keys_vec.size());
+    {
+        thrust::device_vector<sa_index_t> d_ones(keys_vec.size(), 1);
+        thrust::device_vector<MergeSuffixes> d_unique_prefixes(keys_vec.size());
+
+        auto new_end = thrust::reduce_by_key(
+            keys_vec.begin(), keys_vec.end(),
+            d_ones.begin(),
+            d_unique_prefixes.begin(),
+            d_counts.begin(),
+            prefix_equal()
+        );
+        num_segments = new_end.first - d_unique_prefixes.begin();
+        d_counts.resize(num_segments);
+    }
+    // Step 4: Copy only segments with size > 1 (device-only)
+    thrust::device_vector<sa_index_t> d_segment_starts(num_segments);
+    thrust::device_vector<sa_index_t> d_segment_ends(num_segments);
+    {
+        // Step 3: Compute start offsets of segments
+        thrust::device_vector<sa_index_t> d_offsets(num_segments);
+        thrust::exclusive_scan(d_counts.begin(), d_counts.end(), d_offsets.begin());
+
+
+        auto zip_in = thrust::make_zip_iterator(thrust::make_tuple(d_offsets.begin(), d_counts.begin()));
+        auto zip_out = thrust::make_zip_iterator(thrust::make_tuple(d_segment_starts.begin(), d_segment_ends.begin()));
+
+        auto new_zip_end = thrust::copy_if(
+            zip_in, zip_in + num_segments,
+            d_counts.begin(),     // stencil
+            zip_out,
+            [] __device__(sa_index_t count) { return count > 1; }
+        );
+
+        sa_index_t num_valid = thrust::get<0>(new_zip_end.get_iterator_tuple()) - d_segment_starts.begin();
+        d_segment_starts.resize(num_valid);
+        d_segment_ends.resize(num_valid);
+        // // Step 5: compute segment_end = segment_start + segment_count (device transform)
+        // thrust::transform(
+            //     d_segment_starts.begin(),
+            //     d_segment_starts.end(),
+            //     d_counts.begin(), // note: counts correspond to the same filtered segments
+            //     d_segment_ends.begin(),
+            //     [] __device__(sa_index_t start, sa_index_t count) {
+                //     return start + count;
+                // }
+                // );
+        thrust::host_vector<sa_index_t> h_segment_starts = d_segment_starts;
+        thrust::host_vector<sa_index_t> h_counts = d_counts;
+
+        printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_valid);
+        for (int i = 0; i < num_valid; ++i)
+            printf("[%lu]  segment %u: start=%u end=%u (size=%u)\n", world_rank(),
+                i, h_segment_starts[i], h_segment_starts[i] + d_counts[i], d_counts[i]);
+    }
+
+    // ---------------------------------------------- ChatGPT
+    TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
+    TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
+    for (size_t i = 0; i < d_segment_starts.size(); i++)
+    {
+        size_t temp_storage_size = 0;
+        cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{}, mcontext.get_gpu_default_stream(world_rank()));
+        // keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
+        void* temp;
+        cudaMallocAsync(&temp, temp_storage_size);
+        CUERR;
+        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{}, mcontext.get_gpu_default_stream(world_rank()));
+        cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+    }
+    mcontext.sync_all_streams();
+    comm_world().barrier();
+    TIMER_STOP_SAMPLESORT(SamplesortStages::Sort_segments);
+}
 template<typename key>
 void HostSampleSort(std::vector<key>& keys, std::vector<key>& keys_out, size_t NUM_GPUS, size_t size, size_t sample_size) {
     std::random_device rd;

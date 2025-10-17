@@ -1091,6 +1091,7 @@ private:
         // }
         // comm_world().barrier();
         SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, std::min(size_t(32ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext, mperf_measure);
+        SegmentedSort<NUM_GPUS>(merge_tuple_vec, mcontext, mperf_measure);
         {
             // bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
             // printf("[%lu] is locally sorted: %s\n", world_rank(), locally_sorted ? "true" : "false");
@@ -2014,7 +2015,7 @@ int main(int argc, char** argv)
     // nvtxRangePop();
     // t.stop();
     // if (world_rank() == 0)
-    // write_array_mpi(argv[1], sorter.get_result(), sorter.get_sa_length());
+    write_array_mpi(argv[1], sorter.get_result(), sorter.get_sa_length());
     // comm_world().barrier();
     sorter.done();
 

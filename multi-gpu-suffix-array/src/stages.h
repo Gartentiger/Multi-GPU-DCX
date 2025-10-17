@@ -49,12 +49,15 @@ decl_main_stage(Final_Merge)
     decl_prepare_final_merge_stage(S0_Combine)
 
 #define SAMPLESORT(decl_samplesort_stage)  \
-    decl_samplesort_stage(SAMPLE)          \
-    decl_samplesort_stage(SEND_SAMPLES)    \
-    decl_samplesort_stage(SORT_SAMPLES)    \
-    decl_samplesort_stage(BUCKET)          \
-    decl_samplesort_stage(ALL2ALL_BUCKETS) \
-    decl_samplesort_stage(SORT_BUCKETS)
+    decl_samplesort_stage(Pick_samples)    \
+    decl_samplesort_stage(Send_samples)    \
+    decl_samplesort_stage(Sort_samples)    \
+    decl_samplesort_stage(Bucketing)       \
+    decl_samplesort_stage(All2All_buckets) \
+    decl_samplesort_stage(X_prefix_sort)   \
+    decl_samplesort_stage(Find_segments)   \
+    decl_samplesort_stage(Sort_segments)   
+
 
 #define CREATE_STAGE_ENUM(name) name,
 
