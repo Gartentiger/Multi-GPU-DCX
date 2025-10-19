@@ -373,10 +373,10 @@ struct DC21 {
 };
 
 using MergeStageSuffix = MergeStageSuffixS0;
-using DCX = DC3;
+using DCX = DC21;
 
 struct kmerDCX {
-    unsigned char kmer[DCX::X];
+    std::array<unsigned char, DCX::X> kmer;
 };
 struct dc3_kmer_decomposer
 {
@@ -408,7 +408,7 @@ struct dc21_kmer_decomposer
 };
 
 using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjustment in code
-using DCXKmerDecomposer = dc3_kmer_decomposer;
+using DCXKmerDecomposer = dc21_kmer_decomposer;
 
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
@@ -447,11 +447,11 @@ struct decomposer_21_prefix
         return { key.prefix[0],key.prefix[1],key.prefix[2],key.prefix[3],key.prefix[4],key.prefix[5],key.prefix[6],key.prefix[7],key.prefix[8],key.prefix[9],key.prefix[10],key.prefix[11],key.prefix[12],key.prefix[13],key.prefix[14],key.prefix[15],key.prefix[16],key.prefix[17],key.prefix[18],key.prefix[19],key.prefix[20] };
     }
 };
-using decomposer_x_prefix = decomposer_3_prefix;
+using decomposer_x_prefix = decomposer_21_prefix;
 
 
 struct Compare_Prefix_Opt {
-    __device__ __forceinline__ static int cmp8(const unsigned char* pa, const unsigned char* pb)
+    __host__ __device__ __forceinline__ static int cmp8(const unsigned char* pa, const unsigned char* pb)
     {
         uint64_t va = *reinterpret_cast<const uint64_t*>(pa);
         uint64_t vb = *reinterpret_cast<const uint64_t*>(pb);
@@ -465,7 +465,7 @@ struct Compare_Prefix_Opt {
         return (ca < cb) ? -1 : 1;
     }
 
-    __device__ __forceinline__ static int prefix_cmp(const unsigned char* pa, const unsigned char* pb)
+    __host__ __device__ __forceinline__ static int prefix_cmp(const unsigned char* pa, const unsigned char* pb)
     {
         // Compare 8 bytes at a time
         size_t offset = 0;
@@ -510,11 +510,10 @@ struct DCXComparatorDeviceOpt
 
 __host__ __device__ __forceinline__ bool operator==(const MergeSuffixes& a, const MergeSuffixes& b)
 {
-    for (size_t i = 0; i < DCX::X; i++)
-    {
-        if (a.prefix[i] != b.prefix[i]) {
-            return false;
-        }
+    const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
+    const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
+    if (Compare_Prefix_Opt::prefix_cmp(pa, pb) != 0) {
+        return false;
     }
     for (size_t i = 0; i < DCX::C; i++)
     {
@@ -543,11 +542,9 @@ __device__ __forceinline__ bool operator==(const MergeSuffixesPrefixCompare& a, 
 
 __host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmerDCX& b)
 {
-    for (size_t i = 0; i < DCX::X; i++)
-    {
-        if (a.kmer[i] == b.kmer[i]) {
-            continue;
-        }
+    const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.kmer.data());
+    const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.kmer.data());
+    if (Compare_Prefix_Opt::prefix_cmp(pa, pb) != 0) {
         return false;
     }
     return true;
@@ -557,16 +554,11 @@ struct KmerComparator
 {
     __host__ __device__ __forceinline__ bool operator()(const kmerDCX& a, const kmerDCX& b)
     {
-
-        for (size_t i = 0; i < DCX::X; i++)
-        {
-            if (a.kmer[i] < b.kmer[i]) {
-                return true;
-            }
-            if (a.kmer[i] > b.kmer[i]) {
-                return false;
-            }
-        }
+        const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.kmer.data());
+        const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.kmer.data());
+        int c = Compare_Prefix_Opt::prefix_cmp(pa, pb);
+        if (c < 0) return true;
+        if (c > 0) return false;
         return false;
     }
 };
