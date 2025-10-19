@@ -378,7 +378,7 @@ using DCX = DC3;
 struct kmerDCX {
     unsigned char kmer[DCX::X];
 };
-struct dc7_kmer_decomposer
+struct dc3_kmer_decomposer
 {
     __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
     {
