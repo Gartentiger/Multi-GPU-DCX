@@ -331,7 +331,7 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
         keys_vec.swap(keys_buffer_vec);
     }
     TIMER_STOP_SAMPLESORT(SamplesortStages::All2All_buckets);
-    TIMER_START_SAMPLESORT(SamplesortStages::X_prefix_sort);
+    TIMER_START_SAMPLESORT(SamplesortStages::Sort_buckets);
     // t.stop();
     // printf("[%lu] reordered keys with splitter, size: %lu\n", world_rank(), out_size);
     size_t temp_storage_size = 0;
@@ -343,7 +343,8 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
     CUERR;
     cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()), out_size, cmp, mcontext.get_gpu_default_stream(world_rank()));
     cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
-    TIMER_START_SAMPLESORT(SamplesortStages::X_prefix_sort);
+
+    TIMER_STOP_SAMPLESORT(SamplesortStages::Sort_buckets);
 
     // t.stop();
 
@@ -352,10 +353,10 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
 }
 template<size_t NUM_GPUS>
 void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUContext<NUM_GPUS>& mcontext, SuffixArrayPerformanceMeasurements& mperf_measure) {
-#define TIMER_START_SAMPLESORT(stage) mperf_measure.start_samplesort(stage)
-#define TIMER_STOP_SAMPLESORT(stage) mperf_measure.stop_samplesort(stage)
-    using SamplesortStages = perf_rec::SamplesortStages;
-    TIMER_START_SAMPLESORT(SamplesortStages::X_prefix_sort);
+    // #define TIMER_START_SAMPLESORT(stage) mperf_measure.start_samplesort(stage)
+    // #define TIMER_STOP_SAMPLESORT(stage) mperf_measure.stop_samplesort(stage)
+    //     using SamplesortStages = perf_rec::SamplesortStages;
+    //     TIMER_START_SAMPLESORT(SamplesortStages::X_prefix_sort);
     {
         size_t temp_storage_size = 0;
         thrust::device_vector<MergeSuffixes> keys_buffer(keys_vec.size());
@@ -386,8 +387,8 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
             keys_vec.swap(keys_buffer);
         }
     }
-    TIMER_STOP_SAMPLESORT(SamplesortStages::X_prefix_sort);
-    TIMER_START_SAMPLESORT(SamplesortStages::Find_segments);
+    // TIMER_STOP_SAMPLESORT(SamplesortStages::X_prefix_sort);
+    // TIMER_START_SAMPLESORT(SamplesortStages::Find_segments);
 
 
     thrust::host_vector<sa_index_t> h_segment_starts;
@@ -457,8 +458,8 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
     //     }
     // }
 
-    TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
-    TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
+    // TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
+    // TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
     // std::vector<size_t> temp_memory_for_segment(num_segments);
     if (num_segments > 0) {
         size_t temp_storage_size = 0;
@@ -481,7 +482,7 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
     }
     comm_world().barrier();
 
-    TIMER_STOP_SAMPLESORT(SamplesortStages::Sort_segments);
+    // TIMER_STOP_SAMPLESORT(SamplesortStages::Sort_segments);
 }
 
 template<typename key>
