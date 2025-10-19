@@ -378,7 +378,7 @@ using DCX = DC3;
 struct kmerDCX {
     unsigned char kmer[DCX::X];
 };
-struct dc3_kmer_decomposer
+struct dc7_kmer_decomposer
 {
     __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&> operator()(kmerDCX& key) const
     {
@@ -408,7 +408,7 @@ struct dc21_kmer_decomposer
 };
 
 using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjustment in code
-using DCXKmerDecomposer = dc3_kmer_decomposer;
+using DCXKmerDecomposer = dc7_kmer_decomposer;
 
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
@@ -447,7 +447,7 @@ struct decomposer_21_prefix
         return { key.prefix[0],key.prefix[1],key.prefix[2],key.prefix[3],key.prefix[4],key.prefix[5],key.prefix[6],key.prefix[7],key.prefix[8],key.prefix[9],key.prefix[10],key.prefix[11],key.prefix[12],key.prefix[13],key.prefix[14],key.prefix[15],key.prefix[16],key.prefix[17],key.prefix[18],key.prefix[19],key.prefix[20] };
     }
 };
-using decomposer_x_prefix = decomposer_3_prefix;
+using decomposer_x_prefix = decomposer_7_prefix;
 
 
 struct Compare_Prefix_Opt {
