@@ -507,23 +507,6 @@ struct DCXComparatorDeviceOpt
     }
 };
 
-
-__host__ __device__ __forceinline__ bool operator==(const MergeSuffixes& a, const MergeSuffixes& b)
-{
-    const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
-    const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
-    if (Compare_Prefix_Opt::prefix_cmp(pa, pb) != 0) {
-        return false;
-    }
-    for (size_t i = 0; i < DCX::C; i++)
-    {
-        if (a.ranks[i] != b.ranks[i]) {
-            return false;
-        }
-    }
-    return a.index == b.index;
-}
-
 // this struct is only used to make sure the right == operator is used during the DeviceRunLengthEncode
 struct MergeSuffixesPrefixCompare {
     sa_index_t index;
@@ -540,7 +523,7 @@ __device__ __forceinline__ bool operator==(const MergeSuffixesPrefixCompare& a, 
     return true;
 }
 
-__host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmerDCX& b)
+__device__ __forceinline__ bool operator==(const kmerDCX& a, const kmerDCX& b)
 {
     const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.kmer.data());
     const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.kmer.data());
@@ -554,11 +537,15 @@ struct KmerComparator
 {
     __host__ __device__ __forceinline__ bool operator()(const kmerDCX& a, const kmerDCX& b)
     {
-        const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.kmer.data());
-        const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.kmer.data());
-        int c = Compare_Prefix_Opt::prefix_cmp(pa, pb);
-        if (c < 0) return true;
-        if (c > 0) return false;
+        for (size_t i = 0; i < DCX::X; i++)
+        {
+            if (a.kmer[i] < b.kmer[i]) {
+                return true;
+            }
+            if (a.kmer[i] > b.kmer[i]) {
+                return false;
+            }
+        }
         return false;
     }
 };
@@ -572,6 +559,24 @@ struct DCXCompareRanks
         return a.ranks[r1] < b.ranks[r2];
     }
 };
+
+__host__ __device__ __forceinline__ bool operator==(const MergeSuffixes& a, const MergeSuffixes& b)
+{
+    for (size_t i = 0; i < DCX::X; i++)
+    {
+        if (a.prefix[i] != b.prefix[i]) {
+            return false;
+        }
+    }
+    for (size_t i = 0; i < DCX::C; i++)
+    {
+        if (a.ranks[i] != b.ranks[i]) {
+            return false;
+        }
+    }
+    return a.index == b.index;
+}
+
 
 struct DCXComparatorDeviceUnOpt
 {
