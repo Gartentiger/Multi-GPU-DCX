@@ -45,7 +45,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-static const uint NUM_GPUS = 24;
+static const uint NUM_GPUS = 4;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
@@ -215,7 +215,7 @@ public:
         copy_input();
         //
         mcontext.sync_all_streams();
-        printf("[%lu] Copy Input\n", world_rank());
+        // printf("[%lu] Copy Input\n", world_rank());
         comm_world().barrier();
         //
 
@@ -226,7 +226,7 @@ public:
         produce_kmers();
         //
         mcontext.sync_all_streams();
-        printf("[%lu] Produce kmers\n", world_rank());
+        // printf("[%lu] Produce kmers\n", world_rank());
         comm_world().barrier();
         //
 
@@ -252,7 +252,7 @@ public:
         prepare_S12_for_merge();
         //
         mcontext.sync_all_streams();
-        printf("[%lu] prepare s12 for merge done\n", world_rank());
+        // printf("[%lu] prepare s12 for merge done\n", world_rank());
         comm_world().barrier();
         //
 
@@ -261,7 +261,7 @@ public:
         prepare_S0_for_merge();
         //
         mcontext.sync_all_streams();
-        printf("[%lu] prepare s0 for merge done\n", world_rank());
+        // printf("[%lu] prepare s0 for merge done\n", world_rank());
         comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
@@ -269,7 +269,7 @@ public:
         final_merge();
         //
         mcontext.sync_all_streams();
-        printf("[%lu] final merge done\n", world_rank());
+        // printf("[%lu] final merge done\n", world_rank());
         comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
@@ -1613,7 +1613,7 @@ int main(int argc, char** argv)
 
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(2048 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(150 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
@@ -1626,7 +1626,7 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(&gpu_ids);
 #else
-    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3 };
+    const std::array<uint, NUM_GPUS> gpu_ids2{ 0,1,2,3 };
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 4);
     // warm_up_nccl(context);
