@@ -1093,11 +1093,7 @@ private:
         SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, std::min(size_t(32ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext, mperf_measure);
         mcontext.sync_all_streams();
         comm_world().barrier();
-        printf("[%lu] sample sort done\n", world_rank());
         SegmentedSort<NUM_GPUS>(merge_tuple_vec, mcontext, mperf_measure);
-        mcontext.sync_all_streams();
-        comm_world().barrier();
-        printf("[%lu] segmented sort done\n", world_rank());
 
         // {
             // bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
@@ -1149,10 +1145,15 @@ private:
         // printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
 
         thrust::device_vector<sa_index_t> d_sa(out_num_elements);
-        kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(thrust::raw_pointer_cast(merge_tuple_vec.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
+
+        if (out_num_elements > 5120) {
+            kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(thrust::raw_pointer_cast(merge_tuple_vec.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
+        }
+        else {
+            kernels::write_sa << <1, 1 >> > (thrust::raw_pointer_cast(merge_tuple_vec.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
+        }
         mcontext.sync_default_streams();
         comm_world().barrier();
-        printf("[%lu] write sa done\n", world_rank());
         mmemory_manager.set_sa_length(out_num_elements);
         mmemory_manager.get_result_vec().swap(d_sa);
 

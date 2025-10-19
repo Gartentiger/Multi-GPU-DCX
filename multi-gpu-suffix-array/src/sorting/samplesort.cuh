@@ -429,32 +429,32 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
         h_counts = d_counts;
     }
 
-    printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_segments);
-    for (int i = 0; i < num_segments; ++i)
-        printf("  segment %u: start=%u end=%u (size=%u)\n",
-            i, h_segment_starts[i], h_segment_starts[i] + h_counts[i], h_counts[i]);
+    // printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_segments);
+    // for (int i = 0; i < num_segments; ++i)
+    //     printf("  segment %u: start=%u end=%u (size=%u)\n",
+    //         i, h_segment_starts[i], h_segment_starts[i] + h_counts[i], h_counts[i]);
 
-    {
-        thrust::host_vector<MergeSuffixes> h_vec_keys = keys_vec;
-        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-        {
-            comm_world().barrier();
-            if (world_rank() == gpu_index) {
-                for (size_t i = 0; i < h_vec_keys.size(); i++) {
-                    printf("[%lu] [%lu] ", world_rank(), i);
-                    for (size_t x = 0; x < DCX::X; x++) {
-                        printf("%c, ", h_vec_keys[i].prefix[x]);
-                    }
-                    printf(" r ");
-                    for (size_t x = 0; x < DCX::C; x++) {
-                        printf("%u, ", h_vec_keys[i].ranks[x]);
-                    }
-                    printf("idx %u\n", h_vec_keys[i].index);
-                }
-            }
-            comm_world().barrier();
-        }
-    }
+    // {
+    //     thrust::host_vector<MergeSuffixes> h_vec_keys = keys_vec;
+    //     for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
+    //     {
+    //         comm_world().barrier();
+    //         if (world_rank() == gpu_index) {
+    //             for (size_t i = 0; i < h_vec_keys.size(); i++) {
+    //                 printf("[%lu] [%lu] ", world_rank(), i);
+    //                 for (size_t x = 0; x < DCX::X; x++) {
+    //                     printf("%c, ", h_vec_keys[i].prefix[x]);
+    //                 }
+    //                 printf(" r ");
+    //                 for (size_t x = 0; x < DCX::C; x++) {
+    //                     printf("%u, ", h_vec_keys[i].ranks[x]);
+    //                 }
+    //                 printf("idx %u\n", h_vec_keys[i].index);
+    //             }
+    //         }
+    //         comm_world().barrier();
+    //     }
+    // }
 
     TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
     TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
