@@ -389,79 +389,62 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
     TIMER_STOP_SAMPLESORT(SamplesortStages::X_prefix_sort);
     TIMER_START_SAMPLESORT(SamplesortStages::Find_segments);
 
-    // ---------------------------------------------- ChatGPT
 
-    sa_index_t num_segments = 0;
-    thrust::device_vector<sa_index_t> d_counts(keys_vec.size());
+    thrust::host_vector<sa_index_t> h_segment_starts;
+    thrust::host_vector<sa_index_t> h_counts;
+    sa_index_t  num_segments = 0;
+
     {
-        thrust::device_vector<sa_index_t> d_ones(keys_vec.size(), 1);
-        thrust::device_vector<MergeSuffixes> d_unique_prefixes(keys_vec.size());
+        thrust::device_vector<sa_index_t> d_counts(keys_vec.size());
+        thrust::device_vector<sa_index_t> d_segment_starts(keys_vec.size());
+        size_t temp_storage_bytes = 0;
+        thrust::device_vector<sa_index_t> d_num_segments(1);
 
-        auto new_end = thrust::reduce_by_key(
-            keys_vec.begin(), keys_vec.end(),
-            d_ones.begin(),
-            d_unique_prefixes.begin(),
-            d_counts.begin(),
-            prefix_equal()
+        cub::DeviceRunLengthEncode::NonTrivialRuns(
+            nullptr, temp_storage_bytes,
+            reinterpret_cast<MergeSuffixesPrefixCompare*>(thrust::raw_pointer_cast(keys_vec.data())),
+            thrust::raw_pointer_cast(d_segment_starts.data()), thrust::raw_pointer_cast(d_counts.data()),
+            thrust::raw_pointer_cast(d_num_segments.data()),
+            keys_vec.size(), mcontext.get_gpu_default_stream(world_rank())
         );
-        num_segments = new_end.first - d_unique_prefixes.begin();
+        void* temp;
+        // Allocate temporary storage
+        cudaMallocAsync(&temp, temp_storage_bytes, mcontext.get_gpu_default_stream(world_rank()));
+
+        // Run encoding
+        cub::DeviceRunLengthEncode::NonTrivialRuns(
+            temp, temp_storage_bytes,
+            reinterpret_cast<MergeSuffixesPrefixCompare*>(thrust::raw_pointer_cast(keys_vec.data())),
+            thrust::raw_pointer_cast(d_segment_starts.data()), thrust::raw_pointer_cast(d_counts.data()),
+            thrust::raw_pointer_cast(d_num_segments.data()),
+            keys_vec.size(), mcontext.get_gpu_default_stream(world_rank())
+        );
+
+        cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+
+        mcontext.sync_default_streams();
+
+        std::cout << d_num_segments[0] << std::endl;
+        num_segments = d_num_segments[0];
+        d_segment_starts.resize(num_segments);
         d_counts.resize(num_segments);
+        h_segment_starts = d_segment_starts;
+        h_counts = d_counts;
     }
-    // Step 4: Copy only segments with size > 1 (device-only)
-    thrust::device_vector<sa_index_t> d_segment_starts(num_segments);
-    thrust::device_vector<sa_index_t> d_segment_ends(num_segments);
+
+    printf(" Found %u duplicate-prefix segments:\n", num_segments);
+    for (int i = 0; i < num_segments; ++i)
+        printf("  segment %u: start=%u end=%u (size=%u)\n",
+            i, h_segment_starts[i], h_segment_starts[i] + h_counts[i], h_counts[i]);
+
     {
-        // Step 3: Compute start offsets of segments
-        thrust::device_vector<sa_index_t> d_offsets(num_segments);
-        thrust::exclusive_scan(d_counts.begin(), d_counts.end(), d_offsets.begin());
-
-
-        auto zip_in = thrust::make_zip_iterator(thrust::make_tuple(d_offsets.begin(), d_counts.begin()));
-        auto zip_out = thrust::make_zip_iterator(thrust::make_tuple(d_segment_starts.begin(), d_segment_ends.begin()));
-
-        auto new_zip_end = thrust::copy_if(
-            zip_in, zip_in + num_segments,
-            d_counts.begin(),     // stencil
-            zip_out,
-            [] __device__(sa_index_t count) { return count > 1; }
-        );
-
-        sa_index_t num_valid = thrust::get<0>(new_zip_end.get_iterator_tuple()) - d_segment_starts.begin();
-        d_segment_starts.resize(num_valid);
-        d_segment_ends.resize(num_valid);
-
-        // // Step 5: compute segment_end = segment_start + segment_count (device transform)
-        // thrust::transform(
-            //     d_segment_starts.begin(),
-            //     d_segment_starts.end(),
-            //     d_segment_ends.begin(), // note: counts correspond to the same filtered segments
-            //     d_segment_ends.begin(),
-            //     [] __device__(sa_index_t start, sa_index_t count) {
-                //     return start + count;
-                // }
-                // );
-                // ---------------------------------------------- ChatGPT
-        thrust::host_vector<sa_index_t> h_segment_starts = d_segment_starts;
-        thrust::host_vector<sa_index_t> h_counts = d_segment_ends;
-        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-        {
-            if (world_rank() == gpu_index) {
-                printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_valid);
-                for (int i = 0; i < num_valid; ++i)
-                    printf("[%lu]  segment %u: start=%u end=%u (size=%u)\n", world_rank(),
-                        i, h_segment_starts[i], h_segment_starts[i] + h_counts[i], h_counts[i]);
-            }
-            comm_world().barrier();
-
-        }
         thrust::host_vector<MergeSuffixes> h_vec_keys = keys_vec;
-
-        comm_world().barrier();
         for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
         {
+            comm_world().barrier();
             if (world_rank() == gpu_index) {
                 for (size_t i = 0; i < h_vec_keys.size(); i++) {
-                    printf("[%lu] ", world_rank());
+                    printf("[%lu] ", i);
                     for (size_t x = 0; x < DCX::X; x++) {
                         printf("%c, ", h_vec_keys[i].prefix[x]);
                     }
@@ -474,26 +457,35 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
             }
             comm_world().barrier();
         }
-        TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
-        TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
-        for (size_t i = 0; i < num_valid; i++)
-        {
-            size_t temp_storage_size = 0;
-            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{}, mcontext.get_gpu_default_stream(world_rank()));
-            // keys_vec.resize(SDIV(temp_storage_size, sizeof(key)));
-            void* temp;
-            cudaMallocAsync(&temp, temp_storage_size, mcontext.get_gpu_default_stream(world_rank()));
-            CUERR;
-            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{}, mcontext.get_gpu_default_stream(world_rank()));
-            cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
-        }
-        cudaDeviceSynchronize();
-        CUERR;
-        mcontext.sync_all_streams();
-        comm_world().barrier();
     }
+
+    TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
+    TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
+    // std::vector<size_t> temp_memory_for_segment(num_segments);
+    size_t temp_storage_size = 0;
+    for (size_t i = 0; i < num_segments; i++)
+    {
+        size_t temp_storage_size_segment = 0;
+        cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size_segment, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{});
+        temp_storage_size = std::max(temp_storage_size, temp_storage_size_segment);
+    }
+    void* temp;
+    cudaMallocAsync(&temp, temp_storage_size, mcontext.get_gpu_default_stream(world_rank()));
+    CUERR;
+
+    for (size_t i = 0; i < num_segments; i++)
+    {
+        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{}, mcontext.get_gpu_default_stream(world_rank()));
+    }
+    cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+    cudaDeviceSynchronize();
+    CUERR;
+    mcontext.sync_all_streams();
+    comm_world().barrier();
+
     TIMER_STOP_SAMPLESORT(SamplesortStages::Sort_segments);
 }
+
 template<typename key>
 void HostSampleSort(std::vector<key>& keys, std::vector<key>& keys_out, size_t NUM_GPUS, size_t size, size_t sample_size) {
     std::random_device rd;

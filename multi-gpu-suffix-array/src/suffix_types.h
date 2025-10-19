@@ -373,7 +373,7 @@ struct DC21 {
 };
 
 using MergeStageSuffix = MergeStageSuffixS0;
-using DCX = DC21;
+using DCX = DC3;
 
 struct kmerDCX {
     unsigned char kmer[DCX::X];
@@ -408,9 +408,7 @@ struct dc21_kmer_decomposer
 };
 
 using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjustment in code
-
-
-using DCXKmerDecomposer = dc21_kmer_decomposer;
+using DCXKmerDecomposer = dc3_kmer_decomposer;
 
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 struct MergeSuffixes {
@@ -418,70 +416,98 @@ struct MergeSuffixes {
     std::array<sa_index_t, DCX::C> ranks;
     std::array<unsigned char, DCX::X> prefix;
 };
-__host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffixes& b)
-{
-    sizeof(MergeSuffixes);
-    uint32_t l = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0];
-    uint32_t r1 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1];
-    uint32_t r2 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][2];
-    for (size_t i = 0; i < l; i++)
-    {
-        if (a.prefix[i] < b.prefix[i]) {
-            return true;
-        }
-        if (a.prefix[i] > b.prefix[i]) {
-            return false;
-        }
-    }
-    if (a.ranks[r1] < b.ranks[r2]) {
-        return true;
-    }
-    if (a.ranks[r1] > b.ranks[r2]) {
-        return false;
-    }
-    return a.index < b.index;
 
-}
 __constant__ uint32_t lookupNext[DCX::X][DCX::X][3];
 
-struct non_sample_prefix_decomp
+struct decomposer_3_prefix
 {
-    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, sa_index_t&> operator()(MergeSuffixes& key) const
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&> operator()(MergeSuffixes& key) const
     {
-        return { key.prefix[0], key.prefix[1], key.prefix[2], key.prefix[3], key.prefix[4], key.prefix[5], key.prefix[6], key.ranks[0] };
+        return { key.prefix[0],key.prefix[1],key.prefix[2] };
     }
 };
-
-
+struct decomposer_7_prefix
+{
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(MergeSuffixes& key) const
+    {
+        return { key.prefix[0],key.prefix[1],key.prefix[2],key.prefix[3],key.prefix[4],key.prefix[5],key.prefix[6] };
+    }
+};
+struct decomposer_13_prefix
+{
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(MergeSuffixes& key) const
+    {
+        return { key.prefix[0],key.prefix[1],key.prefix[2],key.prefix[3],key.prefix[4],key.prefix[5],key.prefix[6],key.prefix[7],key.prefix[8],key.prefix[9],key.prefix[10],key.prefix[11],key.prefix[12] };
+    }
+};
 struct decomposer_21_prefix
 {
-    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned  char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(MergeSuffixes& key) const
+    __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&, unsigned char&> operator()(MergeSuffixes& key) const
     {
         return { key.prefix[0],key.prefix[1],key.prefix[2],key.prefix[3],key.prefix[4],key.prefix[5],key.prefix[6],key.prefix[7],key.prefix[8],key.prefix[9],key.prefix[10],key.prefix[11],key.prefix[12],key.prefix[13],key.prefix[14],key.prefix[15],key.prefix[16],key.prefix[17],key.prefix[18],key.prefix[19],key.prefix[20] };
     }
 };
-using decomposer_x_prefix = decomposer_21_prefix;
+using decomposer_x_prefix = decomposer_3_prefix;
 
-struct rank_decomposer
-{
-    __host__ __device__ cuda::std::tuple<sa_index_t&> operator()(MergeSuffixes& key) const
+
+struct Compare_Prefix_Opt {
+    __device__ __forceinline__ static int cmp8(const unsigned char* pa, const unsigned char* pb)
     {
+        uint64_t va = *reinterpret_cast<const uint64_t*>(pa);
+        uint64_t vb = *reinterpret_cast<const uint64_t*>(pb);
+        if (va == vb) return 0;
 
-        return { key.ranks[0] };
+        uint64_t diff = va ^ vb;               // non-zero
+        int bit = __ffsll(diff);               // 1-based index of least-significant set bit
+        int byte = (bit - 1) >> 3;             // byte index inside this 8-byte word (0..7)
+        uint8_t ca = static_cast<uint8_t>((va >> (byte * 8)) & 0xFF);
+        uint8_t cb = static_cast<uint8_t>((vb >> (byte * 8)) & 0xFF);
+        return (ca < cb) ? -1 : 1;
+    }
+
+    __device__ __forceinline__ static int prefix_cmp(const unsigned char* pa, const unsigned char* pb)
+    {
+        // Compare 8 bytes at a time
+        size_t offset = 0;
+        const size_t N = DCX::X;
+        for (; offset + 8 <= N; offset += 8)
+        {
+            int c = cmp8(pa + offset, pb + offset);
+            if (c < 0) return -1;
+            if (c > 0) return 1;
+        }
+
+        // tail: remaining bytes (<8)
+        for (; offset < N; ++offset)
+        {
+            if (pa[offset] < pb[offset]) return -1;
+            if (pa[offset] > pb[offset]) return 1;
+        }
+
+        return 0;
     }
 };
 
-__host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmerDCX& b)
+struct DCXComparatorDeviceOpt
 {
-    for (size_t i = 0; i < DCX::X; i++)
+    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const
     {
-        if (a.kmer[i] == b.kmer[i]) {
-            continue;
-        }
-        return false;
+        const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
+        const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
+        int c = Compare_Prefix_Opt::prefix_cmp(pa, pb);
+        if (c < 0) return true;
+        if (c > 0) return false;
+
+        // prefixes equal -> compare ranks (same as original)
+        uint32_t ia = a.index % DCX::X;
+        uint32_t ib = b.index % DCX::X;
+        uint32_t r1 = lookupNext[ia][ib][1];
+        uint32_t r2 = lookupNext[ia][ib][2];
+        return a.ranks[r1] < b.ranks[r2];
     }
-    return true;
-}
+};
+
+
 __host__ __device__ __forceinline__ bool operator==(const MergeSuffixes& a, const MergeSuffixes& b)
 {
     for (size_t i = 0; i < DCX::X; i++)
@@ -498,6 +524,35 @@ __host__ __device__ __forceinline__ bool operator==(const MergeSuffixes& a, cons
     }
     return a.index == b.index;
 }
+
+// this struct is only used to make sure the right == operator is used during the DeviceRunLengthEncode
+struct MergeSuffixesPrefixCompare {
+    sa_index_t index;
+    std::array<sa_index_t, DCX::C> ranks;
+    std::array<unsigned char, DCX::X> prefix;
+};
+__device__ __forceinline__ bool operator==(const MergeSuffixesPrefixCompare& a, const MergeSuffixesPrefixCompare& b)
+{
+    const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
+    const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
+    if (Compare_Prefix_Opt::prefix_cmp(pa, pb) != 0) {
+        return false;
+    }
+    return true;
+}
+
+__host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmerDCX& b)
+{
+    for (size_t i = 0; i < DCX::X; i++)
+    {
+        if (a.kmer[i] == b.kmer[i]) {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
 struct KmerComparator
 {
     __host__ __device__ __forceinline__ bool operator()(const kmerDCX& a, const kmerDCX& b)
@@ -515,53 +570,17 @@ struct KmerComparator
         return false;
     }
 };
-struct DCXComparatorDeviceOpt
+
+struct DCXCompareRanks
 {
-    // compare one 8-byte block lexicographically; returns -1, 0, or +1
-    __device__ __forceinline__ static int cmp8(const unsigned char* pa, const unsigned char* pb)
+    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
     {
-        uint64_t va = *reinterpret_cast<const uint64_t*>(pa);
-        uint64_t vb = *reinterpret_cast<const uint64_t*>(pb);
-        if (va == vb) return 0;
-
-        uint64_t diff = va ^ vb;               // non-zero
-        int bit = __ffsll(diff);               // 1-based index of least-significant set bit
-        int byte = (bit - 1) >> 3;             // byte index inside this 8-byte word (0..7)
-        uint8_t ca = static_cast<uint8_t>((va >> (byte * 8)) & 0xFF);
-        uint8_t cb = static_cast<uint8_t>((vb >> (byte * 8)) & 0xFF);
-        return (ca < cb) ? -1 : 1;
-    }
-
-    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const
-    {
-        const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
-        const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
-
-        // Compare 8 bytes at a time
-        size_t offset = 0;
-        const size_t N = DCX::X;
-        for (; offset + 8 <= N; offset += 8)
-        {
-            int c = cmp8(pa + offset, pb + offset);
-            if (c < 0) return true;
-            if (c > 0) return false;
-        }
-
-        // tail: remaining bytes (<8)
-        for (; offset < N; ++offset)
-        {
-            if (pa[offset] < pb[offset]) return true;
-            if (pa[offset] > pb[offset]) return false;
-        }
-
-        // prefixes equal -> compare ranks (same as original)
-        uint32_t ia = a.index % DCX::X;
-        uint32_t ib = b.index % DCX::X;
-        uint32_t r1 = lookupNext[ia][ib][1];
-        uint32_t r2 = lookupNext[ia][ib][2];
+        uint32_t r1 = lookupNext[a.index % DCX::X][b.index % DCX::X][1];
+        uint32_t r2 = lookupNext[a.index % DCX::X][b.index % DCX::X][2];
         return a.ranks[r1] < b.ranks[r2];
     }
 };
+
 struct DCXComparatorDeviceUnOpt
 {
     __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
@@ -587,15 +606,7 @@ struct DCXComparatorDeviceUnOpt
         return a.index < b.index;
     }
 };
-struct DCXCompareRanks
-{
-    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
-    {
-        uint32_t r1 = lookupNext[a.index % DCX::X][b.index % DCX::X][1];
-        uint32_t r2 = lookupNext[a.index % DCX::X][b.index % DCX::X][2];
-        return a.ranks[r1] < b.ranks[r2];
-    }
-};
+
 struct DCXComparatorHost
 {
     __host__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
@@ -622,60 +633,30 @@ struct DCXComparatorHost
     }
 };
 
-
-struct prefix_equal {
-    __device__ __forceinline__ static int cmp8(const unsigned char* pa, const unsigned char* pb) {
-        uint64_t va = *reinterpret_cast<const uint64_t*>(pa);
-        uint64_t vb = *reinterpret_cast<const uint64_t*>(pb);
-        if (va == vb) return 0;
-
-        uint64_t diff = va ^ vb;               // non-zero
-        int bit = __ffsll(diff);               // 1-based index of least-significant set bit
-        int byte = (bit - 1) >> 3;             // byte index inside this 8-byte word (0..7)
-        uint8_t ca = static_cast<uint8_t>((va >> (byte * 8)) & 0xFF);
-        uint8_t cb = static_cast<uint8_t>((vb >> (byte * 8)) & 0xFF);
-        return (ca < cb) ? -1 : 1;
+__host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffixes& b)
+{
+    sizeof(MergeSuffixes);
+    uint32_t l = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][0];
+    uint32_t r1 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][1];
+    uint32_t r2 = DCX::nextSample[a.index % DCX::X][b.index % DCX::X][2];
+    for (size_t i = 0; i < l; i++)
+    {
+        if (a.prefix[i] < b.prefix[i]) {
+            return true;
+        }
+        if (a.prefix[i] > b.prefix[i]) {
+            return false;
+        }
     }
-    __device__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b) const {
-
-        const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
-        const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
-        // Compare 8 bytes at a time
-        size_t offset = 0;
-        const size_t N = DCX::X;
-        for (; offset + 8 <= N; offset += 8)
-        {
-            int c = cmp8(pa + offset, pb + offset);
-            if (c < 0) return false;
-            if (c > 0) return false;
-        }
-
-        // tail: remaining bytes (<8)
-        for (; offset < N; ++offset)
-        {
-            if (pa[offset] < pb[offset]) return false;
-            if (pa[offset] > pb[offset]) return false;
-        }
-
+    if (a.ranks[r1] < b.ranks[r2]) {
         return true;
     }
-};
+    if (a.ranks[r1] > b.ranks[r2]) {
+        return false;
+    }
+    return a.index < b.index;
 
-// struct prefix_diff {
-//     const prefix_equal eq;
-//     const MergeSuffixes* data;
-//     __host__ __device__
-//         prefix_diff(const MergeSuffixes* _data, const prefix_equal _eq) : data(_data), eq(_eq) {}
+}
 
-//     __device__ sa_index_t operator()(sa_index_t i) const {
-//         if (i == 0) return 0;  // first element starts a new segment
-//         const MergeSuffixes& a = data[i - 1];
-//         const MergeSuffixes& b = data[i];
-//         for (sa_index_t k = 0; k < DCX::X; ++k)
-//             if (!eq(a, b))
-//                 return 1;  // new segment starts here
-//         return 0;          // same prefix as previous
-//     }
-// };
 using DCXComparatorDevice = DCXComparatorDeviceOpt;
 #endif // CONFIG_H
