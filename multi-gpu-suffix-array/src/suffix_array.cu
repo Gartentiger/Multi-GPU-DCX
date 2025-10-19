@@ -55,7 +55,7 @@
 #include "dcx_data_generation.hpp"
 #include "sorting/samplesort.cuh"
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -378,7 +378,7 @@ public:
 
         //
         mcontext.sync_all_streams();
-        printf("[%lu] Copy Input\n", world_rank());
+        // printf("[%lu] Copy Input\n", world_rank());
         comm_world().barrier();
         //
 
@@ -389,7 +389,7 @@ public:
         produce_kmers();
         //
         mcontext.sync_all_streams();
-        printf("[%lu] Produce kmers\n", world_rank());
+        // printf("[%lu] Produce kmers\n", world_rank());
         comm_world().barrier();
         //
 
@@ -399,7 +399,7 @@ public:
 
         mtook_pd_iterations = mpd_sorter.sort(1);
         comm_world().barrier();
-        printf("[%lu] prefix doubling done\n", world_rank());
+        // printf("[%lu] prefix doubling done\n", world_rank());
 
         // auto& t = kamping::measurements::timer();
         // t.aggregate_and_print(
@@ -1095,9 +1095,9 @@ private:
         SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, std::min(size_t(32ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext, mperf_measure);
         mcontext.sync_all_streams();
         comm_world().barrier();
-        printf("[%lu] samplesorting done\n", world_rank());
-        SegmentedSort<NUM_GPUS>(merge_tuple_vec, mcontext, mperf_measure);
-        printf("[%lu] segmented sort done\n", world_rank());
+        // printf("[%lu] samplesorting done\n", world_rank());
+        // SegmentedSort<NUM_GPUS>(merge_tuple_vec, mcontext, mperf_measure);
+        // printf("[%lu] segmented sort done\n", world_rank());
 
         // {
             // bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
@@ -2028,7 +2028,7 @@ int main(int argc, char** argv)
     // nvtxRangePop();
     // t.stop();
     // if (world_rank() == 0)
-    write_array_mpi(argv[1], sorter.get_result(), sorter.get_sa_length());
+    // write_array_mpi(argv[1], sorter.get_result(), sorter.get_sa_length());
     // comm_world().barrier();
     sorter.done();
 
