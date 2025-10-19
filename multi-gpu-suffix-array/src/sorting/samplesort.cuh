@@ -428,8 +428,9 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
         h_segment_starts = d_segment_starts;
         h_counts = d_counts;
     }
+    comm_world().barrier();
 
-    // printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_segments);
+    printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_segments);
     // for (int i = 0; i < num_segments; ++i)
     //     printf("  segment %u: start=%u end=%u (size=%u)\n",
     //         i, h_segment_starts[i], h_segment_starts[i] + h_counts[i], h_counts[i]);

@@ -378,7 +378,7 @@ public:
 
         //
         mcontext.sync_all_streams();
-        // printf("[%lu] Copy Input\n", world_rank());
+        printf("[%lu] Copy Input\n", world_rank());
         comm_world().barrier();
         //
 
@@ -389,7 +389,7 @@ public:
         produce_kmers();
         //
         mcontext.sync_all_streams();
-        // printf("[%lu] Produce kmers\n", world_rank());
+        printf("[%lu] Produce kmers\n", world_rank());
         comm_world().barrier();
         //
 
@@ -398,7 +398,9 @@ public:
         //            mpd_sorter.dump("After K-Mers");
 
         mtook_pd_iterations = mpd_sorter.sort(1);
-        // comm_world().barrier();
+        comm_world().barrier();
+        printf("[%lu] prefix doubling done\n", world_rank());
+
         // auto& t = kamping::measurements::timer();
         // t.aggregate_and_print(
         //     kamping::measurements::SimpleJsonPrinter{ std::cout, {} });
@@ -1093,7 +1095,9 @@ private:
         SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, std::min(size_t(32ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext, mperf_measure);
         mcontext.sync_all_streams();
         comm_world().barrier();
+        printf("[%lu] samplesorting done\n", world_rank());
         SegmentedSort<NUM_GPUS>(merge_tuple_vec, mcontext, mperf_measure);
+        printf("[%lu] segmented sort done\n", world_rank());
 
         // {
             // bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
