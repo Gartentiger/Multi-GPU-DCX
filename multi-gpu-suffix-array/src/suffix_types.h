@@ -451,7 +451,7 @@ using decomposer_x_prefix = decomposer_21_prefix;
 
 
 struct Compare_Prefix_Opt {
-    __host__ __device__ __forceinline__ static int cmp8(const unsigned char* pa, const unsigned char* pb)
+    __device__ __forceinline__ static int cmp8(const unsigned char* pa, const unsigned char* pb)
     {
         uint64_t va = *reinterpret_cast<const uint64_t*>(pa);
         uint64_t vb = *reinterpret_cast<const uint64_t*>(pb);
@@ -465,7 +465,7 @@ struct Compare_Prefix_Opt {
         return (ca < cb) ? -1 : 1;
     }
 
-    __host__ __device__ __forceinline__ static int prefix_cmp(const unsigned char* pa, const unsigned char* pb)
+    __device__ __forceinline__ static int prefix_cmp(const unsigned char* pa, const unsigned char* pb)
     {
         // Compare 8 bytes at a time
         size_t offset = 0;
