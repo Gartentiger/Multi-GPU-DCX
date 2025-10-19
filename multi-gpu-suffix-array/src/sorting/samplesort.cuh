@@ -408,10 +408,8 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
             keys_vec.size(), mcontext.get_gpu_default_stream(world_rank())
         );
         void* temp;
-        // Allocate temporary storage
         cudaMallocAsync(&temp, temp_storage_bytes, mcontext.get_gpu_default_stream(world_rank()));
 
-        // Run encoding
         cub::DeviceRunLengthEncode::NonTrivialRuns(
             temp, temp_storage_bytes,
             reinterpret_cast<MergeSuffixesPrefixCompare*>(thrust::raw_pointer_cast(keys_vec.data())),
@@ -424,7 +422,6 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
 
         mcontext.sync_default_streams();
 
-        std::cout << d_num_segments[0] << std::endl;
         num_segments = d_num_segments[0];
         d_segment_starts.resize(num_segments);
         d_counts.resize(num_segments);
@@ -432,7 +429,7 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
         h_counts = d_counts;
     }
 
-    printf(" Found %u duplicate-prefix segments:\n", num_segments);
+    printf("[%lu] Found %u duplicate-prefix segments:\n", world_rank(), num_segments);
     for (int i = 0; i < num_segments; ++i)
         printf("  segment %u: start=%u end=%u (size=%u)\n",
             i, h_segment_starts[i], h_segment_starts[i] + h_counts[i], h_counts[i]);
@@ -444,7 +441,7 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
             comm_world().barrier();
             if (world_rank() == gpu_index) {
                 for (size_t i = 0; i < h_vec_keys.size(); i++) {
-                    printf("[%lu] ", i);
+                    printf("[%lu] [%lu] ", world_rank(), i);
                     for (size_t x = 0; x < DCX::X; x++) {
                         printf("%c, ", h_vec_keys[i].prefix[x]);
                     }
@@ -462,25 +459,25 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, MultiGPUCont
     TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
     TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
     // std::vector<size_t> temp_memory_for_segment(num_segments);
-    size_t temp_storage_size = 0;
-    for (size_t i = 0; i < num_segments; i++)
-    {
-        size_t temp_storage_size_segment = 0;
-        cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size_segment, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{});
-        temp_storage_size = std::max(temp_storage_size, temp_storage_size_segment);
-    }
-    void* temp;
-    cudaMallocAsync(&temp, temp_storage_size, mcontext.get_gpu_default_stream(world_rank()));
-    CUERR;
+    if (num_segments > 0) {
+        size_t temp_storage_size = 0;
+        for (size_t i = 0; i < num_segments; i++)
+        {
+            size_t temp_storage_size_segment = 0;
+            cub::DeviceMergeSort::SortKeys(nullptr, temp_storage_size_segment, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{});
+            temp_storage_size = std::max(temp_storage_size, temp_storage_size_segment);
+        }
+        void* temp;
+        cudaMallocAsync(&temp, temp_storage_size, mcontext.get_gpu_default_stream(world_rank()));
+        CUERR;
 
-    for (size_t i = 0; i < num_segments; i++)
-    {
-        cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{}, mcontext.get_gpu_default_stream(world_rank()));
+        for (size_t i = 0; i < num_segments; i++)
+        {
+            cub::DeviceMergeSort::SortKeys(temp, temp_storage_size, thrust::raw_pointer_cast(keys_vec.data()) + h_segment_starts[i], h_counts[i], DCXCompareRanks{}, mcontext.get_gpu_default_stream(world_rank()));
+        }
+        cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
+        mcontext.sync_default_streams();
     }
-    cudaFreeAsync(temp, mcontext.get_gpu_default_stream(world_rank()));
-    cudaDeviceSynchronize();
-    CUERR;
-    mcontext.sync_all_streams();
     comm_world().barrier();
 
     TIMER_STOP_SAMPLESORT(SamplesortStages::Sort_segments);

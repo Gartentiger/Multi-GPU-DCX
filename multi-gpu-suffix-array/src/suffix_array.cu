@@ -1097,9 +1097,9 @@ private:
         SegmentedSort<NUM_GPUS>(merge_tuple_vec, mcontext, mperf_measure);
         mcontext.sync_all_streams();
         comm_world().barrier();
-        printf("[%lu] sample sort done\n", world_rank());
+        printf("[%lu] segmented sort done\n", world_rank());
 
-        {
+        // {
             // bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
             // printf("[%lu] is locally sorted: %s\n", world_rank(), locally_sorted ? "true" : "false");
             // thrust::host_vector<MergeSuffixes> locally_sorted_tuples = merge_tuple_out_vec;
@@ -1136,11 +1136,10 @@ private:
 
             // }
 
-        }
+        // }
         // MultiMerge<MergeSuffixes, DCXComparatorDevice, DCXComparatorHost, NUM_GPUS>(merge_tuple_vec, merge_tuple_out_vec, DCXComparatorDevice{}, DCXComparatorHost{}, mcontext);
         // merge_tuple_out_vec.swap(merge_tuple_vec);
 
-        mcontext.sync_all_streams();
 
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
@@ -1151,7 +1150,9 @@ private:
 
         thrust::device_vector<sa_index_t> d_sa(out_num_elements);
         kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(thrust::raw_pointer_cast(merge_tuple_vec.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
-        mcontext.sync_all_streams();
+        mcontext.sync_default_streams();
+        comm_world().barrier();
+        printf("[%lu] write sa done\n", world_rank());
         mmemory_manager.set_sa_length(out_num_elements);
         mmemory_manager.get_result_vec().swap(d_sa);
 
@@ -1318,7 +1319,7 @@ private:
             //                        i = gpu.num_elements-10;
             //                    print_final_merge_suffix(i, arr.buffer[i]);
             //                }
-}
+        }
     }
 #endif
 
