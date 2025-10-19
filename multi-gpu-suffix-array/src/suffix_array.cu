@@ -55,7 +55,7 @@
 #include "dcx_data_generation.hpp"
 #include "sorting/samplesort.cuh"
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -1639,7 +1639,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
             context.sync_all_streams();
             cudaMemset(d_A_recv[world_rank()], 0, sizeof(sa_index_t) * per_gpu);
             comm_world().barrier();
-        }
+    }
         context.sync_all_streams();
         comm_world().barrier();
 
@@ -1697,7 +1697,7 @@ void alltoallMeasure(MultiGPUContext<NUM_GPUS>& context)
         // cudaFree(temp_buffer[gpu_index]);
         free(A);
         comm_world().barrier();
-    }
+}
 
     if (world_rank() == 0)
     {
