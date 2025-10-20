@@ -352,7 +352,7 @@ void SampleSort(thrust::device_vector <key>& keys_vec, size_t sample_size, Compa
     // printf("[%lu] sorted key.size: %lu\n", world_rank(), keys_vec.size());
 }
 template<size_t NUM_GPUS>
-void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, thrust::device_vector <MergeSuffixes>& final_tuples, MultiGPUContext<NUM_GPUS>& mcontext, SuffixArrayPerformanceMeasurements& mperf_measure) {
+void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, thrust::device_vector <MergeSuffixesFinal>& final_tuples, MultiGPUContext<NUM_GPUS>& mcontext, SuffixArrayPerformanceMeasurements& mperf_measure) {
 #define TIMER_START_SAMPLESORT(stage) mperf_measure.start_samplesort(stage)
 #define TIMER_STOP_SAMPLESORT(stage) mperf_measure.stop_samplesort(stage)
     using SamplesortStages = perf_rec::SamplesortStages;
