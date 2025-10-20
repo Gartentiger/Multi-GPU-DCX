@@ -374,7 +374,7 @@ struct DC21 {
 
 using MergeStageSuffix = MergeStageSuffixS0;
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using DCX = DC13;
+using DCX = DC3;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 struct kmerDCX {
@@ -411,7 +411,7 @@ struct dc21_kmer_decomposer
 
 using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjustment in code
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using DCXKmerDecomposer = dc13_kmer_decomposer;
+using DCXKmerDecomposer = dc3_kmer_decomposer;
 //------------------------------------------------------------------------------------------------------------------------------------
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 
@@ -454,7 +454,7 @@ struct decomposer_21_prefix
 };
 
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using decomposer_x_prefix = decomposer_13_prefix;
+using decomposer_x_prefix = decomposer_3_prefix;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -525,11 +525,18 @@ struct prefix_diff {
         if (i == 0) return 0;  // first element starts a new segment
         const MergeSuffixes& a = data[i - 1];
         const MergeSuffixes& b = data[i];
-        int c = Compare_Prefix_Opt::prefix_cmp(a.prefix.data(), b.prefix.data());
-        if (c != 0) {
-            // new segment starts here
-            return 1;
+
+        for (size_t i = 0; i < DCX::X; i++)
+        {
+            if (a.prefix[i] != b.prefix[i]) {
+                return 1;
+            }
         }
+        // int c = Compare_Prefix_Opt::prefix_cmp(a.prefix.data(), b.prefix.data());
+        // if (c != 0) {
+        //     // new segment starts here
+        //     return 1;
+        // }
         return 0;          // same prefix as previous
     }
 };
