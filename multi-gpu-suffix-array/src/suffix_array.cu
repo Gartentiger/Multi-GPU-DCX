@@ -1097,7 +1097,7 @@ private:
         comm_world().barrier();
         printf("[%lu] samplesorting done\n", world_rank());
         thrust::device_vector<MergeSuffixesFinal> final_tuples;
-        SegmentedSort(merge_tuple_vec, final_tuples, mcontext, mperf_measure);
+        SegmentedSort<NUM_GPUS>(merge_tuple_vec, final_tuples, mcontext, mperf_measure);
         printf("[%lu] segmented sort done\n", world_rank());
 
         // {

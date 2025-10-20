@@ -540,7 +540,7 @@ struct prefix_diff {
         if (i == 0) return 0;  // first element starts a new segment
         const MergeSuffixes& a = data[i - 1];
         const MergeSuffixes& b = data[i];
-        int c = Compare_Prefix_Opt::prefix_cmp(a.prefix, b.prefix);
+        int c = Compare_Prefix_Opt::prefix_cmp(a.prefix.data(), b.prefix.data());
         if (c != 0) {
             // new segment starts here
             return 1;
@@ -571,9 +571,6 @@ struct make_tuple_final {
 #pragma unroll
         for (int k = 0; k < DCX::C; ++k)
             out.ranks[k] = src.ranks[k];
-#pragma unroll
-        for (int k = 0; k < DCX::X; ++k)
-            out.prefix[k] = src.prefix[k];
         return out;
     }
 };

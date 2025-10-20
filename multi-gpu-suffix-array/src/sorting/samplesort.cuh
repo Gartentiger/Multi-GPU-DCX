@@ -388,7 +388,7 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, thrust::devi
         }
     }
     TIMER_STOP_SAMPLESORT(SamplesortStages::Sort_buckets);
-    prinft("[%lu] sorted prefixes\n", world_rank());
+    printf("[%lu] sorted prefixes\n", world_rank());
     TIMER_START_SAMPLESORT(SamplesortStages::Find_segments);
 
     final_tuples.resize(keys_vec.size());
@@ -445,7 +445,7 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, thrust::devi
     // }
 
     TIMER_STOP_SAMPLESORT(SamplesortStages::Find_segments);
-    prinft("[%lu] segments done\n", world_rank());
+    printf("[%lu] segments done\n", world_rank());
 
     TIMER_START_SAMPLESORT(SamplesortStages::Sort_segments);
     // std::vector<size_t> temp_memory_for_segment(num_segments);
