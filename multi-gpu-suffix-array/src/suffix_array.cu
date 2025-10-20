@@ -55,7 +55,7 @@
 #include "dcx_data_generation.hpp"
 #include "sorting/samplesort.cuh"
 
-static const uint NUM_GPUS = 4;
+static const uint NUM_GPUS = 8;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -1095,10 +1095,10 @@ private:
         SampleSort<MergeSuffixes, DCXComparatorDevice, NUM_GPUS>(merge_tuple_vec, std::min(size_t(32ULL * log(NUM_GPUS) / log(2.)), mgpus[NUM_GPUS - 1].num_elements / 2), DCXComparatorDevice{}, mcontext, mperf_measure);
         mcontext.sync_all_streams();
         comm_world().barrier();
-        printf("[%lu] samplesorting done\n", world_rank());
+        // printf("[%lu] samplesorting done\n", world_rank());
         thrust::device_vector<MergeSuffixesFinal> final_tuples;
         SegmentedSort<NUM_GPUS>(merge_tuple_vec, final_tuples, mcontext, mperf_measure);
-        printf("[%lu] segmented sort done\n", world_rank());
+        // printf("[%lu] segmented sort done\n", world_rank());
 
         // {
             // bool locally_sorted = thrust::is_sorted(merge_tuple_out_vec.begin(), merge_tuple_out_vec.end(), DCXComparatorDevice{});
@@ -2029,7 +2029,7 @@ int main(int argc, char** argv)
     // nvtxRangePop();
     // t.stop();
     // if (world_rank() == 0)
-    write_array_mpi(argv[1], sorter.get_result(), sorter.get_sa_length());
+    // write_array_mpi(argv[1], sorter.get_result(), sorter.get_sa_length());
     comm_world().barrier();
     sorter.done();
 
