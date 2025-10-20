@@ -522,12 +522,21 @@ struct MergeSuffixesPrefixCompare {
 };
 __device__ __forceinline__ bool operator==(const MergeSuffixesPrefixCompare& a, const MergeSuffixesPrefixCompare& b)
 {
-    const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
-    const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
-    if (Compare_Prefix_Opt::prefix_cmp(pa, pb) != 0) {
-        return false;
+    for (size_t i = 0; i < DCX::X; i++)
+    {
+        if (a.prefix[i] != b.prefix[i]) {
+            return false;
+        }
     }
     return true;
+
+
+    // const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
+    // const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
+    // if (Compare_Prefix_Opt::prefix_cmp(pa, pb) != 0) {
+    //     return false;
+    // }
+    // return true;
 }
 
 
@@ -719,5 +728,5 @@ __host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffi
 
 }
 
-using DCXComparatorDevice = DCXComparatorDeviceOpt;
+using DCXComparatorDevice = DCXComparatorDeviceUnOpt;
 #endif // CONFIG_H
