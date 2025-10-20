@@ -376,8 +376,6 @@ using MergeStageSuffix = MergeStageSuffixS0;
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
 using DCX = DC13;
 //------------------------------------------------------------------------------------------------------------------------------------
-// needed for optimization so the MergeSuffixes struct is always 8 byte aligned
-static constexpr size_t CHARS_FOR_ALIGN = (8 - ((sizeof(sa_index_t) * (1 + DCX::C) + ((DCX::X + sizeof(sa_index_t)) / sizeof(sa_index_t)) * sizeof(sa_index_t)) % 8)) % 8;
 
 struct kmerDCX {
     unsigned char kmer[DCX::X];
@@ -415,13 +413,12 @@ using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjust
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
 using DCXKmerDecomposer = dc13_kmer_decomposer;
 //------------------------------------------------------------------------------------------------------------------------------------
-
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
+
 struct MergeSuffixes {
     sa_index_t index;
     std::array<sa_index_t, DCX::C> ranks;
     std::array<unsigned char, DCX::X> prefix;
-    std::array<unsigned char, CHARS_FOR_ALIGN> padd_8_byte_aligned;
 };
 
 __constant__ uint32_t lookupNext[DCX::X][DCX::X][3];
@@ -430,6 +427,7 @@ struct decomposer_3_prefix
 {
     __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&> operator()(MergeSuffixes& key) const
     {
+        sizeof(MergeSuffixes);
         return { key.prefix[0],key.prefix[1],key.prefix[2] };
     }
 };
@@ -516,23 +514,6 @@ struct DCXComparatorDeviceOpt
         return a.ranks[r1] < b.ranks[r2];
     }
 };
-
-// this struct is only used to make sure the right == operator is used during the DeviceRunLengthEncode
-struct MergeSuffixesPrefixCompare {
-    sa_index_t index;
-    std::array<sa_index_t, DCX::C> ranks;
-    std::array<unsigned char, DCX::X> prefix;
-    std::array<unsigned char, CHARS_FOR_ALIGN> padd_8_byte_aligned;
-};
-__device__ __forceinline__ bool operator==(const MergeSuffixesPrefixCompare& a, const MergeSuffixesPrefixCompare& b)
-{
-    const unsigned char* pa = reinterpret_cast<const unsigned char*>(a.prefix.data());
-    const unsigned char* pb = reinterpret_cast<const unsigned char*>(b.prefix.data());
-    if (Compare_Prefix_Opt::prefix_cmp(pa, pb) != 0) {
-        return false;
-    }
-    return true;
-}
 
 
 struct prefix_diff {
@@ -723,5 +704,5 @@ __host__ __forceinline__ bool operator<(const MergeSuffixes& a, const MergeSuffi
 
 }
 
-using DCXComparatorDevice = DCXComparatorDeviceOpt;
+using DCXComparatorDevice = DCXComparatorDeviceUnOpt;
 #endif // CONFIG_H
