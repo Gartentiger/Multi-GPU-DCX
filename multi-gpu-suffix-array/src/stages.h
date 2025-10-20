@@ -54,9 +54,9 @@ decl_main_stage(Final_Merge)
     decl_samplesort_stage(Sort_samples)    \
     decl_samplesort_stage(Bucketing)       \
     decl_samplesort_stage(All2All_buckets) \
-    decl_samplesort_stage(Sort_buckets)    
-    // decl_samplesort_stage(Find_segments)   
-    // decl_samplesort_stage(Sort_segments)   
+    decl_samplesort_stage(Sort_buckets)    \
+    decl_samplesort_stage(Find_segments)   \
+    decl_samplesort_stage(Sort_segments)   
 
 
 #define CREATE_STAGE_ENUM(name) name,
