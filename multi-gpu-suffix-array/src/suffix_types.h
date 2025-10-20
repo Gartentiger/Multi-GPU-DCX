@@ -374,7 +374,7 @@ struct DC21 {
 
 using MergeStageSuffix = MergeStageSuffixS0;
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using DCX = DC21;
+using DCX = DC13;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 struct kmerDCX {
@@ -411,7 +411,7 @@ struct dc21_kmer_decomposer
 
 using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjustment in code
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using DCXKmerDecomposer = dc21_kmer_decomposer;
+using DCXKmerDecomposer = dc13_kmer_decomposer;
 //------------------------------------------------------------------------------------------------------------------------------------
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 
@@ -454,7 +454,7 @@ struct decomposer_21_prefix
 };
 
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using decomposer_x_prefix = decomposer_21_prefix;
+using decomposer_x_prefix = decomposer_13_prefix;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 
