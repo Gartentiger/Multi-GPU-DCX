@@ -378,7 +378,7 @@ public:
 
         //
         mcontext.sync_all_streams();
-        printf("[%lu] Copy Input\n", world_rank());
+        // printf("[%lu] Copy Input\n", world_rank());
         comm_world().barrier();
         //
 
@@ -389,7 +389,7 @@ public:
         produce_kmers();
         //
         mcontext.sync_all_streams();
-        printf("[%lu] Produce kmers\n", world_rank());
+        // printf("[%lu] Produce kmers\n", world_rank());
         comm_world().barrier();
         //
 
@@ -399,7 +399,7 @@ public:
 
         mtook_pd_iterations = mpd_sorter.sort(1);
         comm_world().barrier();
-        printf("[%lu] prefix doubling done\n", world_rank());
+        // printf("[%lu] prefix doubling done\n", world_rank());
 
         // auto& t = kamping::measurements::timer();
         // t.aggregate_and_print(
@@ -427,7 +427,7 @@ public:
 
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] prepare s0 for merge done\n", world_rank());
+        // printf("[%lu] prepare s0 for merge done\n", world_rank());
         // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Prepare_S0_for_Merge);
@@ -435,7 +435,7 @@ public:
 
         //
         // mcontext.sync_all_streams();
-        printf("[%lu] final merge done\n", world_rank());
+        // printf("[%lu] final merge done\n", world_rank());
         // comm_world().barrier();
         //
         TIMER_STOP_MAIN_STAGE(MainStages::Final_Merge);
@@ -1031,7 +1031,7 @@ private:
         // printArrayss << <1, 1, 0, mcontext.get_gpu_default_stream(gpu_index) >> > (nonSamples, count, gpu_index);
         mcontext.sync_default_streams();
         comm_world().barrier();
-        printf("[%lu] after non samples\n", world_rank());
+        // printf("[%lu] after non samples\n", world_rank());
         cudaFree(dcx);
         CUERR;
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Out);
