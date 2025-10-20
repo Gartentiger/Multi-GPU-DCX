@@ -55,7 +55,7 @@
 #include "dcx_data_generation.hpp"
 #include "sorting/samplesort.cuh"
 
-static const uint NUM_GPUS = 8;
+static const uint NUM_GPUS = 4;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -1096,8 +1096,8 @@ private:
         mcontext.sync_all_streams();
         comm_world().barrier();
         // printf("[%lu] samplesorting done\n", world_rank());
-        thrust::device_vector<MergeSuffixesFinal> final_tuples;
-        SegmentedSort<NUM_GPUS>(merge_tuple_vec, final_tuples, mcontext, mperf_measure);
+        // thrust::device_vector<MergeSuffixesFinal> final_tuples;
+        // SegmentedSort<NUM_GPUS>(merge_tuple_vec, final_tuples, mcontext, mperf_measure);
         // printf("[%lu] segmented sort done\n", world_rank());
 
         // {
@@ -1145,17 +1145,17 @@ private:
         TIMER_STOP_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_All2All);
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Write_Into_Place);
         // printf("[%lu] sample sorted\n", world_rank());
-        size_t out_num_elements = final_tuples.size();
+        size_t out_num_elements = merge_tuple_vec.size();
 
         // printf("[%lu] num elements: %lu\n", world_rank(), out_num_elements);
 
         thrust::device_vector<sa_index_t> d_sa(out_num_elements);
 
         if (out_num_elements > 5120) {
-            kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(thrust::raw_pointer_cast(final_tuples.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
+            kernels::write_sa _KLC_SIMPLE_(out_num_elements, mcontext.get_gpu_default_stream(gpu_index))(thrust::raw_pointer_cast(merge_tuple_vec.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
         }
         else {
-            kernels::write_sa << <1, 1 >> > (thrust::raw_pointer_cast(final_tuples.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
+            kernels::write_sa << <1, 1 >> > (thrust::raw_pointer_cast(merge_tuple_vec.data()), thrust::raw_pointer_cast(d_sa.data()), out_num_elements);
         }
         mcontext.sync_default_streams();
         comm_world().barrier();
