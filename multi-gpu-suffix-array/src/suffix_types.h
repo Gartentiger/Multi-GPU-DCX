@@ -376,6 +376,8 @@ using MergeStageSuffix = MergeStageSuffixS0;
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
 using DCX = DC13;
 //------------------------------------------------------------------------------------------------------------------------------------
+// needed for optimization so the MergeSuffixes struct is always 8 byte aligned
+static constexpr size_t CHARS_FOR_ALIGN = (8 - ((sizeof(sa_index_t) * (1 + DCX::C) + ((DCX::X + sizeof(sa_index_t)) / sizeof(sa_index_t)) * sizeof(sa_index_t)) % 8)) % 8;
 
 struct kmerDCX {
     unsigned char kmer[DCX::X];
@@ -419,7 +421,7 @@ struct MergeSuffixes {
     sa_index_t index;
     std::array<sa_index_t, DCX::C> ranks;
     std::array<unsigned char, DCX::X> prefix;
-    std::array<unsigned char, 7> padd_8_byte_aligned;
+    std::array<unsigned char, CHARS_FOR_ALIGN> padd_8_byte_aligned;
 };
 
 __constant__ uint32_t lookupNext[DCX::X][DCX::X][3];
@@ -520,6 +522,7 @@ struct MergeSuffixesPrefixCompare {
     sa_index_t index;
     std::array<sa_index_t, DCX::C> ranks;
     std::array<unsigned char, DCX::X> prefix;
+    std::array<unsigned char, CHARS_FOR_ALIGN> padd_8_byte_aligned;
 };
 __device__ __forceinline__ bool operator==(const MergeSuffixesPrefixCompare& a, const MergeSuffixesPrefixCompare& b)
 {
