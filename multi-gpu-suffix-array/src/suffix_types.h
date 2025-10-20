@@ -374,7 +374,7 @@ struct DC21 {
 
 using MergeStageSuffix = MergeStageSuffixS0;
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using DCX = DC21;
+using DCX = DC7;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 struct kmerDCX {
@@ -411,7 +411,7 @@ struct dc21_kmer_decomposer
 
 using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjustment in code
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using DCXKmerDecomposer = dc21_kmer_decomposer;
+using DCXKmerDecomposer = dc7_kmer_decomposer;
 //------------------------------------------------------------------------------------------------------------------------------------
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
 
@@ -427,7 +427,6 @@ struct decomposer_3_prefix
 {
     __host__ __device__ cuda::std::tuple<unsigned char&, unsigned char&, unsigned char&> operator()(MergeSuffixes& key) const
     {
-        sizeof(MergeSuffixes);
         return { key.prefix[0],key.prefix[1],key.prefix[2] };
     }
 };
@@ -454,7 +453,7 @@ struct decomposer_21_prefix
 };
 
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using decomposer_x_prefix = decomposer_21_prefix;
+using decomposer_x_prefix = decomposer_7_prefix;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 

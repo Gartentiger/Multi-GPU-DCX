@@ -362,7 +362,7 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, thrust::devi
         thrust::device_vector<MergeSuffixes> keys_buffer(keys_vec.size());
         cub::DoubleBuffer<MergeSuffixes> keys(thrust::raw_pointer_cast(keys_vec.data()), thrust::raw_pointer_cast(keys_buffer.data()));
         size_t temp_storage_bytes = 0;
-        // packing could be beneficial
+
         cudaError err = cub::DeviceRadixSort::SortKeys(nullptr, temp_storage_bytes,
             keys,
             keys_vec.size(),
@@ -373,7 +373,7 @@ void SegmentedSort(thrust::device_vector <MergeSuffixes>& keys_vec, thrust::devi
         void* temp;
         cudaMallocAsync(&temp, temp_storage_bytes, mcontext.get_gpu_default_stream(world_rank()));
         CUERR;
-        //                temp_storage_bytes = (3 * mreserved_len + madditional_temp_storage_size)* sizeof(sa_index_t);
+
         err = cub::DeviceRadixSort::SortKeys(temp, temp_storage_bytes,
             keys,
             keys_vec.size(),
