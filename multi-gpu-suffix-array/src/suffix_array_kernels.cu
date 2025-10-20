@@ -716,6 +716,12 @@ namespace kernels {
             Out[i] = In[i].index;
         }
     }
+    __global__ void write_sa(MergeSuffixesFinal* In, sa_index_t* Out, size_t N) {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
+            Out[i] = In[i].index;
+        }
+    }
     __global__ void write_S12_back(const MergeStageSuffixS12* inp, MergeStageSuffix* outp, size_t base_offset, size_t N)
     {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;

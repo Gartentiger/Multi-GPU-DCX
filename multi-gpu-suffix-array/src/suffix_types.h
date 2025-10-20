@@ -374,7 +374,7 @@ struct DC21 {
 
 using MergeStageSuffix = MergeStageSuffixS0;
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using DCX = DC7;
+using DCX = DC21;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 struct kmerDCX {
@@ -411,7 +411,7 @@ struct dc21_kmer_decomposer
 
 using kmer = kmerDCX; // for dc3 is uint64_t better but also needs some readjustment in code
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using DCXKmerDecomposer = dc7_kmer_decomposer;
+using DCXKmerDecomposer = dc21_kmer_decomposer;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 using D_DCX = _D_DCX<DCX::X, DCX::C>;
@@ -453,7 +453,7 @@ struct decomposer_21_prefix
 };
 
 //Change for different DC----------------------------------------------------------------------------------------------------------------------------
-using decomposer_x_prefix = decomposer_7_prefix;
+using decomposer_x_prefix = decomposer_21_prefix;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -530,6 +530,61 @@ __device__ __forceinline__ bool operator==(const MergeSuffixesPrefixCompare& a, 
     return true;
 }
 
+
+struct prefix_diff {
+    const MergeSuffixes* data;
+    __host__ __device__
+        prefix_diff(const MergeSuffixes* _data) : data(_data) {}
+
+    __device__ sa_index_t operator()(sa_index_t i) const {
+        if (i == 0) return 0;  // first element starts a new segment
+        const MergeSuffixes& a = data[i - 1];
+        const MergeSuffixes& b = data[i];
+        int c = Compare_Prefix_Opt::prefix_cmp(a.prefix, b.prefix);
+        if (c != 0) {
+            // new segment starts here
+            return 1;
+        }
+        return 0;          // same prefix as previous
+    }
+};
+
+struct MergeSuffixesFinal {
+    sa_index_t index;
+    std::array<sa_index_t, DCX::C> ranks;
+    sa_index_t segment_id;
+};
+
+struct make_tuple_final {
+    const MergeSuffixes* input;
+    const sa_index_t* segment_ids;
+    __host__ __device__
+        make_tuple_final(const MergeSuffixes* in, const sa_index_t* seg_ids)
+        : input(in), segment_ids(seg_ids) {
+    }
+
+    __device__ MergeSuffixesFinal operator()(sa_index_t i) const {
+        MergeSuffixesFinal out;
+        const MergeSuffixes& src = input[i];
+        out.segment_id = (segment_ids[i]);
+        out.index = src.index;
+#pragma unroll
+        for (int k = 0; k < DCX::C; ++k)
+            out.ranks[k] = src.ranks[k];
+#pragma unroll
+        for (int k = 0; k < DCX::X; ++k)
+            out.prefix[k] = src.prefix[k];
+        return out;
+    }
+};
+
+
+
+
+
+
+
+
 __host__ __device__ __forceinline__ bool operator==(const kmerDCX& a, const kmerDCX& b)
 {
     for (size_t i = 0; i < DCX::X; i++)
@@ -561,8 +616,11 @@ struct KmerComparator
 
 struct DCXCompareRanks
 {
-    __device__ __forceinline__ bool operator()(const MergeSuffixes& a, const MergeSuffixes& b)
+    __device__ __forceinline__ bool operator()(const MergeSuffixesFinal& a, const MergeSuffixesFinal& b)
     {
+        if (a.segment_id < b.segment_id) return true;
+        if (a.segment_id > b.segment_id) return false;
+
         uint32_t r1 = lookupNext[a.index % DCX::X][b.index % DCX::X][1];
         uint32_t r2 = lookupNext[a.index % DCX::X][b.index % DCX::X][2];
         return a.ranks[r1] < b.ranks[r2];

@@ -75,6 +75,7 @@ namespace kernels {
     __global__ void write_indices_opt(sa_index_t* Out, size_t N, size_t set_size, size_t mpd_per_gpu, size_t rank);
     __global__ void write_indices_sub2(sa_index_t* In, sa_index_t* Out, size_t N, size_t last_gpu_extra_elements);
     __global__ void write_sa(MergeSuffixes* In, sa_index_t* Out, size_t N);
+    __global__ void write_sa(MergeSuffixesFinal* In, sa_index_t* Out, size_t N);
     __global__ void write_S12_back(const MergeStageSuffixS12* inp, MergeStageSuffix* outp, size_t base_offset, size_t N);
 
     __global__ void prepare_S0(const sa_index_t* Isa, const unsigned char* Input,
