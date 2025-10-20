@@ -55,7 +55,7 @@
 #include "dcx_data_generation.hpp"
 #include "sorting/samplesort.cuh"
 
-static const uint NUM_GPUS = 16;
+static const uint NUM_GPUS = 20;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -1096,8 +1096,8 @@ private:
         mcontext.sync_all_streams();
         comm_world().barrier();
         // printf("[%lu] samplesorting done\n", world_rank());
-        // thrust::device_vector<MergeSuffixesFinal> final_tuples;
-        // SegmentedSort<NUM_GPUS>(merge_tuple_vec, final_tuples, mcontext, mperf_measure);
+        thrust::device_vector<MergeSuffixesFinal> final_tuples;
+        SegmentedSort<NUM_GPUS>(merge_tuple_vec, final_tuples, mcontext, mperf_measure);
         // printf("[%lu] segmented sort done\n", world_rank());
 
         // {
