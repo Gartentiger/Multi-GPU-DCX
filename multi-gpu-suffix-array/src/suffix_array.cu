@@ -55,7 +55,7 @@
 #include "dcx_data_generation.hpp"
 #include "sorting/samplesort.cuh"
 
-static const uint NUM_GPUS = 24;
+static const uint NUM_GPUS = 4;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
