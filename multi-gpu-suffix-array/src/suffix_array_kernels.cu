@@ -424,7 +424,7 @@ namespace kernels {
                 }
                 assert(i * DCX::C + c < mpd_reserved_len);
                 // if (i * DCX::C + c < mpd_reserved_len) {
-                Output_index[i * DCX::C + c] = i + set_per_gpu * rank + index_offset;
+                Output_index[i * DCX::C + c] = i * DCX::C + c;//i + set_per_gpu * rank + index_offset;
                 // }
                 index_offset += set_sizes[c];
             }
