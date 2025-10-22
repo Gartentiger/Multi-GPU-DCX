@@ -88,7 +88,7 @@ struct S12PartitioningFunctor : public std::unary_function<sa_index_t, uint32_t>
         S12PartitioningFunctor(sa_index_t split_divisor_, uint max_v_)
         : split_divisor(split_divisor_), max_v(max_v_)
     {
-    }
+}
 
     __host__ __device__ __forceinline__ uint32_t operator()(sa_index_t x) const
     {
@@ -1613,7 +1613,7 @@ int main(int argc, char** argv)
 
 
     size_t realLen = 0;
-    size_t maxLength = size_t(1024 * 1024) * size_t(151 * NUM_GPUS);
+    size_t maxLength = size_t(1024 * 1024) * size_t(150 * NUM_GPUS);
     size_t inputLen = read_file_into_host_memory(&input, argv[3], realLen, sizeof(sa_index_t), maxLength, NUM_GPUS, 0);
     comm.barrier();
     CUERR;
