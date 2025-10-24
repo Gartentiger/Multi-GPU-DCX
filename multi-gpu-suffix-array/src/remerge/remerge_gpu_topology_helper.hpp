@@ -200,9 +200,12 @@ namespace crossGPUReMerge {
             const std::array<size_t, NUM_GPUS>& detour_buffer_sizes,
             bool do_values) const {
             nvtxRangePush("do_copies_asyncRemerge");
+            auto& t = kamping::measurements::timer();
+            t.start("do_copy_async_remerge");
             if (mcontext.is_in_node()) {
                 do_copies_async_in_node(copies, detour_buffer_sizes, do_values);
                 mcontext.sync_all_streams();
+                t.stop_and_add();
                 comm_world().barrier();
                 nvtxRangePop();
                 return;
@@ -281,6 +284,7 @@ namespace crossGPUReMerge {
             nvtxRangePop();
             mcontext.sync_all_streams();
             comm_world().barrier();
+            t.stop_and_add();
             // pool.wait_all();
             // t.stop();
             // t.aggregate_and_print(

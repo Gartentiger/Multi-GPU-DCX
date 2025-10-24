@@ -41,12 +41,12 @@ namespace distrib_merge {
             const DistributedArray& a, const DistributedArray& b,
             DistributedArray& out,
             bool do_values) const {
+            auto& t = kamping::measurements::timer();
+            t.start("do_copy_async_distributed");
             nvtxRangePush("do_copies_asyncDist");
             if (mcontext.is_in_node()) {
-                auto& t = kamping::measurements::timer();
-                t.start("do_copy_async_distributed");
                 do_copies_async_in_node(copies, a, b, out, do_values);
-                t.stop_and_append();
+                t.stop_and_add();
                 mcontext.sync_all_streams();
                 comm_world().barrier();
                 nvtxRangePop();
@@ -88,6 +88,7 @@ namespace distrib_merge {
             nvtxRangePop();
             mcontext.sync_all_streams();
             comm_world().barrier();
+            t.stop_and_add();
         }
 
         void do_copies_async_in_node(const std::array<std::vector<InterNodeCopy>, NUM_GPUS>& copies,

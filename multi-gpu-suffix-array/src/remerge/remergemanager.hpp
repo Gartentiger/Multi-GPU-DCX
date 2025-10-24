@@ -42,13 +42,13 @@ namespace crossGPUReMerge
             std::function<void()> debug_func = nullptr)
         {
 
-            auto& t = kamping::measurements::timer();
+            // auto& t = kamping::measurements::timer();
             // t.synchronize_and_start("prep_merges");
             init_node_utils();
             init_micro_ranges(ranges);
             // t.stop();
-            //printf("init %lu\n", world_rank());
-            t.synchronize_and_start("schedule_merges");
+            // printf("init %lu\n", world_rank());
+            // t.synchronize_and_start("schedule_merges");
             int i = 0;
             while (schedule_micro_merges() > 0)
             {
@@ -56,23 +56,23 @@ namespace crossGPUReMerge
                 // t.synchronize_and_start("schedule_partitioning_searches:" + std::to_string(i));
                 schedule_partitioning_searches();
                 // t.stop();
-                t.synchronize_and_start("do_searches:" + std::to_string(i));
-                nvtxRangePush("do_searches");
+                // t.synchronize_and_start("do_searches:" + std::to_string(i));
+                // nvtxRangePush("do_searches");
                 mmerge_processor.do_searches(comp);
                 // printf("do search %lu, it: %d\n", world_rank(), i);
-                nvtxRangePop();
-                t.stop();
+                // nvtxRangePop();
+                // t.stop();
                 // printf("[%lu] do_searches done\n", world_rank());
                 // t.synchronize_and_start("create_partitions_from_search_results:" + std::to_string(i));
                 create_partitions_from_search_results();
                 // t.stop();
                 // printf("[%lu] create partitions done\n", world_rank());
                 //                debug_print();
-                t.synchronize_and_start("do_copy_and_merge:" + std::to_string(i));
-                nvtxRangePush("do_copy_and_merge");
+                // t.synchronize_and_start("do_copy_and_merge:" + std::to_string(i));
+                // nvtxRangePush("do_copy_and_merge");
                 mmerge_processor.do_copy_and_merge(comp, debug_func);
-                nvtxRangePop();
-                t.stop();
+                // nvtxRangePop();
+                // t.stop();
                 // comm_world().barrier();
                 // printf("[%lu] do copy and merge done\n", world_rank());
                 // t.synchronize_and_start("combine_finished_microranges:" + std::to_string(i));
@@ -82,7 +82,7 @@ namespace crossGPUReMerge
                 //                std::cerr << "\n\nNew iteration... ---------------------------------------------\n";
             }
             mmerges.clear();
-            t.stop();
+            // t.stop();
 
             // t.aggregate_and_print(
             //     kamping::measurements::SimpleJsonPrinter{ std::cout }

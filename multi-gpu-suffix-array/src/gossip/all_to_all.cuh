@@ -118,16 +118,19 @@ namespace gossip {
             const split_table_tt<table_t, NUM_GPUS>& table, bool after = false) const {  // [src_gpu, partition]
 
             ncclComm_t nccl_comm = context.get_nccl();
-
+            auto& t = kamping::measurements::timer();
+            t.start("alltoall");
             if (context.is_in_node() && !after) {
                 // nvtxRangePush("execKVAsyncAll2AllinNode");
                 bool b = execKVAsyncInNode(node_info, table);
                 context.sync_all_streams();
                 comm_world().barrier();
+                t.stop_and_add();
                 // nvtxRangePop();
                 return b;
                 // printf("[%lu] in node kv async\n", world_rank());
             }
+
             nvtxRangePush("execKVAsyncAll2All");
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
@@ -170,6 +173,7 @@ namespace gossip {
             nvtxRangePop();
             context.sync_all_streams();
             comm_world().barrier();
+            t.stop_and_add();
             return check_tables(node_info, h_table, v_table);
         }
 
