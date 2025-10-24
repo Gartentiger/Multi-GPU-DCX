@@ -656,9 +656,13 @@ private:
 
 
         mcontext.sync_all_streams();
+        // kernels::produce_index_kmer_tuples_12_64_dcx _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
+        //     ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, gpu.pd_ptr.Kmer,
+        //         gpu.pd_elements, dcx->samplePosition, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
+        // CUERR;
         kernels::produce_index_kmer_tuples_12_64_dcx _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
             ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, gpu.pd_ptr.Kmer,
-                gpu.pd_elements, dcx->samplePosition, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
+                gpu.pd_elements, dcx->samplePosition, mreserved_len, mpd_reserved_len);
         CUERR;
         mcontext.sync_all_streams();
         if (world_rank() == NUM_GPUS - 1) {
