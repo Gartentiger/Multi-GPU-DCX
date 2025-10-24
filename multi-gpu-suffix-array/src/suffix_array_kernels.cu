@@ -388,26 +388,9 @@ namespace kernels {
     __global__ void produce_index_kmer_tuples_12_64_dcx(const unsigned char* Input, sa_index_t start_index, sa_index_t* Output_index,
         kmerDCX* Output_kmers, size_t N, sa_index_t* period, size_t rank, size_t* set_sizes, size_t set_per_gpu, size_t input_len, size_t mpd_reserved_len) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
-        // assert(N % DCX::X == 0);
         for (uint i = tidx; i < (N + DCX::C - 1) / DCX::C; i += blockDim.x * gridDim.x) {
-            // printf("i: %u\n", i);
-            // uint2 inp1 = *reinterpret_cast<uint2*>(baseInput);
-            // uchar4 u0 = *reinterpret_cast<uchar4*>(inp1.x);
-            // uchar4 u4 = *reinterpret_cast<uchar4*>(inp1.y);
-
-            // Output_kmers[i].kmer[0] = u0.x;
-            // Output_kmers[i].kmer[1] = u0.y;
-            // Output_kmers[i].kmer[2] = u0.z;
-            // Output_kmers[i].kmer[3] = u0.w;
-
-            // Output_kmers[i].kmer[4] = u4.x;
-            // Output_kmers[i].kmer[5] = u4.y;
-            // Output_kmers[i].kmer[6] = u4.z;
-            // Output_kmers[i].kmer[7] = u4.w;
-
 
             size_t index_offset = 0;
-            // char a = 'a';
 #pragma unroll
             for (size_t c = 0; c < DCX::C; c++)
             {
@@ -423,32 +406,39 @@ namespace kernels {
                     }
                 }
                 assert(i * DCX::C + c < mpd_reserved_len);
-                // if (i * DCX::C + c < mpd_reserved_len) {
-                Output_index[i * DCX::C + c] = i * DCX::C + c;//i + set_per_gpu * rank + index_offset;
-                // }
+                Output_index[i * DCX::C + c] = i + set_per_gpu * rank + index_offset;
                 index_offset += set_sizes[c];
             }
-            // Output_kmers[0].kmer[1] = a;
         }
 
-        // __shared__ kmerDCX km[THREADS_PER_BLOCK];
-                // uint group_idx = tidx / THREADS_PER_BLOCK;
-                // uint local_idx = tidx % DCX::X;
-                // uint input_index = group_idx * DCX::X + local_idx;
-                // // for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {
-                // km[group_idx].kmer[local_idx] = Input[input_index];
-
-                // // Output_kmers[tidx].kmer[i] =
-                // __syncthreads();
-                // if (tidx < 2) {
-                //     Output_kmers[tidx] = km[tidx];
-                // }
-                // if (tidx == 2) {
-                //     Output_index[group_idx / DCX::X] = group_idx + start_index;
-                // }
-                // }
     }
+    __global__ void produce_index_kmer_tuples_12_64_dcx(const unsigned char* Input, sa_index_t start_index, sa_index_t* Output_index,
+        kmerDCX* Output_kmers, size_t N, sa_index_t* period, size_t input_len, size_t mpd_reserved_len) {
+        uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
+        for (uint i = tidx; i < (N + DCX::C - 1) / DCX::C; i += blockDim.x * gridDim.x) {
 
+            size_t index_offset = 0;
+#pragma unroll
+            for (size_t c = 0; c < DCX::C; c++)
+            {
+                const unsigned char* baseInput = Input + DCX::X * i + period[c];
+#pragma unroll
+                for (size_t j = 0; j < DCX::X; j++)
+                {
+                    if (DCX::X * i + period[c] + j < input_len) {
+                        Output_kmers[i * DCX::C + c].kmer[j] = baseInput[j];
+                    }
+                    else {
+                        Output_kmers[i * DCX::C + c].kmer[j] = 0;
+                    }
+                }
+                assert(i * DCX::C + c < mpd_reserved_len);
+                Output_index[i * DCX::C + c] = i * DCX::C + c + start_index;
+
+            }
+        }
+
+    }
     __global__ void fixup_last_kmers(kmerDCX* Output_kmers, size_t N) {
         uint tidx = blockIdx.x * blockDim.x + threadIdx.x;
         for (uint i = tidx; i < N; i += blockDim.x * gridDim.x) {

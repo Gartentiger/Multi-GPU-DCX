@@ -55,7 +55,7 @@
 #include "dcx_data_generation.hpp"
 #include "sorting/samplesort.cuh"
 
-static const uint NUM_GPUS = 12;
+static const uint NUM_GPUS = 4;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -789,8 +789,9 @@ private:
 
         //     kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))(values.Current(), gpu.dcx_ptr.Isa, gpu.pd_elements, last_gpu_extra_elements);
         //     CUERR;
-        // }
 
+
+        // }
         mcontext.sync_all_streams();
 
         mmemory_manager.free_();
