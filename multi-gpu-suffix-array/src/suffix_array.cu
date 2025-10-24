@@ -55,7 +55,7 @@
 #include "dcx_data_generation.hpp"
 #include "sorting/samplesort.cuh"
 
-static const uint NUM_GPUS = 12;
+static const uint NUM_GPUS = 24;
 static const uint NUM_GPUS_PER_NODE = 4;
 static_assert(NUM_GPUS% NUM_GPUS_PER_NODE == 0, "NUM_GPUS must be a multiple of NUM_GPUS_PER_NODE");
 #ifdef DGX1_TOPOLOGY
@@ -397,7 +397,7 @@ public:
 
         //            mpd_sorter.dump("After K-Mers");
 
-        mtook_pd_iterations = mpd_sorter.sort(DCX::C);
+        mtook_pd_iterations = mpd_sorter.sort(1);
         comm_world().barrier();
         // printf("[%lu] prefix doubling done\n", world_rank());
 
@@ -656,14 +656,14 @@ private:
 
 
         mcontext.sync_all_streams();
-        // kernels::produce_index_kmer_tuples_12_64_dcx _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
-        //     ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, gpu.pd_ptr.Kmer,
-        //         gpu.pd_elements, dcx->samplePosition, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
-        // CUERR;
         kernels::produce_index_kmer_tuples_12_64_dcx _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
             ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, gpu.pd_ptr.Kmer,
-                gpu.pd_elements, dcx->samplePosition, mreserved_len, mpd_reserved_len);
+                gpu.pd_elements, dcx->samplePosition, gpu_index, thrust::raw_pointer_cast(d_set_sizes.data()), mgpus[0].pd_elements / DCX::C, mreserved_len, mpd_reserved_len);
         CUERR;
+        // kernels::produce_index_kmer_tuples_12_64_dcx _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))
+        //     ((unsigned char*)gpu.pd_ptr.Input, gpu.pd_offset, gpu.pd_ptr.Isa, gpu.pd_ptr.Kmer,
+        //         gpu.pd_elements, dcx->samplePosition, mreserved_len, mpd_reserved_len);
+        // CUERR;
         mcontext.sync_all_streams();
         if (world_rank() == NUM_GPUS - 1) {
             size_t fixups = last_gpu_extra_elements + DCX::C - 1;
@@ -720,82 +720,82 @@ private:
         // }
 
         TIMER_START_PREPARE_FINAL_MERGE_STAGE(FinalMergeStages::S12_Multisplit);
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        // {
-        //     SaGPU& gpu = mgpus[gpu_index];
-        //     if (world_rank() == gpu_index) {
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
+            if (world_rank() == gpu_index) {
 
-        //         kernels::write_indices_opt _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.dcx_ptr.Temp1, gpu.pd_elements, set_sizes[0], mpd_per_gpu, gpu_index);
-        //         CUERR;
-        //         mcontext.get_device_temp_allocator(gpu_index).init(gpu.dcx_ptr.Temp4,
-        //             mpd_reserved_len * sizeof(sa_index_t));
-        //     }
-        //     multi_split_node_info[gpu_index].src_keys = gpu.dcx_ptr.Temp1;
-        //     // s12_result == sa_index 
-        //     multi_split_node_info[gpu_index].src_values = gpu.dcx_ptr.Isa;
-        //     multi_split_node_info[gpu_index].src_len = gpu.pd_elements;
+                kernels::write_indices_opt _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))(gpu.dcx_ptr.Temp1, gpu.pd_elements, set_sizes[0], mpd_per_gpu, gpu_index);
+                CUERR;
+                mcontext.get_device_temp_allocator(gpu_index).init(gpu.dcx_ptr.Temp4,
+                    mpd_reserved_len * sizeof(sa_index_t));
+            }
+            multi_split_node_info[gpu_index].src_keys = gpu.dcx_ptr.Temp1;
+            // s12_result == sa_index 
+            multi_split_node_info[gpu_index].src_values = gpu.dcx_ptr.Isa;
+            multi_split_node_info[gpu_index].src_len = gpu.pd_elements;
 
-        //     multi_split_node_info[gpu_index].dest_keys = gpu.dcx_ptr.Temp2;
-        //     multi_split_node_info[gpu_index].dest_values = gpu.dcx_ptr.Temp3;
-        //     multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
+            multi_split_node_info[gpu_index].dest_keys = gpu.dcx_ptr.Temp2;
+            multi_split_node_info[gpu_index].dest_values = gpu.dcx_ptr.Temp3;
+            multi_split_node_info[gpu_index].dest_len = gpu.pd_elements;
 
-        // }
+        }
 
-        // PartitioningFunctor<sa_index_t> f(mpd_per_gpu, NUM_GPUS - 1);
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
-        // mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
+        PartitioningFunctor<sa_index_t> f(mpd_per_gpu, NUM_GPUS - 1);
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        mmulti_split.execKVAsync(multi_split_node_info, split_table, src_lens, dest_lens, f);
 
-        // mcontext.sync_default_streams();
-        // comm_world().barrier();
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        // {
-        //     SaGPU& gpu = mgpus[gpu_index];
-        //     //                fprintf(stderr,"GPU %u, src: %zu, dest: %zu.\n", gpu_index, src_lens[gpu_index], dest_lens[gpu_index]);
-        //     all2all_node_info[gpu_index].src_keys = gpu.dcx_ptr.Temp2;
-        //     all2all_node_info[gpu_index].src_values = gpu.dcx_ptr.Temp3;
-        //     all2all_node_info[gpu_index].src_len = gpu.pd_elements;
+        mcontext.sync_default_streams();
+        comm_world().barrier();
+        for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
+        {
+            SaGPU& gpu = mgpus[gpu_index];
+            //                fprintf(stderr,"GPU %u, src: %zu, dest: %zu.\n", gpu_index, src_lens[gpu_index], dest_lens[gpu_index]);
+            all2all_node_info[gpu_index].src_keys = gpu.dcx_ptr.Temp2;
+            all2all_node_info[gpu_index].src_values = gpu.dcx_ptr.Temp3;
+            all2all_node_info[gpu_index].src_len = gpu.pd_elements;
 
-        //     all2all_node_info[gpu_index].dest_keys = gpu.dcx_ptr.Temp1;
-        //     all2all_node_info[gpu_index].dest_values = gpu.dcx_ptr.Isa;
-        //     all2all_node_info[gpu_index].dest_len = gpu.pd_elements;
-        // }
+            all2all_node_info[gpu_index].dest_keys = gpu.dcx_ptr.Temp1;
+            all2all_node_info[gpu_index].dest_values = gpu.dcx_ptr.Isa;
+            all2all_node_info[gpu_index].dest_len = gpu.pd_elements;
+        }
 
-        // mall2all.execKVAsync(all2all_node_info, split_table);
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
-        // {
-        //     uint gpu_index = world_rank();
-        //     SaGPU& gpu = mgpus[world_rank()];
-        //     cub::DoubleBuffer<sa_index_t> keys(gpu.dcx_ptr.Temp1, gpu.dcx_ptr.Temp2);
-        //     cub::DoubleBuffer<sa_index_t> values(gpu.dcx_ptr.Isa, gpu.dcx_ptr.Temp3);
-        //     size_t temp_storage_bytes = 0;
-        //     cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
-        //         keys,
-        //         values,
-        //         gpu.pd_elements, 0, mpd_per_gpu_max_bit,
-        //         mcontext.get_gpu_default_stream(gpu_index));
+        mall2all.execKVAsync(all2all_node_info, split_table);
+        mcontext.sync_all_streams();
+        comm_world().barrier();
+        {
+            uint gpu_index = world_rank();
+            SaGPU& gpu = mgpus[world_rank()];
+            cub::DoubleBuffer<sa_index_t> keys(gpu.dcx_ptr.Temp1, gpu.dcx_ptr.Temp2);
+            cub::DoubleBuffer<sa_index_t> values(gpu.dcx_ptr.Isa, gpu.dcx_ptr.Temp3);
+            size_t temp_storage_bytes = 0;
+            cudaError_t err = cub::DeviceRadixSort::SortPairs(nullptr, temp_storage_bytes,
+                keys,
+                values,
+                gpu.pd_elements, 0, mpd_per_gpu_max_bit,
+                mcontext.get_gpu_default_stream(gpu_index));
 
-        //     ASSERT(temp_storage_bytes <= mmemory_manager.get_additional_dcx_space_size());
-        //     // void* temp;
-        //     // cudaMallocAsync(&temp, temp_storage_bytes, mcontext.get_gpu_default_stream(gpu_index));
-        //     err = cub::DeviceRadixSort::SortPairs(gpu.dcx_ptr.Temp4, temp_storage_bytes,
-        //         keys,
-        //         values,
-        //         gpu.pd_elements, 0, mpd_per_gpu_max_bit,
-        //         mcontext.get_gpu_default_stream(gpu_index));
+            ASSERT(temp_storage_bytes <= mmemory_manager.get_additional_dcx_space_size());
+            // void* temp;
+            // cudaMallocAsync(&temp, temp_storage_bytes, mcontext.get_gpu_default_stream(gpu_index));
+            err = cub::DeviceRadixSort::SortPairs(gpu.dcx_ptr.Temp4, temp_storage_bytes,
+                keys,
+                values,
+                gpu.pd_elements, 0, mpd_per_gpu_max_bit,
+                mcontext.get_gpu_default_stream(gpu_index));
 
-        //     // cudaFreeAsync(temp, mcontext.get_gpu_default_stream(gpu_index));
+            // cudaFreeAsync(temp, mcontext.get_gpu_default_stream(gpu_index));
 
-        //     mgpus.back().pd_elements -= last_gpu_extra_elements;
-
-
-
-        //     kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))(values.Current(), gpu.dcx_ptr.Isa, gpu.pd_elements, last_gpu_extra_elements);
-        //     CUERR;
+            mgpus.back().pd_elements -= last_gpu_extra_elements;
 
 
-        // }
+
+            kernels::write_indices_sub2 _KLC_SIMPLE_(gpu.pd_elements, mcontext.get_gpu_default_stream(gpu_index))(values.Current(), gpu.dcx_ptr.Isa, gpu.pd_elements, last_gpu_extra_elements);
+            CUERR;
+
+
+        }
         mcontext.sync_all_streams();
 
         mmemory_manager.free_();
