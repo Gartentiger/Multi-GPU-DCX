@@ -27,7 +27,8 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
-
+            auto& t = kamping::measurements::timer();
+            t.start("alltoall");
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
@@ -51,13 +52,15 @@ namespace gossip {
                         context.get_streams(src_gpu)[dest_gpu]);
                 } CUERR;
             }
+            t.stop_and_add();
             return check_tables(node_info, h_table, v_table);
         }
 
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execKVAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {  // [src_gpu, partition]
-
+            auto& t = kamping::measurements::timer();
+            t.start("alltoall");
             // compute prefix sums over the partition table
             std::array<std::array<table_t, num_gpus + 1>, num_gpus> h_table = { {0} }; // horizontal scan
             std::array<std::array<table_t, num_gpus>, num_gpus + 1> v_table = { {0} }; // vertical scan
@@ -88,6 +91,7 @@ namespace gossip {
                         context.get_streams(src_gpu)[dest_gpu]);
                 } CUERR;
             }
+            t.stop_and_add();
             return check_tables(node_info, h_table, v_table);
         }
 
