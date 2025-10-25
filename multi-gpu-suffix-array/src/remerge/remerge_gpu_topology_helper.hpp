@@ -221,6 +221,7 @@ namespace crossGPUReMerge {
                     }
                 }
             }
+            mcontext.sync_all_streams();
             t.stop_and_add();
         }
     };

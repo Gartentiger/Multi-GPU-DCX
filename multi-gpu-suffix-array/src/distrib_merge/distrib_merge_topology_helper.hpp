@@ -59,6 +59,7 @@ namespace distrib_merge {
                     }
                 }
             }
+            mcontext.sync_all_streams();
             t.stop_and_append();
         }
     };

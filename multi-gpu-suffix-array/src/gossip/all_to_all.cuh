@@ -52,6 +52,7 @@ namespace gossip {
                         context.get_streams(src_gpu)[dest_gpu]);
                 } CUERR;
             }
+            context.sync_all_streams();
             t.stop_and_add();
             return check_tables(node_info, h_table, v_table);
         }
@@ -91,6 +92,7 @@ namespace gossip {
                         context.get_streams(src_gpu)[dest_gpu]);
                 } CUERR;
             }
+            context.sync_all_streams();
             t.stop_and_add();
             return check_tables(node_info, h_table, v_table);
         }
