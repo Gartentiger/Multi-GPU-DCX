@@ -45,7 +45,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-static const uint NUM_GPUS = 12;
+static const uint NUM_GPUS = 20;
 
 #ifdef DGX1_TOPOLOGY
 #include "gossip/all_to_all_dgx1.cuh"
