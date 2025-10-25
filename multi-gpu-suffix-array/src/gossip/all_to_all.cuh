@@ -30,12 +30,15 @@ namespace gossip {
         template <typename key_t, typename value_t, typename index_t, typename table_t>
         bool execAsync(const std::array<All2AllNodeInfoT<key_t, value_t, index_t>, NUM_GPUS>& node_info,
             const split_table_tt<table_t, NUM_GPUS>& table) const {
+            auto& t = kamping::measurements::timer();
+            t.start("alltoall");
             if (context.is_in_node()) {
                 // nvtxRangePush("execAsyncAll2AllinNode");
                 // printf("[%lu] in node async\n", world_rank());
                 bool b = execAsyncInNode(node_info, table);
                 context.sync_all_streams();
                 comm_world().barrier();
+                t.stop_and_add();
                 // nvtxRangePop();
                 return b;
             }
@@ -77,6 +80,7 @@ namespace gossip {
             nvtxRangePop();
             context.sync_all_streams();
             comm_world().barrier();
+            t.stop_and_add();
             return check_tables(node_info, h_table, v_table);
         }
         template <typename key_t, typename value_t, typename index_t, typename table_t>
