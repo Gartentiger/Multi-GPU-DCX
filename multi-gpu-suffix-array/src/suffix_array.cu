@@ -1296,7 +1296,13 @@ int main(int argc, char** argv)
 
     sorter.print_pd_stats();
     sorter.get_perf_measurements().print(argv[2]);
-
+    auto& t = kamping::measurements::timer();
+    std::ofstream outFile(argv[1], std::ios::app);
+    t.aggregate_and_print(
+        kamping::measurements::SimpleJsonPrinter{ outFile, {} });
+    std::cout << std::endl;
+    t.aggregate_and_print(kamping::measurements::FlatPrinter{});
+    std::cout << std::endl;
     cudaFreeHost(input);
     CUERR;
 }
