@@ -1069,7 +1069,7 @@ void ncclMeasure(MultiGPUContext<NUM_GPUS>& context)
     std::random_device rd;
     std::mt19937 g(rd());
     std::uniform_int_distribution<std::mt19937::result_type> randomDist(0, UINT32_MAX);
-    const int rounds = 26;
+    const int rounds = 29;
     std::array<double, rounds> alg_bandwidth;
     ncclComm_t nccl_comm = context.get_nccl();
     const int start_offset = 0;
@@ -1630,8 +1630,8 @@ int main(int argc, char** argv)
 
     MultiGPUContext<NUM_GPUS> context(nccl_comm, &gpu_ids2, 1);
     // warm_up_nccl(context);
-    alltoallMeasure(context);
-    // ncclMeasure(context);
+    // alltoallMeasure(context);
+    ncclMeasure(context);
     // sample_sort_merge_measure(context);
     auto& t = kamping::measurements::timer();
     // std::ofstream outFile(argv[2], std::ios::app);
