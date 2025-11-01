@@ -43,13 +43,13 @@ namespace distrib_merge {
             bool do_values) const {
             auto& t = kamping::measurements::timer();
             t.start("do_copy_async_distributed");
-            nvtxRangePush("do_copies_asyncDist");
+            // nvtxRangePush("do_copies_asyncDist");
             if (mcontext.is_in_node()) {
                 do_copies_async_in_node(copies, a, b, out, do_values);
                 t.stop_and_add();
                 mcontext.sync_all_streams();
                 comm_world().barrier();
-                nvtxRangePop();
+                // nvtxRangePop();
                 // printf("[%lu] do_copies_async in node \n", world_rank());
                 return;
             }
@@ -85,7 +85,7 @@ namespace distrib_merge {
                 }
             }
             ncclGroupEnd();
-            nvtxRangePop();
+            // nvtxRangePop();
             mcontext.sync_all_streams();
             comm_world().barrier();
             t.stop_and_add();
