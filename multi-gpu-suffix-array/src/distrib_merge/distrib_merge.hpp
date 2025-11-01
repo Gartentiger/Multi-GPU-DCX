@@ -302,33 +302,7 @@ namespace distrib_merge {
                 }
             }
 
-            //auto statuses = rq.wait_all(statuses_out());
-            // for (MPI_Status& native_status : statuses) {
-            //     Status status(native_status);
-            //     std::cout << "[R" << world_rank() << "] "
-            //         << "Status(source="
-            //         << (status.source_signed() == MPI_PROC_NULL ? "MPI_PROC_NULL" : std::to_string(status.source_signed())
-            //             )
-            //         << ", tag=" << (status.tag() == MPI_ANY_TAG ? "MPI_ANY_TAG" : std::to_string(status.tag()))
-            //         << ", count=" << status.count<int>() << ")" << std::endl;
-            // }
 
-            // for (int i = 0; i < NUM_NODES; i++) {
-            //     if (d[i] <= 0) {
-            //         continue;
-            //     }
-            //     const auto& node = minp_b[world_rank()];
-            //     std::span<key_t> sb(node.keys, size_t(node.count));
-            //     comm_world().isend(send_buf(sb), send_count(size_t(node_b.count)), tag(world_rank()), destination((size_t)s->node_a));
-            //     if (recvCount[i] <= 0) {
-            //         continue;
-            //     }
-            //     key_t* temp;
-            //     cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
-            //     CUERR;
-            //     comm_world().irecv(recv_buf(), recv_count(recvCount[i])), tag(i), source((size_t)i));
-
-            // }
 
             printf("[%lu] sends done, search count: %lu\n", world_rank(), searches_on_nodes[world_rank()].size());
             for (uint node = 0; node < NUM_NODES; ++node)
@@ -395,43 +369,7 @@ namespace distrib_merge {
                         }
                         printf("[%lu] res: %ld\n", world_rank(), *s->h_result_ptr);
                     }
-                    // else {
-                    //     if (node == s->node_a) {
-                    //         // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_b.count));
-                    //         cudaMalloc(&temp, sizeof(key_t) * size_t(node_b.count));
-                    //         CUERR;
-                    //         std::span<key_t> rb(temp, size_t(node_b.count));
-                    //         printf("[%lu] receive length %lu, source %lu , i: %d\n", world_rank(), size_t(node_b.count), (size_t)s->node_b, i);
-                    //         comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_b)), recv_count(size_t(node_b.count)));
-                    //         printf("[%lu] after receive\n", world_rank());
-                    //         run_partitioning_search << <1, 1, 0, stream >> > (node_a.keys,
-                    //             int64_t(node_a.count),
-                    //             temp,
-                    //             int64_t(node_b.count),
-                    //             s->cross_diagonal,
-                    //             comp,
-                    //             s->d_result_ptr);
-                    //         CUERR;
-                    //     }
-                    //     else {
-                    //         // temp = (key_t*)d_alloc.get_raw(sizeof(key_t) * size_t(node_a.count));
-                    //         cudaMalloc(&temp, sizeof(key_t) * size_t(node_a.count));
-                    //         CUERR;
-                    //         std::span<key_t> rb(temp, size_t(node_a.count));
-                    //         printf("[%lu] receive length %lu, source %lu , i: %d\n", world_rank(), size_t(node_a.count), (size_t)s->node_a, i);
-                    //         comm_world().recv(recv_buf(rb), tag(i), source(size_t(s->node_a)), recv_count(size_t(node_a.count)));
-                    //         printf("[%lu] after receive\n", world_rank());
-                    //         run_partitioning_search << <1, 1, 0, stream >> > (temp,
-                    //             int64_t(node_a.count),
-                    //             node_b.keys,
-                    //             int64_t(node_b.count),
-                    //             s->cross_diagonal,
-                    //             comp,
-                    //             s->d_result_ptr);
-                    //         CUERR;
-                    //     }
-                    // }
-                    // printf("[%lu] recv, i: %d \n", world_rank(), i);
+
                     printf("[%lu] receive done, i: %d\n", world_rank(), i);
 
                     i++;

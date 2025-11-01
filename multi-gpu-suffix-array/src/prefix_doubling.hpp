@@ -24,37 +24,7 @@
 
 // #define DEBUG_SET_ZERO_TO_SEE_BETTER
 // #define DUMP_EVERYTHING
-__global__ void printArray(uint32_t* key, uint32_t* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
 
-        printf("[%lu]: Isa: %u, Sa_index: %u\n", rank, key[i], value[i]);
-
-        //auto r = key[i] + value[i];
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
-__global__ void printArray(uint64_t* key, uint64_t* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
-
-        // printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
-        auto r = key[i] + value[i];
-
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
-template<typename key_>
-__global__ void printArray(key_* key, key_* value, size_t size, size_t rank)
-{
-    for (size_t i = 0; i < size; i++) {
-
-        // printf("[%lu]: sa_rank 1: %lu, old_ranks 2: %lu\n", rank, key[i], value[i]);
-
-        auto r = key[i] + value[i];
-    }
-    printf("---------------------------------------------------------------------------\n");
-}
 struct MaxFunctor
 {
     template <typename T>
@@ -419,45 +389,7 @@ public:
             mcontext.sync_all_streams();
             // printf("[%lu] iteration: [%lu], fetch rank for sorting done\n", world_rank(), iterations);
             comm_world().barrier();
-            //
-            // if (iterations == 1) {
-            //     for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-            //     {
-            //         SaGPU& gpu = mgpus[gpu_index];
-            //         if (gpu_index == world_rank()) {
 
-            //             char fileName[16];
-            //             const char* text = "SaRankDIter";
-            //             sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
-            //             std::ofstream out(fileName, std::ios::binary);
-            //             if (!out) {
-            //                 std::cerr << "Could not open file\n";
-            //                 //return 1;
-            //             }
-            //             sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-            //             cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-            //             out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-            //             out.close();
-            //             free(k);
-            //             {
-            //                 char fileName[16];
-            //                 const char* text = "Sa_indexDIter";
-            //                 sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
-            //                 std::ofstream out(fileName, std::ios::binary);
-            //                 if (!out) {
-            //                     std::cerr << "Could not open file\n";
-            //                     //return 1;
-            //                 }
-            //                 sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-            //                 cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-            //                 out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-            //                 out.close();
-            //                 free(k);
-            //             }
-            //         }
-            //     }
-            // }
-            // comm_world().barrier();
 
             TIMER_STOP_LOOP_STAGE(LoopStages::Fetch_Rank);
 
@@ -667,13 +599,6 @@ private:
         mcontext.sync_default_streams();
         comm_world().barrier();
 
-        // t.stop();
-        // t.aggregate_and_print(
-        //     kamping::measurements::SimpleJsonPrinter{ std::cout }
-        // );
-        // std::cout << std::endl;
-        // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        // std::cout << std::endl;
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
 
     }
@@ -754,50 +679,19 @@ private:
         merge_manager.merge(ranges, KmerComparator{}, KmerComparator{});
         mcontext.sync_default_streams();
         comm_world().barrier();
-        // printArrayss << <1, 1 >> > (in_buffer[world_rank()] ? mgpus[world_rank()].Kmer_buffer : mgpus[world_rank()].Kmer, in_buffer[world_rank()] ? mgpus[world_rank()].Sa_index : mgpus[world_rank()].Isa, std::min(80UL, mgpus[world_rank()].working_len), world_rank());
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
-        // printf("after init merging\n");
 
-        // std::vector<kmerDCX> localList(mgpus[world_rank()].working_len);
-        // cudaMemcpy(localList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Kmer_buffer : mgpus[world_rank()].Kmer, sizeof(kmerDCX) * localList.size(), cudaMemcpyDeviceToHost);
-        // std::vector<kmerDCX> sortedList = comm_world().gatherv(send_buf(localList), root(0));
-        // auto globalList = comm_world().gatherv(send_buf(localList), root(0));
-        // std::vector<sa_index_t> localSaList(mgpus[world_rank()].working_len);
-        // cudaMemcpy(localSaList.data(), in_buffer[world_rank()] ? mgpus[world_rank()].Sa_index : mgpus[world_rank()].Isa, sizeof(sa_index_t) * localList.size(), cudaMemcpyDeviceToHost);
-        // auto globalSaList = comm_world().gatherv(send_buf(localSaList), root(0));
-        // if (world_rank() == 0) {
-        //     ASSERT(thrust::is_sorted(globalList.begin(), globalList.end(), KmerComparator{}));
-        //     ASSERT(std::unique(globalSaList.begin(), globalSaList.end()) == globalSaList.end());
-        // }
-        // comm_world().barrier();
-        // printf("[%lu] after check\n", world_rank());
-
-        // t.stop();
-        // t.aggregate_and_print(
-        //     kamping::measurements::SimpleJsonPrinter{ std::cout }
-        // );
-        // std::cout << std::endl;
-        // t.aggregate_and_print(kamping::measurements::FlatPrinter{});
-        // std::cout << std::endl;
         TIMER_STOP_MAIN_STAGE(MainStages::Initial_Merge);
 
     }
     void write_initial_ranks()
     {
-        // using rank_t = uint64_t;
 
-        //for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        //{
         uint gpu_index = world_rank();
         SaGPU& gpu = mgpus[gpu_index];
         kmer* current_buffer = in_buffer[gpu_index] ? gpu.Kmer_buffer : gpu.Kmer;
         sa_index_t* other_buffer = in_buffer[gpu_index] ? gpu.Isa : gpu.Sa_index;
         kmer* last_buffer = gpu_index > 0 ? (in_buffer[gpu_index - 1] ? mgpus[gpu_index - 1].Kmer_buffer : mgpus[gpu_index - 1].Kmer) : nullptr;
 
-
-        //(mcontext.get_device_id(gpu_index));
-        //printf("initial\n");
         const kmer* last_element_prev = mcontext.is_in_node() && gpu_index > 0 ? &last_buffer[mgpus[gpu_index - 1].working_len - 1] : nullptr;
         if (!mcontext.is_in_node()) {
             mcontext.get_device_temp_allocator(gpu_index).reset();
@@ -819,135 +713,15 @@ private:
         //printf("last element\n");
         kernels::write_ranks_diff_multi _KLC_SIMPLE_(gpu.working_len, mcontext.get_gpu_default_stream(gpu_index))(current_buffer, last_element_prev, gpu.offset + 1, 0, other_buffer, gpu.working_len);
         CUERR;
-        //}
-        //printf("write ranks diff multi\n");
+
         mcontext.sync_default_streams();
         mcontext.get_device_temp_allocator(gpu_index).reset();
-        // printf("[%lu] after write ranks diff\n", world_rank());
-
-        // std::vector<kmer> kmerCheck(gpu.working_len);
-        // cudaMemcpy(kmerCheck.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
-        // auto allKmer = comm_world().gatherv(send_buf(kmerCheck), root(0));
-        // comm_world().barrier();
-
-
-        // printf("[%lu] after check initial ranks\n", world_rank());
-        {
-            // std::vector<sa_index_t> check(gpu.working_len);
-            // cudaMemcpy(check.data(), reinterpret_cast<sa_index_t*>(other_buffer), sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-            // std::vector<kmer> local_kmer(gpu.working_len);
-            // cudaMemcpy(local_kmer.data(), current_buffer, sizeof(kmer) * gpu.working_len, cudaMemcpyDeviceToHost);
-            // bool in_group = check[0] == 0;
-            // for (size_t i = 0; i < check.size() - 1; i++)
-            // {
-            //     if (check[i] != 0 && check[i + 1] == 0) {
-            //         if (local_kmer[i] != local_kmer[i + 1]) {
-            //             printf("[%lu] %lu and %lu are equal but next not starting with 0\n", world_rank(), i, i + 1);
-            //         }
-
-            //         ASSERT(local_kmer[i] == local_kmer[i + 1]);
-            //         in_group = true;
-            //     }
-            //     else {
-            //         if (check[i] == 0 && check[i + 1] == 0) {
-            //             ASSERT(in_group);
-            //             if (local_kmer[i] != local_kmer[i + 1]) {
-            //                 printf("%lu and %lu are not equal but have the same rank:\n", i, i + 1);
-            //                 for (size_t k = 0;k < DCX::X; k++)
-            //                 {
-            //                     printf("%c, ", local_kmer[i].kmer[k]);
-            //                 }
-            //                 printf("\n i+1\n");
-            //                 for (size_t k = 0;k < DCX::X; k++)
-            //                 {
-            //                     printf("%c, ", local_kmer[i + 1].kmer[k]);
-            //                 }
-            //                 printf("\n");
-            //             }
-            //             ASSERT(local_kmer[i] == local_kmer[i + 1]);
-            //         }
-            //         if (check[i] != 0 && check[i + 1] != 0) {
-            //             if (check[i] + 1 != check[i + 1]) {
-            //                 printf("%lu and %lu are not equal but have the same rank:\n", i, i + 1);
-            //                 for (size_t k = 0;k < DCX::X; k++)
-            //                 {
-            //                     printf("%c, ", local_kmer[i].kmer[k]);
-            //                 }
-            //                 printf("\n i+1\n");
-            //                 for (size_t k = 0;k < DCX::X; k++)
-            //                 {
-            //                     printf("%c, ", local_kmer[i + 1].kmer[k]);
-            //                 }
-            //                 printf("\n");
-            //             }
-            //             ASSERT(check[i] + 1 == check[i + 1]);
-            //             ASSERT(!in_group);
-            //         }
-            //         if (check[i] == 0 && check[i + 1] != 0) {
-            //             ASSERT(in_group);
-            //             if (local_kmer[i] == local_kmer[i + 1]) {
-            //                 printf("%lu and %lu are not equal but have the same rank:\n", i, i + 1);
-            //                 for (size_t k = 0;k < DCX::X; k++)
-            //                 {
-            //                     printf("%c, ", local_kmer[i].kmer[k]);
-            //                 }
-            //                 printf("\n i+1\n");
-            //                 for (size_t k = 0;k < DCX::X; k++)
-            //                 {
-            //                     printf("%c, ", local_kmer[i + 1].kmer[k]);
-            //                 }
-            //                 printf("\n");
-            //             }
-            //             ASSERT(local_kmer[i] != local_kmer[i + 1]);
-            //             in_group = false;
-            //         }
-            //     }
-            // }
-            // comm_world().barrier();
-        }
 
         do_max_scan_on_ranks(true);
-        // printf("[%lu] after do max\n", world_rank());
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
-        // printArrayss << <1, 1 >> > (gpu.Sa_rank, std::min(80UL, gpu.working_len), world_rank());
+
         mcontext.sync_all_streams();
         comm_world().barrier();
 
-
-        // std::vector<sa_index_t> sa(mgpus[world_rank()].working_len);
-        // cudaMemcpy(sa.data(), mgpus[world_rank()].Sa_rank, sizeof(sa_index_t) * mgpus[world_rank()].working_len, cudaMemcpyDeviceToHost);
-
-        // auto check = comm_world().gatherv(send_buf(sa), root(0));
-        // comm_world().barrier();
-
-        // if (world_rank() == 0) {
-        //     size_t current_rank = 1;
-        //     size_t rank_buffer = 0;
-        //     for (size_t i = 1; i < check.size(); i++)
-        //     {
-        //         if (check[i] == check[i - 1]) {
-        //             if (allKmer[i] != allKmer[i - 1]) {
-        //                 printf("%lu and %lu are not equal but have the same rank\n", i - 1, i);
-        //             }
-        //             ASSERT(allKmer[i] == allKmer[i - 1]);
-        //             rank_buffer++;
-        //         }
-        //         else {
-        //             if (current_rank + rank_buffer + 1 != check[i]) {
-        //                 printf("[%lu] current rank: %lu + rank_buffer: %lu + 1 != next rank %u", i, current_rank, rank_buffer, check[i]);
-        //             }
-        //             ASSERT(current_rank + rank_buffer + 1 == check[i]);
-        //             rank_buffer = 0;
-        //             current_rank = check[i];
-        //         }
-        //     }
-        // }
-        // comm_world().barrier();
-        // for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        // {
-
-        // }
     }
 
     // From Temp1 to Ranks
@@ -1515,56 +1289,11 @@ private:
         // printf("[%lu] after sync write to isa\n", world_rank());
 
         comm_world().barrier();
-        // check_isa_len();
-
 
         TIMER_STOP_WRITE_ISA_STAGE(WriteISAStages::WriteIsa);
 
     }
 
-    void check_isa_len() {
-        SaGPU& gpu = mgpus[world_rank()];
-        sa_index_t* isa;
-        size_t size = misa_divisor;
-        if (world_rank() == NUM_GPUS - 1) {
-            isa = (sa_index_t*)malloc(sizeof(sa_index_t) * mlast_gpu_len);
-            size = mlast_gpu_len;
-        }
-        else {
-            isa = (sa_index_t*)malloc(sizeof(sa_index_t) * misa_divisor);
-        }
-
-        PartitioningFunctor<uint> f(misa_divisor, NUM_GPUS - 1);
-        cudaMemcpy(isa, gpu.Isa, sizeof(sa_index_t) * size, cudaMemcpyDeviceToHost);
-        // for (size_t i = 0; i < 5; i++)
-        // {
-        //     printf("[%lu] %u, %u\n", world_rank(), isa[i], f(isa[i]));
-        // }
-        // printf("[%lu] size: %lu, norm: %lu, last: %lu\n", world_rank(), size, misa_divisor, mlast_gpu_len);
-        std::vector<sa_index_t> send_to_gpu(NUM_GPUS, 0);
-        for (int i = 0; i < size; i++)
-        {
-            sa_index_t d = min(((isa[i]) / (sa_index_t)misa_divisor), NUM_GPUS - 1);
-            send_to_gpu[d] += 1;
-        }
-        // for (int i = 0; i < NUM_GPUS; i++)
-        // {
-        //     printf("[%lu] send %u\n", world_rank(), send_to_gpu[i]);
-        // }
-        for (size_t gpu_index = 0; gpu_index < NUM_GPUS; gpu_index++)
-        {
-            auto const res = comm_world().reduce(send_buf(std::span<sa_index_t>(&send_to_gpu[gpu_index], 1)), op(ops::plus<sa_index_t>()));
-            if (world_rank() == 0) {
-
-                for (auto re : res)
-                    printf("[%lu] has: %u, max: %lu for gpu %lu\n", world_rank(), re, size, gpu_index);
-
-            }
-            comm_world().barrier();
-        }
-
-        mcontext.sync_default_streams();
-    }
 
     static void transpose_split_table(const split_table_tt<sa_index_t, NUM_GPUS>& split_table_in,
         split_table_tt<sa_index_t, NUM_GPUS>& split_table_out)
@@ -1781,51 +1510,7 @@ private:
                     gpu.num_segments, less, mgpu_context);
             }
         }
-        // printf("after seg\n", world_rank());
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
-        // printArrayss << <1, 1 >> > (mgpus[world_rank()].Sa_rank, mgpus[world_rank()].Sa_index, mgpus[world_rank()].working_len, world_rank());
-        // mcontext.sync_all_streams();
-        // comm_world().barrier();
 
-        // if (iterations == 1) {
-        //     for (uint gpu_index = 0; gpu_index < NUM_GPUS; ++gpu_index)
-        //     {
-        //         SaGPU& gpu = mgpus[gpu_index];
-        //         if (gpu_index == world_rank()) {
-
-        //             char fileName[18];
-        //             const char* text = "SaRankSegIter";
-        //             sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
-        //             std::ofstream out(fileName, std::ios::binary);
-        //             if (!out) {
-        //                 std::cerr << "Could not open file\n";
-        //                 //return 1;
-        //             }
-        //             sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-        //             cudaMemcpy(k, gpu.Sa_rank, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-        //             out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-        //             out.close();
-        //             free(k);
-        //             {
-        //                 char fileName[18];
-        //                 const char* text = "Sa_indexSegIter";
-        //                 sprintf(fileName, "%u%s%lu", gpu_index, text, iterations);
-        //                 std::ofstream out(fileName, std::ios::binary);
-        //                 if (!out) {
-        //                     std::cerr << "Could not open file\n";
-        //                     //return 1;
-        //                 }
-        //                 sa_index_t* k = (sa_index_t*)malloc(sizeof(sa_index_t) * gpu.working_len);
-        //                 cudaMemcpy(k, gpu.Sa_index, sizeof(sa_index_t) * gpu.working_len, cudaMemcpyDeviceToHost);
-        //                 out.write(reinterpret_cast<char*>(k), sizeof(sa_index_t) * gpu.working_len);
-        //                 out.close();
-        //                 free(k);
-        //             }
-        //         }
-        //     }
-        // }
-        // comm_world().barrier();
         // Now let's plan the merge process.
         std::vector<crossGPUReMerge::MergeRange> ranges;
 
